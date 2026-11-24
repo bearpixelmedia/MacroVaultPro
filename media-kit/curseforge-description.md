@@ -77,6 +77,19 @@ the detected boundary is only an estimate.
 
 Opening the window is read-only. It never creates or deletes anything.
 
+### Tells you it loaded, and logs its own errors
+
+On login the addon prints one line — `v1.0.0 loaded - /mvpro` — so a fresh
+install reports that it is running instead of looking inert until you type a
+command.
+
+If something inside the addon does raise a Lua error, `/mvpro errors` prints it
+with its timestamp, message and traceback, ready to paste into a bug report. It
+records errors raised in the addon's own files, including ones thrown while it is
+still loading, and keeps the last 20 plus up to 10 whose traceback carries no
+addon name. The list is saved in `MacroVaultProDB`, so it survives a reload, and
+`/mvpro errors clear` empties it.
+
 ### Remembers where you left it
 
 The window position, the last tab and your default scope are saved per account in
@@ -102,6 +115,8 @@ The window position, the last tab and your default scope are saved per account i
 | `/mvpro library` | Open the Library tab |
 | `/mvpro editor` | Open the editor |
 | `/mvpro selftest` | Print client and limit diagnostics, then confirm the account/character boundary |
+| `/mvpro errors` | Print the addon's error log, ready to copy |
+| `/mvpro errors clear` | Empty the error log |
 | `/mvpro reset` | Forget the saved window position |
 
 `/mvpro selftest` is the only thing in the addon that creates a macro on its own:
@@ -116,7 +131,7 @@ corrected the boundary.
 - The `.toc` also declares interface 120105, so a modern retail client will load
   it; Forever is what it is written and tested against.
 - No dependencies and no external libraries. One SavedVariables file for the
-  window position and preferences.
+  window position, preferences and the error log.
 - Nothing is created, edited or deleted while you are in combat — the addon
   refuses with a message in chat and you can try again afterwards.
 
@@ -128,8 +143,12 @@ corrected the boundary.
   `/mvpro selftest`, which measures the real split.
 - **Slash tools are UI tools.** They toggle debug frames, print information and
   change console settings. MacroVaultPro never casts, moves or fights for you.
-- **Panels stay put.** Window position, tab and default scope are the only things
-  stored.
+- **Panels stay put.** Window position, tab and default scope are the only
+  settings stored; the error log is the only other thing written.
+- **Errors are kept, not swallowed.** A failure in the addon's own code lands in
+  `/mvpro errors` and in
+  `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload, so it
+  can be reported with its traceback instead of a screenshot of a dialog.
 
 ## Gallery
 

@@ -68,6 +68,12 @@
 
 <p>Opening the window is read-only. It never creates or deletes anything.</p>
 
+<h3>Tells you it loaded, and logs its own errors</h3>
+
+<p>On login the addon prints one line &mdash; <code>v1.0.0 loaded - /mvpro</code> &mdash; so a fresh install reports that it is running instead of looking inert until you type a command.</p>
+
+<p>If something inside the addon does raise a Lua error, <code>/mvpro errors</code> prints it with its timestamp, message and traceback, ready to paste into a bug report. It records errors raised in the addon's own files, including ones thrown while it is still loading, and keeps the last 20 plus up to 10 whose traceback carries no addon name. The list is saved in <code>MacroVaultProDB</code>, so it survives a reload, and <code>/mvpro errors clear</code> empties it.</p>
+
 <h3>Remembers where you left it</h3>
 
 <p>The window position, the last tab and your default scope are saved per account in <code>MacroVaultProDB</code>.</p>
@@ -95,6 +101,8 @@
 		<tr><td><code>/mvpro library</code></td><td>Open the Library tab</td></tr>
 		<tr><td><code>/mvpro editor</code></td><td>Open the editor</td></tr>
 		<tr><td><code>/mvpro selftest</code></td><td>Print client and limit diagnostics, then confirm the account/character boundary</td></tr>
+		<tr><td><code>/mvpro errors</code></td><td>Print the addon's error log, ready to copy</td></tr>
+		<tr><td><code>/mvpro errors clear</code></td><td>Empty the error log</td></tr>
 		<tr><td><code>/mvpro reset</code></td><td>Forget the saved window position</td></tr>
 	</tbody>
 </table>
@@ -106,7 +114,7 @@
 <ul>
 	<li><strong>World of Warcraft: Forever</strong> &mdash; interface 16001 (supported target).</li>
 	<li>The <code>.toc</code> also declares interface 120105, so a modern retail client will load it; Forever is what it is written and tested against.</li>
-	<li>No dependencies and no external libraries. One SavedVariables file for the window position and preferences.</li>
+	<li>No dependencies and no external libraries. One SavedVariables file for the window position, preferences and the error log.</li>
 	<li>Nothing is created, edited or deleted while you are in combat &mdash; the addon refuses with a message in chat and you can try again afterwards.</li>
 </ul>
 
@@ -115,7 +123,8 @@
 <ul>
 	<li><strong>Capacity numbers</strong>: if a client exposes neither <code>MAX_ACCOUNT_MACROS</code>, <code>MAX_CHARACTER_MACROS</code> nor a usable <code>Constants</code> entry, the window shows the built-in defaults of 120 account and 30 character slots until you run <code>/mvpro selftest</code>, which measures the real split.</li>
 	<li><strong>Slash tools are UI tools.</strong> They toggle debug frames, print information and change console settings. MacroVaultPro never casts, moves or fights for you.</li>
-	<li><strong>Panels stay put.</strong> Window position, tab and default scope are the only things stored.</li>
+	<li><strong>Panels stay put.</strong> Window position, tab and default scope are the only settings stored; the error log is the only other thing written.</li>
+	<li><strong>Errors are kept, not swallowed.</strong> A failure in the addon's own code lands in <code>/mvpro errors</code> and in <code>WTF/Account/&lt;account&gt;/SavedVariables/MacroVaultPro.lua</code> after a reload, so it can be reported with its traceback instead of a screenshot of a dialog.</li>
 </ul>
 
 <h2>Gallery</h2>
