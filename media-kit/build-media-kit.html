@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MacroVault - media kit</title>
+<style>
+:root{
+  --violet:#a78bfa; --gold:#e6c684; --text:#efeaf7; --muted:#a79dbb; --line:rgba(255,255,255,.10);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scrollbar-width:none}
+html::-webkit-scrollbar{width:0;height:0;display:none}
+body{width:1280px;background:#07060b;color:var(--text);font-family:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+.tile{position:relative;width:1280px;overflow:hidden;background:
+  radial-gradient(880px 520px at 84% 14%, rgba(124,92,240,.32), transparent 64%),
+  radial-gradient(760px 460px at 6% 96%, rgba(230,198,132,.10), transparent 62%),
+  linear-gradient(158deg,#130e1f 0%,#0a0810 56%,#0b0913 100%);}
+.tile::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+  background-size:64px 64px;
+  -webkit-mask-image:radial-gradient(120% 90% at 50% 40%,#000 30%,transparent 78%);
+  mask-image:radial-gradient(120% 90% at 50% 40%,#000 30%,transparent 78%)}
+.tile > *{position:relative;z-index:1}
+
+/* ---------- banner ---------- */
+.banner{height:400px;display:flex;align-items:center;padding:0 64px}
+.bn-inner{display:flex;align-items:center;gap:44px;width:100%}
+.bn-logo{width:196px;height:196px;border-radius:26px;object-fit:cover;
+  border:1px solid rgba(230,198,132,.45);
+  box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 10px rgba(167,139,250,.07)}
+.bn-mark{font-family:Georgia,"Times New Roman",serif;font-size:66px;letter-spacing:-1.2px;line-height:1}
+.bn-tag{margin-top:14px;font-size:21px;color:#b7aecc;max-width:740px;line-height:1.45}
+.bn-chips{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap}
+.bn-chips span{font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#d9d2ea;
+  border:1px solid rgba(167,139,250,.34);background:rgba(167,139,250,.10);padding:7px 13px;border-radius:999px}
+
+/* ---------- cards ---------- */
+.card{height:720px;display:grid;grid-template-columns:1fr 512px;gap:52px;align-items:center;padding:0 80px}
+.eyebrow{font-size:12.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--violet);font-weight:600}
+h2{font-family:Georgia,"Times New Roman",serif;font-size:51px;line-height:1.1;letter-spacing:-1px;margin:18px 0 20px;max-width:560px;font-weight:400}
+.lead{font-size:18.5px;line-height:1.55;color:#c6bed6;max-width:470px}
+.points{list-style:none;margin-top:28px;display:flex;flex-direction:column;gap:13px}
+.points li{position:relative;padding-left:26px;font-size:16.5px;color:#b6adc8;line-height:1.4}
+.points li::before{content:"";position:absolute;left:0;top:7px;width:9px;height:9px;border-radius:2px;
+  background:linear-gradient(135deg,#ecd49b,#b98b3e);transform:rotate(45deg)}
+
+/* ---------- mock panel ---------- */
+.panel{border-radius:18px;border:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(22,16,34,.94),rgba(12,9,20,.94));
+  box-shadow:0 30px 70px rgba(0,0,0,.55);overflow:hidden}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:15px 18px;border-bottom:1px solid var(--line);
+  font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:#cfc7e0}
+.panel-head .cap{font-size:10.5px;letter-spacing:.08em;color:#8d84a3;text-transform:none}
+.search{margin:14px 16px 6px;padding:11px 14px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(255,255,255,.03);color:#7d7591;font-size:14px}
+.rows{padding:8px 10px 12px}
+.row{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:9px 10px;border-radius:11px}
+.row + .row{margin-top:4px}
+.row.sel{background:rgba(167,139,250,.13);box-shadow:inset 0 0 0 1px rgba(167,139,250,.30)}
+.ic{width:40px;height:40px;border-radius:9px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.nm{font-size:15px;color:#f1ecf9;font-weight:600}
+.bd{font-size:12px;color:#8f86a5;font-family:Consolas,"Courier New",monospace;margin-top:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:296px}
+.tag{font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:4px 8px;border-radius:6px;white-space:nowrap}
+.tag.acc{color:#cbb6ff;background:rgba(167,139,250,.16);box-shadow:inset 0 0 0 1px rgba(167,139,250,.28)}
+.tag.char{color:#e6d3a8;background:rgba(230,198,132,.13);box-shadow:inset 0 0 0 1px rgba(230,198,132,.26)}
+.ghost{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:#cfc3ec;
+  border:1px solid rgba(167,139,250,.34);padding:7px 11px;border-radius:8px;white-space:nowrap}
+.chips{display:flex;gap:8px;padding:14px 16px 6px}
+.chip{font-size:12.5px;padding:7px 12px;border-radius:999px;color:#a79dbb;border:1px solid var(--line)}
+.chip.on{color:#0d0a14;background:linear-gradient(135deg,#c3aeff,#9b7cf5);border-color:transparent;font-weight:600}
+.cmd{font-family:Consolas,"Courier New",monospace;font-size:12.5px;color:#c9bdf0;
+  background:rgba(167,139,250,.10);border:1px solid rgba(167,139,250,.24);padding:5px 9px;border-radius:7px;white-space:nowrap}
+.check{display:flex;gap:13px;padding:13px 18px;align-items:flex-start}
+.tick{width:21px;height:21px;border-radius:50%;flex:0 0 auto;margin-top:1px;position:relative;
+  background:rgba(167,139,250,.18);box-shadow:inset 0 0 0 1px rgba(167,139,250,.45)}
+.tick::after{content:"";position:absolute;left:6px;top:4px;width:6px;height:10px;
+  border-right:2px solid #c3aeff;border-bottom:2px solid #c3aeff;transform:rotate(42deg)}
+.ct{font-size:14.5px;color:#ded7ea;font-weight:600}
+.cd{font-size:12.5px;color:#8f86a5;margin-top:3px;line-height:1.45}
+.mini{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#6f6784;padding:6px 18px 6px}
+.code{margin:0 18px 18px;padding:14px 16px;border-radius:11px;background:rgba(0,0,0,.45);
+  border:1px solid var(--line);font-family:Consolas,"Courier New",monospace;font-size:11.5px;
+  line-height:1.75;color:#aea4c4;white-space:pre}
+.code b{color:#e6d3a8;font-weight:600}
+.code .ok{color:#8ee6a8}
+</style>
+</head>
+<body>
+
+<!-- ============ banner 1280 x 400 ============ -->
+<section class="tile banner" id="banner">
+  <div class="bn-inner">
+    <img class="bn-logo" src="images/avatar-1024.png" alt="">
+    <div class="bn-copy">
+      <div class="bn-mark">MacroVault</div>
+      <div class="bn-tag">Every macro you own in one window, and the client's own tools one click away.</div>
+      <div class="bn-chips">
+        <span>WoW Forever &middot; interface 16001</span>
+        <span>26 ready-made macros</span>
+        <span>12 client tools</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ card 1 ============ -->
+<section class="tile card" id="card1">
+  <div class="copy">
+    <div class="eyebrow">My macros</div>
+    <h2>Every macro you own,<br>in one window.</h2>
+    <p class="lead">Account-wide and character macros share one searchable list, each tagged with the scope it really lives in.</p>
+    <ul class="points">
+      <li>Search by name, or by what the macro does</li>
+      <li>See the full body before you touch it</li>
+      <li>Inject, edit, duplicate &mdash; or open the client's window</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span>My macros</span><span class="cap">capacity from the client</span></div>
+    <div class="search">Search macros&hellip;</div>
+    <div class="rows">
+      <div class="row sel">
+        <div class="ic" style="background:linear-gradient(150deg,#b9a6ff,#5b3ea8)"></div>
+        <div><div class="nm">Mouseover focus</div><div class="bd">/focus [@mouseover,exists,nodead][]</div></div>
+        <div class="tag acc">Account</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#8fd0a0,#2f6b45)"></div>
+        <div><div class="nm">Both trinkets</div><div class="bd">#showtooltip 13 /use 13 /use 14</div></div>
+        <div class="tag char">Character</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#f0cf8f,#9a6b25)"></div>
+        <div><div class="nm">Mouseover target</div><div class="bd">/target [@mouseover,harm,nodead]</div></div>
+        <div class="tag acc">Account</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#9ac6f0,#2c5d8f)"></div>
+        <div><div class="nm">Dump mouseover frame</div><div class="bd">/run local f = GetMouseFocus(); print(f and &hellip;</div></div>
+        <div class="tag char">Character</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#e29fd0,#7a2f63)"></div>
+        <div><div class="nm">Skull marker</div><div class="bd">/tm 8</div></div>
+        <div class="tag acc">Account</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ card 2 ============ -->
+<section class="tile card" id="card2">
+  <div class="copy">
+    <div class="eyebrow">Library</div>
+    <h2>26 macros,<br>ready to inject.</h2>
+    <p class="lead">Targeting, utility and developer macros, with the body visible before you create anything.</p>
+    <ul class="points">
+      <li>Mouseover targeting, focus, raid markers</li>
+      <li>Trinkets, stopcasting, ready check, played time</li>
+      <li>Create &mdash; or create and pick it up in one click</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span>Library</span><span class="cap">26 macros</span></div>
+    <div class="chips"><span class="chip on">Targeting</span><span class="chip">Utility</span><span class="chip">Development</span></div>
+    <div class="rows">
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#f0cf8f,#9a6b25)"></div>
+        <div><div class="nm">Mouseover target</div><div class="bd">/target [@mouseover,harm,nodead]</div></div>
+        <div class="ghost">Create</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#b9a6ff,#5b3ea8)"></div>
+        <div><div class="nm">Mouseover focus</div><div class="bd">/focus [@mouseover,exists,nodead][]</div></div>
+        <div class="ghost">Create</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#9ac6f0,#2c5d8f)"></div>
+        <div><div class="nm">Mouseover's target</div><div class="bd">/target [@mouseovertarget,harm,nodead]</div></div>
+        <div class="ghost">Create</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#e29fd0,#7a2f63)"></div>
+        <div><div class="nm">Skull marker</div><div class="bd">/tm 8</div></div>
+        <div class="ghost">Create</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#8fd0a0,#2f6b45)"></div>
+        <div><div class="nm">Assist mouseover</div><div class="bd">/assist mouseover</div></div>
+        <div class="ghost">Create</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ card 3 ============ -->
+<section class="tile card" id="card3">
+  <div class="copy">
+    <div class="eyebrow">Tools</div>
+    <h2>The client's own tools,<br>one click.</h2>
+    <p class="lead">Twelve entries that run the slash commands you end up typing by hand, from /fstack to /console toggles.</p>
+    <ul class="points">
+      <li>Frame stack, with or without hidden frames</li>
+      <li>Event trace, API browser, build info</li>
+      <li>Script errors, taint log, mouseover frame inspector</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span>Tools</span><span class="cap">12 entries</span></div>
+    <div class="rows" style="padding-top:12px">
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#b9a6ff,#5b3ea8)"></div>
+        <div><div class="nm">Frame stack</div><div class="cd">Frame stack tooltip for whatever is under your cursor.</div></div>
+        <div class="cmd">/fstack</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#b9a6ff,#5b3ea8)"></div>
+        <div><div class="nm">Frame stack + hidden</div><div class="cd">Same, but also lists hidden frames.</div></div>
+        <div class="cmd">/fstack true</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#f0cf8f,#9a6b25)"></div>
+        <div><div class="nm">Event trace</div><div class="cd">Blizzard's event trace window.</div></div>
+        <div class="cmd">/etrace</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#9ac6f0,#2c5d8f)"></div>
+        <div><div class="nm">Build info</div><div class="cd">Print the interface version your client runs.</div></div>
+        <div class="cmd">/dump select(4,&hellip;)</div>
+      </div>
+      <div class="row">
+        <div class="ic" style="background:linear-gradient(150deg,#8fd0a0,#2f6b45)"></div>
+        <div><div class="nm">Script errors on</div><div class="cd">Show Lua errors so you can see what broke.</div></div>
+        <div class="cmd">/console &hellip;</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ card 4 ============ -->
+<section class="tile card" id="card4">
+  <div class="copy">
+    <div class="eyebrow">Compatibility</div>
+    <h2>Made for Forever.</h2>
+    <p class="lead">Written against the Forever client (interface 16001). Macro slots are read from the client, not copied from a retail addon.</p>
+    <ul class="points">
+      <li>Account and character scopes tagged correctly</li>
+      <li>Nothing is created or changed in combat</li>
+      <li>No dependencies, one small SavedVariables file</li>
+    </ul>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><span>Diagnostics</span><span class="cap">/mvault selftest</span></div>
+    <div style="padding-top:10px">
+      <div class="check"><div class="tick"></div><div><div class="ct">Interface 16001</div><div class="cd">Forever is the supported target.</div></div></div>
+      <div class="check"><div class="tick"></div><div><div class="ct">Slot split read from the client</div><div class="cd">MAX_* globals, then Constants, then defaults.</div></div></div>
+      <div class="check"><div class="tick"></div><div><div class="ct">Exact scope per slot</div><div class="cd">Every macro MacroVault creates teaches its own scope.</div></div></div>
+      <div class="check"><div class="tick"></div><div><div class="ct">No combat writes</div><div class="cd">Editing is refused mid-fight, with a reason in chat.</div></div></div>
+    </div>
+    <div class="mini">Example output</div>
+    <div class="code">globals: <b>MAX_ACCOUNT_MACROS=120  MAX_CHARACTER_MACROS=30</b>
+detected: account slots 1-120, character slots 121-150
+<span class="ok">confirmed:</span> character macros start at slot 121</div>
+  </div>
+</section>
+
+<script>
+// Render helper: open this page with #banner or #card1..#card4 in the URL to
+// hide the other tiles, so each asset can be captured at its exact size.
+(function () {
+	var id = location.hash.slice(1);
+	if (!id) return;
+	document.querySelectorAll('.tile').forEach(function (tile) {
+		if (tile.id !== id) tile.style.display = 'none';
+	});
+})();
+</script>
+
+</body>
+</html>

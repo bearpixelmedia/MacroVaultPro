@@ -1,0 +1,76 @@
+# MacroVault — CurseForge media kit
+
+Everything the CurseForge project page needs, in the sizes CurseForge asks for.
+
+| File | Size | Where it goes |
+| --- | --- | --- |
+| `images/avatar-400.png` | 400 × 400 | Project avatar (the file CurseForge requests) |
+| `images/avatar-1024.png` | 1024 × 1024 | Large master copy of the same art |
+| `images/banner-1280x400.png` | 1280 × 400 | Description header, README, social posts |
+| `images/gallery-01-macros.png` | 1280 × 720 | Images tab, slide 1 |
+| `images/gallery-02-library.png` | 1280 × 720 | Images tab, slide 2 |
+| `images/gallery-03-tools.png` | 1280 × 720 | Images tab, slide 3 |
+| `images/gallery-04-forever.png` | 1280 × 720 | Images tab, slide 4 |
+| `images/icon-64.png` | 64 × 64 | Same art as the in-game addon-list icon, as a PNG preview |
+| `curseforge-listing.md` | — | Name, summary, categories, tags, gallery captions |
+| `curseforge-description.html` | — | The project description body, paste-ready HTML |
+| `curseforge-description.md` | — | The same description as Markdown |
+| `changelog-1.0.0.md` | — | Changelog for the 1.0.0 file upload |
+
+## Upload checklist
+
+1. **Project name** `MacroVault`, slug `macrovault` — check it is still free.
+2. **Summary** — paste the 118-character line from `curseforge-listing.md`.
+3. **Avatar** — upload `images/avatar-400.png`. Square, original art, no game logo, no text.
+4. **Description** — put the editor in HTML mode and paste
+   `curseforge-description.html`. CurseForge's rich editor drops Markdown tables
+   and mangles pipe characters, so the HTML version is the one to use; its tables
+   come through as real tables. `curseforge-description.md` is the same text for
+   anywhere that takes Markdown.
+5. **Images tab** — upload the four gallery panels in order with the captions from
+   `curseforge-listing.md`, and enable the carousel.
+6. **Game version** — Forever (interface 16001); file version `1.0.0`, release type
+   `Release`, changelog from `changelog-1.0.0.md`.
+7. Add the banner at the top of the description if you want a header image.
+
+## About the gallery images
+
+The four gallery panels are graphic feature cards, not in-game screenshots — no WoW
+client was available while this kit was made. They are accurate about what the addon
+does, but CurseForge reviewers and players both prefer real screenshots, so capture
+these in game when the addon is installed and add them alongside (or in place of)
+the panels:
+
+| Shot | What to capture |
+| --- | --- |
+| 1 | **My macros** tab with several macros listed and one selected, search box empty |
+| 2 | **Library** tab, Targeting group, with the body of a macro visible |
+| 3 | **Tools** tab, showing the frame stack / `/fstack` entries |
+| 4 | **Editor** tab with a macro open |
+| 5 | Chat after `/mvault selftest`, out of combat — the `detected:` and `confirmed:` lines |
+
+Shoot at 1280 × 720 (or larger, 16:9) with default UI scale, `/fstack` off, and the
+rest of the UI as clean as you like it. Give each one a one-line title in the Images
+tab; the captions in `curseforge-listing.md` already fit the panels and can be reused.
+
+## Regenerating
+
+The panels are HTML/CSS, so the text stays crisp and editable.
+
+- Source: `build-media-kit.html` — one banner and four cards, stacked. Each tile
+  is exactly 1280 px wide and its final height, so there is nothing to crop.
+  Adding `#banner` or `#card1`..`#card4` to the URL shows only that tile.
+- Run `powershell -NoProfile -ExecutionPolicy Bypass -File build/render.ps1`.
+  That one command rebuilds every asset in this kit: it drives headless Edge to
+  capture each tile at its own size, then cuts `build/avatar-source.png` at 1024,
+  400 and 64 px. The 64 px cut goes two places — `images/icon-64.png` to look at,
+  and the addon's own icon `../MacroVault/Media/icon.tga`, because the client
+  reads TGA and not PNG. `MacroVault.toc` points at it with
+  `## IconTexture: Interface\AddOns\MacroVault\Media\icon.tga`. The run prints
+  every size and re-reads the TGA header, so a malformed icon fails loudly
+  instead of shipping broken.
+- The avatar art is `build/avatar-source.png`; replace it and re-run to re-cut all
+  four sizes. `Media/icon.tga` belongs in the addon zip; `build/` does not.
+
+Keep `build-media-kit.html` and `build/` out of the addon zip — they belong with
+the marketing assets, not in `Interface/AddOns/MacroVault`.
