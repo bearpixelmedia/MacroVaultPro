@@ -21,6 +21,14 @@ the path ends up as `Interface/AddOns/MacroVaultPro/MacroVaultPro.toc`. Start th
 game with no addons disabled, and the window opens from `/mvpro` or
 `/macrovaultpro`.
 
+## If something goes wrong
+
+`/mvpro errors` prints any Lua error the addon has logged — timestamp, message
+and traceback — ready to paste into a bug report. It covers errors raised in the
+addon's own files, including ones thrown while it loads. The same list is saved
+in `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload, and
+`/mvpro errors clear` empties it.
+
 ## What lives where
 
 | Path | What it is |
