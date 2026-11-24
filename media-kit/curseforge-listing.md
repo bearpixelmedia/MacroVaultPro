@@ -13,7 +13,7 @@ Copy-paste values for each field on the project page.
 | Categories | Action Bars, Development Tools (add Miscellaneous only if a third is wanted) |
 | Flavor | Forever |
 | Game version | Forever — interface 16001 (1.60.1) |
-| License | All Rights Reserved, unless you prefer MIT |
+| License | All Rights Reserved — set in `LICENSE` at the repository root; CurseForge shows it as All Rights Reserved |
 | Avatar | `images/avatar-400.png` |
 | Summary | see below, 118 characters |
 
