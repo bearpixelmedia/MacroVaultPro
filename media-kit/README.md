@@ -19,7 +19,7 @@ Everything the CurseForge project page needs, in the sizes CurseForge asks for.
 
 ## Upload checklist
 
-1. **Project name** `MacroVaultPro`, slug `macrovault` — check it is still free.
+1. **Project name** `MacroVaultPro`, slug `macrovaultpro` — check it is still free.
 2. **Summary** — paste the 118-character line from `curseforge-listing.md`.
 3. **Avatar** — upload `images/avatar-400.png`. Square, original art, no game logo, no text.
 4. **Description** — put the editor in HTML mode and paste
