@@ -4,8 +4,12 @@
 --
 -- Target client: World of Warcraft: Forever (interface 16001), modern API family.
 
+-- The client passes (addonName, addonTable) to every addon file. Older clients
+-- pass nothing at all, which would leave MV nil and stop the addon dead on the
+-- next line, so build the table ourselves if it is missing.
 local ADDON_NAME, MV = ...
-
+ADDON_NAME = ADDON_NAME or "MacroVaultPro"
+MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.0"
@@ -579,6 +583,7 @@ end
 
 local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
+loader:RegisterEvent("PLAYER_LOGIN")
 loader:RegisterEvent("UPDATE_MACROS")
 loader:SetScript("OnEvent", function(_, event, arg1)
 	if event == "ADDON_LOADED" then
@@ -588,6 +593,8 @@ loader:SetScript("OnEvent", function(_, event, arg1)
 		if db.perCharacter == nil then db.perCharacter = false end
 		if db.tab == nil then db.tab = "macros" end
 		if MV.UI then MV.UI:ApplyPosition() end
+	elseif event == "PLAYER_LOGIN" then
+		MV:Print(("v%s loaded  -  /mvpro"):format(MV.VERSION))
 	elseif event == "UPDATE_MACROS" then
 		local ui = MV.UI
 		if ui and ui.frame and ui.frame:IsShown() then

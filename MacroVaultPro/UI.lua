@@ -1,5 +1,6 @@
 -- MacroVaultPro - the window: macro browser, tool palette, library and editor
 local ADDON_NAME, MV = ...
+MV = MV or _G.MacroVaultPro or {}
 
 local UI = {}
 MV.UI = UI
