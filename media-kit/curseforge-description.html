@@ -62,6 +62,10 @@
 
 <p>Each entry shows its body before you commit. <strong>Create</strong> makes a real in-game macro; <strong>Create &amp; pick up</strong> makes it and puts it on your cursor in one step. A toggle chooses whether new macros land in your account-wide or character slots.</p>
 
+<h3>A sheet you arrange yourself</h3>
+
+<p>The <strong>Sheet</strong> tab puts every macro in a list beside 36 icon slots. Drag one out of the list and it lands in whichever slot you let go over, drag one slot onto another to swap their places, and right-click a slot to clear it. Each slot wears its macro's own icon and shows the name, scope and body on hover; clicking one selects it in My macros. Slots hold the macro's name and scope rather than a slot number, so the sheet survives macros being created and deleted &mdash; a slot whose macro has gone stays visible with a red border, so nothing disappears without you seeing it. The layout is written to <code>MacroVaultProDB</code> as you change it, and <strong>Save layout</strong> writes it again on demand.</p>
+
 <h3>Sensible about account and character slots</h3>
 
 <p>Clients do not agree on which slot index character macros start at, so MacroVaultPro reads the limit from the client &mdash; the <code>MAX_ACCOUNT_MACROS</code> and <code>MAX_CHARACTER_MACROS</code> globals where they exist, then <code>Constants</code>, then built-in defaults of 120 account and 30 character slots. Every macro MacroVaultPro creates also records the exact scope of its own slot, so the tags stay right even when the detected boundary is only an estimate.</p>
@@ -76,7 +80,7 @@
 
 <h3>Remembers where you left it</h3>
 
-<p>The window position, the last tab and your default scope are saved per account in <code>MacroVaultProDB</code>.</p>
+<p>The window position, the last tab, your default scope and the sheet layout are saved per account in <code>MacroVaultProDB</code>.</p>
 
 <h2>How to use it</h2>
 
@@ -85,6 +89,7 @@
 	<li><strong>My macros</strong> &mdash; search, click a macro, then <strong>Inject</strong>, <strong>Edit</strong>, <strong>Duplicate</strong> or <strong>Macro UI</strong>.</li>
 	<li><strong>Tools</strong> &mdash; click an entry. The tool runs immediately; output appears in chat or in the client's own window.</li>
 	<li><strong>Library</strong> &mdash; pick a macro, check its body, then <strong>Create</strong> or <strong>Create &amp; pick up</strong>.</li>
+	<li><strong>Sheet</strong> &mdash; drag macros out of My macros into the slots, drag slots to reorder, right-click to clear.</li>
 	<li>Close with Escape, or type <code>/mvpro</code> again.</li>
 </ol>
 
@@ -100,6 +105,7 @@
 		<tr><td><code>/mvpro tools</code></td><td>Open the Tools tab</td></tr>
 		<tr><td><code>/mvpro library</code></td><td>Open the Library tab</td></tr>
 		<tr><td><code>/mvpro editor</code></td><td>Open the editor</td></tr>
+		<tr><td><code>/mvpro sheet</code></td><td>Open the sheet</td></tr>
 		<tr><td><code>/mvpro selftest</code></td><td>Print client and limit diagnostics, then confirm the account/character boundary</td></tr>
 		<tr><td><code>/mvpro errors</code></td><td>Print the addon's error log, ready to copy</td></tr>
 		<tr><td><code>/mvpro errors clear</code></td><td>Empty the error log</td></tr>
@@ -123,7 +129,7 @@
 <ul>
 	<li><strong>Capacity numbers</strong>: if a client exposes neither <code>MAX_ACCOUNT_MACROS</code>, <code>MAX_CHARACTER_MACROS</code> nor a usable <code>Constants</code> entry, the window shows the built-in defaults of 120 account and 30 character slots until you run <code>/mvpro selftest</code>, which measures the real split.</li>
 	<li><strong>Slash tools are UI tools.</strong> They toggle debug frames, print information and change console settings. MacroVaultPro never casts, moves or fights for you.</li>
-	<li><strong>Panels stay put.</strong> Window position, tab and default scope are the only settings stored; the error log is the only other thing written.</li>
+	<li><strong>Panels stay put.</strong> Window position, tab, default scope and the sheet layout are the only settings stored; the error log is the only other thing written.</li>
 	<li><strong>Errors are kept, not swallowed.</strong> A failure in the addon's own code lands in <code>/mvpro errors</code> and in <code>WTF/Account/&lt;account&gt;/SavedVariables/MacroVaultPro.lua</code> after a reload, so it can be reported with its traceback instead of a screenshot of a dialog.</li>
 </ul>
 

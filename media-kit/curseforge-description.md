@@ -69,6 +69,19 @@ Each entry shows its body before you commit. **Create** makes a real in-game
 macro; **Create & pick up** makes it and puts it on your cursor in one step. A
 toggle chooses whether new macros land in your account-wide or character slots.
 
+### A sheet you arrange yourself
+
+The **Sheet** tab puts every macro in a list beside 36 icon slots. Drag one out of
+the list and it lands in whichever slot you let go over, drag one slot onto
+another to swap their places,
+and right-click a slot to clear it. Each slot wears its macro's own icon and
+shows the name, scope and body on hover; clicking one selects it in My macros.
+Slots hold the macro's name and scope rather than a slot number, so the sheet
+survives macros being created and deleted - a slot whose macro has gone stays
+visible with a red border, so nothing disappears without you seeing it. The
+layout is written to `MacroVaultProDB` as you change it, and **Save layout**
+writes it again on demand.
+
 ### Sensible about account and character slots
 
 Clients do not agree on which slot index character macros start at, so MacroVaultPro
@@ -95,8 +108,8 @@ addon name. The list is saved in `MacroVaultProDB`, so it survives a reload, and
 
 ### Remembers where you left it
 
-The window position, the last tab and your default scope are saved per account in
-`MacroVaultProDB`.
+The window position, the last tab, your default scope and the sheet layout are
+saved per account in `MacroVaultProDB`.
 
 ## How to use it
 
@@ -106,7 +119,9 @@ The window position, the last tab and your default scope are saved per account i
 3. **Tools** — click an entry. The tool runs immediately; output appears in chat
    or in the client's own window.
 4. **Library** — pick a macro, check its body, then **Create** or **Create & pick up**.
-5. Close with Escape, or type `/mvpro` again.
+5. **Sheet** — drag macros out of My macros into the slots, drag slots to
+   reorder, right-click to clear.
+6. Close with Escape, or type `/mvpro` again.
 
 ## Slash commands
 
@@ -117,6 +132,7 @@ The window position, the last tab and your default scope are saved per account i
 | `/mvpro tools` | Open the Tools tab |
 | `/mvpro library` | Open the Library tab |
 | `/mvpro editor` | Open the editor |
+| `/mvpro sheet` | Open the sheet |
 | `/mvpro selftest` | Print client and limit diagnostics, then confirm the account/character boundary |
 | `/mvpro errors` | Print the addon's error log, ready to copy |
 | `/mvpro errors clear` | Empty the error log |
@@ -146,8 +162,8 @@ corrected the boundary.
   `/mvpro selftest`, which measures the real split.
 - **Slash tools are UI tools.** They toggle debug frames, print information and
   change console settings. MacroVaultPro never casts, moves or fights for you.
-- **Panels stay put.** Window position, tab and default scope are the only
-  settings stored; the error log is the only other thing written.
+- **Panels stay put.** Window position, tab, default scope and the sheet layout
+  are the only settings stored; the error log is the only other thing written.
 - **Errors are kept, not swallowed.** A failure in the addon's own code lands in
   `/mvpro errors` and in
   `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload, so it

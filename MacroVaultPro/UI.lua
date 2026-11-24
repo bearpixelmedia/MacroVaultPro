@@ -256,6 +256,10 @@ function UI:CreateList(parent)
 		row:SetPoint("TOPRIGHT", 0, -((index - 1) * ROW_HEIGHT))
 		row:EnableMouseWheel(true)
 		row:SetScript("OnMouseWheel", scrollBy)
+		row:RegisterForDrag("LeftButton")
+		row:SetScript("OnDragStart", function(self)
+			if list.onDrag then list.onDrag(self.item) end
+		end)
 
 		row.sel = row:CreateTexture(nil, "BACKGROUND")
 		row.sel:SetAllPoints(row)
@@ -301,10 +305,11 @@ function UI:CreateList(parent)
 		self:ApplySelection()
 	end
 
-	function list:SetItems(items, render, onSelect)
+	function list:SetItems(items, render, onSelect, onDrag)
 		self.items = items
 		self.render = render
 		self.onSelect = onSelect
+		self.onDrag = onDrag
 
 		local count = #items
 		for i = 1, count do
@@ -392,6 +397,7 @@ function UI:Build()
 		{ id = "tools",   label = "Tools" },
 		{ id = "library", label = "Library" },
 		{ id = "editor",  label = "Editor" },
+		{ id = "sheet",   label = "Sheet" },
 	}
 	local x = 14
 	for _, tab in ipairs(tabs) do
@@ -436,7 +442,7 @@ function UI:Build()
 	self.search = search
 
 	self.panels = {}
-	for _, id in ipairs({ "macros", "tools", "library", "editor" }) do
+	for _, id in ipairs({ "macros", "tools", "library", "editor", "sheet" }) do
 		local panel = CreateFrame("Frame", nil, frame)
 		panel:SetPoint("TOPLEFT", 12, -82)
 		panel:SetPoint("BOTTOMRIGHT", -12, 34)
@@ -448,6 +454,7 @@ function UI:Build()
 	self:BuildToolsPanel(self.panels.tools)
 	self:BuildLibraryPanel(self.panels.library)
 	self:BuildEditorPanel(self.panels.editor)
+	self:BuildSheetPanel(self.panels.sheet)
 
 	local status = Text(frame, 11, MUTED)
 	status:SetPoint("BOTTOMLEFT", 14, 13)
@@ -525,10 +532,15 @@ end
 function UI:Refresh()
 	if not self.frame then return end
 
+	-- Macros come and go, so the sheet's own name lookup is rebuilt per refresh.
+	self.sheetMacroMap = nil
+
 	if self.activeTab == "macros" then
 		self:RefreshMacros()
 	elseif self.activeTab == "library" then
 		self:RefreshLibrary()
+	elseif self.activeTab == "sheet" then
+		self:RefreshSheet()
 	end
 end
 
@@ -661,7 +673,8 @@ function UI:RefreshMacros()
 	self.macroList:SetItems(
 		items,
 		function(row, item) self:RenderMacroRow(row, item) end,
-		function(item) self:SelectMacro(item.index) end
+		function(item) self:SelectMacro(item.index) end,
+		function(item) self:BeginDrag({ macro = item }) end
 	)
 	self.macroList:SetSelected(self.selectedMacroIndex)
 
@@ -1272,4 +1285,371 @@ function UI:PickupEditor()
 
 	self:SetStatus("Macro on your cursor - drop it on an action bar.")
 	self.frame:Hide()
+end
+
+-------------------------------------------------------------------------------
+-- Sheet: macros dropped into icon slots, arranged, and saved as you go
+--
+-- Slots remember a macro by name and scope, never by slot index: the client
+-- renumbers macros whenever one is deleted, so an index would point at the
+-- wrong macro a week later.
+-------------------------------------------------------------------------------
+
+local SHEET_COLUMNS = 6
+local SHEET_ROWS    = 6
+local SHEET_SLOTS   = SHEET_COLUMNS * SHEET_ROWS
+local SHEET_ICON    = 48
+local SHEET_GAP     = 6
+
+local function sheetKey(entry)
+	return tostring(entry.scope or "account") .. "|" .. tostring(entry.name or "")
+end
+
+function UI:GetSheet()
+	if not self.sheet then
+		self.sheet = {}
+		local saved = MacroVaultProDB and MacroVaultProDB.sheet
+		if type(saved) == "table" then
+			for position = 1, SHEET_SLOTS do
+				local entry = saved[position]
+				if type(entry) == "table" and entry.name then
+					self.sheet[position] = {
+						name  = tostring(entry.name),
+						scope = entry.scope == "char" and "char" or "account",
+					}
+				end
+			end
+		end
+	end
+	return self.sheet
+end
+
+function UI:SheetCount()
+	local count = 0
+	for _ in pairs(self:GetSheet()) do count = count + 1 end
+	return count
+end
+
+function UI:SaveSheet()
+	local saved = {}
+	for position, entry in pairs(self:GetSheet()) do
+		saved[position] = { name = entry.name, scope = entry.scope }
+	end
+	MacroVaultProDB = MacroVaultProDB or {}
+	MacroVaultProDB.sheet = saved
+end
+
+function UI:SheetMap()
+	if not self.sheetMacroMap then
+		local map = {}
+		for _, macro in ipairs(MV:GetMacros()) do
+			local key = sheetKey(macro)
+			if not map[key] then map[key] = macro end
+		end
+		self.sheetMacroMap = map
+	end
+	return self.sheetMacroMap
+end
+
+function UI:SheetMacroAt(position)
+	local entry = self:GetSheet()[position]
+	if not entry then return nil end
+	return self:SheetMap()[sheetKey(entry)]
+end
+
+function UI:UpdateSlotBorder(slot)
+	if not self:GetSheet()[slot.sheetSlot] then
+		SetBorderColor(slot, 0.20, 0.18, 0.28, 1)
+	elseif self:SheetMacroAt(slot.sheetSlot) then
+		SetBorderColor(slot, 0.26, 0.23, 0.36, 1)
+	else
+		-- The macro behind this slot is gone; say so with the border.
+		SetBorderColor(slot, 0.72, 0.30, 0.30, 1)
+	end
+end
+
+function UI:RefreshSheet()
+	if not self.sheetSlots then return end
+
+	if self.sheetList then
+		local items = {}
+		for _, macro in ipairs(MV:GetMacros()) do
+			items[#items + 1] = macro
+		end
+		table.sort(items, function(a, b)
+			if a.scope ~= b.scope then
+				return a.scope == "char"
+			end
+			return a.name:lower() < b.name:lower()
+		end)
+
+		self.sheetList:SetItems(
+			items,
+			function(row, item) self:RenderMacroRow(row, item) end,
+			function(item) self:SelectMacro(item.index) end,
+			function(item) self:BeginDrag({ macro = item }) end
+		)
+		self.sheetList:SetSelected(self.selectedMacroIndex)
+
+		if self.sheetListHeader then
+			self.sheetListHeader:SetText(("DRAG FROM HERE  %d"):format(#items))
+		end
+	end
+
+	for _, slot in ipairs(self.sheetSlots) do
+		local entry = self:GetSheet()[slot.sheetSlot]
+		local macro = entry and self:SheetMacroAt(slot.sheetSlot)
+
+		slot.icon:SetVertexColor(1, 1, 1)
+		if macro then
+			slot.icon:SetTexture(macro.icon or 134400)
+			slot.icon:Show()
+			slot.plus:Hide()
+		elseif entry then
+			slot.icon:SetTexture(134400)
+			slot.icon:SetVertexColor(0.55, 0.45, 0.45)
+			slot.icon:Show()
+			slot.plus:Hide()
+		else
+			slot.icon:Hide()
+			slot.plus:Show()
+		end
+		slot.macro = macro
+		self:UpdateSlotBorder(slot)
+	end
+
+	if self.sheetHeader then
+		self.sheetHeader:SetText(("MACRO SHEET  %d/%d"):format(self:SheetCount(), SHEET_SLOTS))
+	end
+end
+
+function UI:ClearSheetSlot(position)
+	local sheet = self:GetSheet()
+	local entry = sheet[position]
+	if not entry then return end
+
+	sheet[position] = nil
+	self:SaveSheet()
+	self:RefreshSheet()
+	self:SetStatus(("Cleared slot %d - %s."):format(position, entry.name))
+end
+
+function UI:BuildDragGhost()
+	local ghost = CreateFrame("Frame", nil, UIParent)
+	ghost:SetSize(SHEET_ICON, SHEET_ICON)
+	ghost:SetFrameStrata("TOOLTIP")
+	ghost:EnableMouse(false)
+
+	ghost.icon = ghost:CreateTexture(nil, "ARTWORK")
+	ghost.icon:SetAllPoints(ghost)
+	ghost.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+	Border(ghost, ACCENT[1], ACCENT[2], ACCENT[3], 0.9)
+
+	ghost:Hide()
+	ghost:SetScript("OnUpdate", function(self)
+		local scale = UIParent:GetEffectiveScale()
+		local x, y = GetCursorPosition()
+		self:ClearAllPoints()
+		self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
+		if not (IsMouseButtonDown and IsMouseButtonDown("LeftButton")) then
+			UI:DropDrag()
+		end
+	end)
+
+	self.dragGhost = ghost
+	return ghost
+end
+
+-- Starts a drag. Payload is { macro = <macro> } from a list row, optionally
+-- with slot = <position> when the drag started on the sheet itself.
+function UI:BeginDrag(payload)
+	if not payload or not payload.macro then return end
+
+	local ghost = self.dragGhost or self:BuildDragGhost()
+	ghost.icon:SetTexture(payload.macro.icon or 134400)
+	ghost:Show()
+
+	self.drag = payload
+	GameTooltip:Hide()
+	if self.sheetSlots then
+		self:RefreshSheet()
+	end
+end
+
+function UI:DropDrag()
+	local ghost = self.dragGhost
+	if ghost then ghost:Hide() end
+
+	local drag = self.drag
+	self.drag = nil
+	if not drag then return end
+
+	local focus = GetMouseFocus and GetMouseFocus()
+	local target = focus and focus.sheetSlot
+	if target then
+		self:DropOnSlot(target, drag)
+	else
+		self:RefreshSheet()
+	end
+end
+
+function UI:DropOnSlot(target, drag)
+	if type(target) ~= "number" or target < 1 or target > SHEET_SLOTS then return end
+
+	local sheet = self:GetSheet()
+	local moved = false
+
+	if drag.slot then
+		if drag.slot ~= target then
+			sheet[drag.slot], sheet[target] = sheet[target], sheet[drag.slot]
+			moved = true
+		end
+	else
+		-- One macro, one slot: take it out of wherever it already sat.
+		local key = sheetKey(drag.macro)
+		for position, entry in pairs(sheet) do
+			if position ~= target and sheetKey(entry) == key then
+				sheet[position] = nil
+				break
+			end
+		end
+		sheet[target] = { name = drag.macro.name, scope = drag.macro.scope }
+		moved = true
+	end
+
+	if not moved then return end
+
+	self:SaveSheet()
+	self:RefreshSheet()
+	self:SetStatus(("Sheet saved - slot %d."):format(target))
+end
+
+function UI:BuildSheetPanel(panel)
+	local ui = self
+
+	-- The list and the slots share the tab on purpose: a drag has to start and
+	-- finish on two things the player can see at the same time.
+	local listPane = CreateFrame("Frame", nil, panel)
+	listPane:SetPoint("TOPLEFT")
+	listPane:SetPoint("BOTTOMLEFT")
+	listPane:SetWidth(344)
+	Paint(listPane, 0.055, 0.055, 0.075, 0.9)
+
+	local listHeader = Text(listPane, 10, MUTED)
+	listHeader:SetPoint("TOPLEFT", 10, -9)
+	listHeader:SetText("DRAG FROM HERE")
+	self.sheetListHeader = listHeader
+
+	local inner = CreateFrame("Frame", nil, listPane)
+	inner:SetPoint("TOPLEFT", 4, -24)
+	inner:SetPoint("BOTTOMRIGHT", -4, 4)
+
+	self.sheetList = self:CreateList(inner)
+	self.sheetList:SetEmptyText("No macros to drag yet.")
+
+	local sheetPane = CreateFrame("Frame", nil, panel)
+	sheetPane:SetPoint("TOPLEFT", listPane, "TOPRIGHT", 12, 0)
+	sheetPane:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
+	Paint(sheetPane, 0.055, 0.055, 0.075, 0.9)
+
+	local header = Text(sheetPane, 10, MUTED)
+	header:SetPoint("TOPLEFT", 12, -9)
+	header:SetText(("MACRO SHEET  0/%d"):format(SHEET_SLOTS))
+	self.sheetHeader = header
+
+	local hint = Text(sheetPane, 10, MUTED)
+	hint:SetPoint("TOPLEFT", 12, -26)
+	hint:SetWidth(310)
+	hint:SetText("Drag a macro here, drag a slot onto another to reorder, right-click a slot to clear it.")
+
+	local grid = CreateFrame("Frame", nil, sheetPane)
+	grid:SetPoint("TOPLEFT", 12, -64)
+	grid:SetSize(SHEET_COLUMNS * (SHEET_ICON + SHEET_GAP), SHEET_ROWS * (SHEET_ICON + SHEET_GAP))
+
+	self.sheetSlots = {}
+	for position = 1, SHEET_SLOTS do
+		local column = (position - 1) % SHEET_COLUMNS
+		local line   = math.floor((position - 1) / SHEET_COLUMNS)
+
+		local slot = CreateFrame("Button", nil, grid)
+		slot:SetSize(SHEET_ICON, SHEET_ICON)
+		slot:SetPoint("TOPLEFT", column * (SHEET_ICON + SHEET_GAP), -line * (SHEET_ICON + SHEET_GAP))
+		slot:EnableMouse(true)
+		slot:RegisterForDrag("LeftButton")
+		slot.sheetSlot = position
+
+		slot.bg = slot:CreateTexture(nil, "BACKGROUND")
+		slot.bg:SetAllPoints(slot)
+		slot.bg:SetColorTexture(0.09, 0.085, 0.12, 1)
+
+		slot.icon = slot:CreateTexture(nil, "ARTWORK")
+		slot.icon:SetPoint("TOPLEFT", 1, -1)
+		slot.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+		slot.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+		slot.icon:Hide()
+
+		Border(slot, 0.20, 0.18, 0.28, 1)
+
+		slot.plus = Text(slot, 15, { 0.30, 0.28, 0.40 }, "CENTER")
+		slot.plus:SetPoint("CENTER", 0, 0)
+		slot.plus:SetText("+")
+
+		slot:SetScript("OnDragStart", function(self)
+			local macro = ui:SheetMacroAt(self.sheetSlot)
+			if macro then
+				ui:BeginDrag({ macro = macro, slot = self.sheetSlot })
+			end
+		end)
+
+		slot:SetScript("OnEnter", function(self)
+			local macro = ui:SheetMacroAt(self.sheetSlot)
+			local entry = ui:GetSheet()[self.sheetSlot]
+
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			if macro then
+				GameTooltip:SetText(macro.name, 1, 1, 1, 1, true)
+				GameTooltip:AddLine(("%s macro  -  slot %d"):format(
+					macro.scope == "char" and "Character" or "Account", macro.index), 0.82, 0.82, 0.88, true)
+				GameTooltip:AddLine(macro.body, 0.72, 0.70, 0.80, true)
+				GameTooltip:AddLine("Click to select it in My macros; right-click to clear this slot.", 0.55, 0.55, 0.63, true)
+			elseif entry then
+				GameTooltip:SetText(entry.name, 1, 0.5, 0.45)
+				GameTooltip:AddLine("That macro has been renamed or deleted. Right-click to clear the slot.", 0.82, 0.82, 0.88, true)
+			else
+				GameTooltip:SetText("Empty slot", 1, 1, 1)
+				GameTooltip:AddLine("Drag a macro here from My macros.", 0.72, 0.70, 0.80, true)
+			end
+
+			if ui.drag then
+				SetBorderColor(self, ACCENT[1], ACCENT[2], ACCENT[3], 1)
+			end
+			GameTooltip:Show()
+		end)
+
+		slot:SetScript("OnLeave", function(self)
+			GameTooltip:Hide()
+			ui:UpdateSlotBorder(self)
+		end)
+
+		slot:SetScript("OnClick", function(self, button)
+			if button == "RightButton" then
+				ui:ClearSheetSlot(self.sheetSlot)
+				return
+			end
+			local macro = ui:SheetMacroAt(self.sheetSlot)
+			if macro then
+				ui.selectedMacroIndex = macro.index
+				ui:SetStatus(("Selected %s - open My macros to work on it."):format(macro.name))
+			end
+		end)
+
+		self.sheetSlots[position] = slot
+	end
+
+	local save = ui:MakeButton(sheetPane, "Save layout", 110, function()
+		ui:SaveSheet()
+		ui:RefreshSheet()
+		ui:SetStatus(("Sheet saved - %d of %d slots filled."):format(ui:SheetCount(), SHEET_SLOTS))
+	end)
+	save:SetPoint("BOTTOMLEFT", 12, 10)
 end

@@ -768,7 +768,7 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 	msg = trim(msg):lower()
 	if msg == "" then
 		MV:Toggle()
-	elseif msg == "macros" or msg == "tools" or msg == "library" or msg == "editor" then
+	elseif msg == "macros" or msg == "tools" or msg == "library" or msg == "editor" or msg == "sheet" then
 		MV:Open(msg)
 	elseif msg == "selftest" or msg == "test" then
 		MV:Selftest()
@@ -786,6 +786,6 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 			MV:Print("Window position reset.")
 		end
 	else
-		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro selftest  |  /mvpro errors  |  /mvpro reset")
+		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro sheet  |  /mvpro selftest  |  /mvpro errors  |  /mvpro reset")
 	end
 end

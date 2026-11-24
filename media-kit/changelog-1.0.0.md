@@ -18,6 +18,12 @@ First release, for World of Warcraft: Forever (interface 16001).
   up, and a toggle for account-wide or character scope.
 - **Editor** — plain-text macro editing with the client's real limits applied
   (255-character bodies, 16-character names).
+- **Sheet** — a list of every macro beside 36 icon slots: drag one from the list
+  onto a slot, drag slot onto slot to reorder, and right-click a slot to clear. Slots remember their macro by name
+  and scope rather than by slot number, so the layout survives macros being
+  created or deleted; a slot whose macro is gone stays visible with a red border.
+  The layout is saved to `MacroVaultProDB` as you change it, and **Save layout**
+  writes it again on demand.
 - **Slot detection** — account and character limits are read from the client
   (`MAX_*` globals, then `Constants`, then defaults), and every macro the addon
   creates records the exact scope of its own slot.
@@ -32,8 +38,8 @@ First release, for World of Warcraft: Forever (interface 16001).
   `/mvpro errors clear` empties it.
 - **Load confirmation** — one line in chat on login, so a fresh install reports
   that it loaded instead of looking inert until you type the command.
-- **Saved window position** — position, last tab and default scope persist in
-  `MacroVaultProDB`; `/mvpro reset` forgets the position.
+- **Saved window position** — position, last tab, default scope and the sheet
+  layout persist in `MacroVaultProDB`; `/mvpro reset` forgets the position.
 
 ## Notes
 

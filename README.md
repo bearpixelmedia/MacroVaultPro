@@ -9,7 +9,9 @@ inject onto your bars, edit, duplicate, or jump to the client's own macro window
 The **Library** tab has 26 ready-made targeting, utility and developer macros you
 can read before creating. The **Tools** tab runs the client's own debug tools —
 `/fstack`, `/etrace`, `/api`, build info, script errors, taint log — without
-typing them.
+typing them. The **Sheet** tab puts the macro list beside 36 icon slots: drag one
+onto a slot, drag one slot onto another to reorder it, right-click to clear;
+the layout is saved with the rest of the addon's settings.
 
 Macro slots are read from the client rather than assumed, and nothing is written
 while you are in combat.
