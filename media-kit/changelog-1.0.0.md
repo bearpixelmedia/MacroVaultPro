@@ -9,7 +9,7 @@ First release, for World of Warcraft: Forever (interface 16001).
   selected macro.
 - **Inject, Edit, Duplicate, Macro UI** actions on the selected macro: pick it up
   for an action button, edit it in place, copy it, or open the client's macro frame.
-- **Tools** — 12 entries that run the client's own slash commands: `/fstack`
+- **Tools** — 12 entries that drive the client's own debug tools: `/fstack`
   (with and without hidden frames), `/etrace`, build info, `/api`, the macro
   window, `/reload`, script errors on and off, the taint log, and a mouseover
   frame inspector.

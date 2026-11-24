@@ -21,7 +21,7 @@
 
 <h3>An editor that respects the client's limits</h3>
 
-<p>Macros are edited as plain text with the client's real limits applied: 255 characters in the body, 16 characters in the name. Too long is refused with the actual numbers rather than silently truncated.</p>
+<p>Macros are edited as plain text with the client's real limits applied: 255 characters in the body, 16 characters in the name. The body carries a live counter that turns red past the limit, and saving an over-long body is refused with both numbers instead of truncating it; the name field stops at 16 characters.</p>
 
 <h3>Twelve client tools</h3>
 
@@ -45,7 +45,7 @@
 	</tbody>
 </table>
 
-<p>These call the client's own slash handlers, so they behave exactly as if you had typed the command into chat. If the client does not have the command, MacroVaultPro says so in chat instead of failing quietly.</p>
+<p>Ten of these run the client's own slash commands, so they behave exactly as if you had typed them into chat; the macro window and the mouseover inspector call the client's API instead. If the client does not have a command, MacroVaultPro says so in the window rather than failing quietly.</p>
 
 <h3>26 ready-made macros</h3>
 
@@ -115,7 +115,7 @@
 	<li><strong>World of Warcraft: Forever</strong> &mdash; interface 16001 (supported target).</li>
 	<li>The <code>.toc</code> also declares interface 120105, so a modern retail client will load it; Forever is what it is written and tested against.</li>
 	<li>No dependencies and no external libraries. One SavedVariables file for the window position, preferences and the error log.</li>
-	<li>Nothing is created, edited or deleted while you are in combat &mdash; the addon refuses with a message in chat and you can try again afterwards.</li>
+	<li>Nothing is created, edited or deleted while you are in combat &mdash; the addon says so in the window and you can try again afterwards.</li>
 </ul>
 
 <h2>Good to know</h2>

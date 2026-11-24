@@ -30,8 +30,10 @@ four things you can do about it:
 ### An editor that respects the client's limits
 
 Macros are edited as plain text with the client's real limits applied: 255
-characters in the body, 16 characters in the name. Too long is refused with the
-actual numbers rather than silently truncated.
+characters in the body, 16 characters in the name. The body carries a live
+counter that turns red past the limit, and saving an over-long body is refused
+with both numbers instead of truncating it; the name field stops at 16
+characters.
 
 ### Twelve client tools
 
@@ -50,9 +52,10 @@ actual numbers rather than silently truncated.
 | Mouseover frame | prints the frame under your cursor |
 | Dump mouseover frame | `/dump GetMouseFocus()` |
 
-These call the client's own slash handlers, so they behave exactly as if you had
-typed the command into chat. If the client does not have the command, MacroVaultPro
-says so in chat instead of failing quietly.
+Ten of these run the client's own slash commands, so they behave exactly as if
+you had typed them into chat; the macro window and the mouseover inspector call
+the client's API instead. If the client does not have a command, MacroVaultPro
+says so in the window rather than failing quietly.
 
 ### 26 ready-made macros
 
@@ -133,7 +136,7 @@ corrected the boundary.
 - No dependencies and no external libraries. One SavedVariables file for the
   window position, preferences and the error log.
 - Nothing is created, edited or deleted while you are in combat — the addon
-  refuses with a message in chat and you can try again afterwards.
+  says so in the window and you can try again afterwards.
 
 ## Good to know
 

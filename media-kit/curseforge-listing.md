@@ -46,7 +46,7 @@ one-line description for the Images tab.
 | --- | --- | --- | --- |
 | 1 | `gallery-01-macros.png` | Every macro in one window | Account and character macros in one searchable list, each tagged with its real scope. Inject, edit, duplicate or open the client's window. |
 | 2 | `gallery-02-library.png` | 26 ready-made macros | Targeting, utility and developer macros with their bodies shown before you create anything. Create, or create and pick it up. |
-| 3 | `gallery-03-tools.png` | Client tools, one click | Twelve entries that run the client's own slash commands: /fstack, /etrace, /api, build info, script errors, taint log and more. |
+| 3 | `gallery-03-tools.png` | Client tools, one click | Twelve entries that drive the client's own debug tools: /fstack, /etrace, /api, build info, script errors, taint log and more. |
 | 4 | `gallery-04-forever.png` | Made for Forever | Written against interface 16001. Macro slots are read from the client, not assumed, and nothing is written in combat. |
 
 ## Files
