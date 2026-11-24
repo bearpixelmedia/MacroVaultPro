@@ -650,6 +650,101 @@ function MV:Toggle()
 end
 
 -------------------------------------------------------------------------------
+-- Minimap button: the icon that sits by the map
+--
+-- Hand-rolled rather than pulled in from a library, so the addon still ships
+-- with no dependencies. The angle around the minimap is what gets saved; the
+-- radius is fixed, so the button stays in its ring on any minimap size.
+-------------------------------------------------------------------------------
+
+local MINIMAP_ICON   = "Interface\\AddOns\\MacroVaultPro\\Media\\icon.tga"
+local MINIMAP_RADIUS = 80
+local MINIMAP_ANGLE  = math.rad(220)
+
+local function placeMinimapButton(button, angle)
+	button:ClearAllPoints()
+	button:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * MINIMAP_RADIUS, math.sin(angle) * MINIMAP_RADIUS)
+end
+
+function MV:CreateMinimapButton()
+	if self.minimapButton or not Minimap then return end
+
+	local button = CreateFrame("Button", "MacroVaultProMinimapButton", Minimap)
+	button:SetSize(32, 32)
+	button:SetFrameStrata("MEDIUM")
+	button:EnableMouse(true)
+	button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	button:RegisterForDrag("LeftButton")
+
+	-- Dark plate behind the icon: the addon's own art is square, and a bare
+	-- square on top of a round minimap edge reads as a hole.
+	button.plate = button:CreateTexture(nil, "BACKGROUND")
+	button.plate:SetAllPoints(button)
+	button.plate:SetColorTexture(0.04, 0.035, 0.06, 0.92)
+
+	button.icon = button:CreateTexture(nil, "ARTWORK")
+	button.icon:SetPoint("TOPLEFT", 3, -3)
+	button.icon:SetPoint("BOTTOMRIGHT", -3, 3)
+	button.icon:SetTexture(MINIMAP_ICON)
+
+	local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+	highlight:SetAllPoints(button)
+	highlight:SetColorTexture(1, 1, 1, 0.12)
+
+	button.angle = (MacroVaultProDB and type(MacroVaultProDB.minimapAngle) == "number")
+		and MacroVaultProDB.minimapAngle or MINIMAP_ANGLE
+	placeMinimapButton(button, button.angle)
+
+	button:SetScript("OnClick", function(self, mouseButton)
+		if mouseButton == "RightButton" then
+			self.angle = MINIMAP_ANGLE
+			placeMinimapButton(self, self.angle)
+			if MacroVaultProDB then MacroVaultProDB.minimapAngle = self.angle end
+			MV:Notify("Minimap button reset.")
+		else
+			MV:Toggle()
+		end
+	end)
+
+	-- Dragging walks the button around the edge rather than moving it freely, so
+	-- it cannot be lost off the edge of the screen.
+	button:SetScript("OnDragStart", function(self)
+		self:SetScript("OnUpdate", function(self)
+			local scale = Minimap:GetEffectiveScale()
+			if not scale or scale == 0 then return end
+
+			local x, y = GetCursorPosition()
+			x, y = x / scale, y / scale
+			local centerX, centerY = Minimap:GetCenter()
+			if not centerX or not centerY then return end
+
+			self.angle = (math.atan2 or math.atan)(y - centerY, x - centerX)
+			placeMinimapButton(self, self.angle)
+		end)
+	end)
+
+	button:SetScript("OnDragStop", function(self)
+		self:SetScript("OnUpdate", nil)
+		if MacroVaultProDB then MacroVaultProDB.minimapAngle = self.angle end
+	end)
+
+	button:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+		GameTooltip:SetText("MacroVaultPro", 1, 1, 1)
+		GameTooltip:AddLine("Left-click to open the window.", 0.82, 0.82, 0.88)
+		GameTooltip:AddLine("Drag to move it around the minimap.", 0.82, 0.82, 0.88)
+		GameTooltip:AddLine("Right-click to put it back.", 0.82, 0.82, 0.88)
+		GameTooltip:Show()
+	end)
+
+	button:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+	end)
+
+	self.minimapButton = button
+end
+
+-------------------------------------------------------------------------------
 -- Self test: /mvpro selftest
 -------------------------------------------------------------------------------
 
@@ -752,8 +847,12 @@ loader:SetScript("OnEvent", function(_, event, arg1)
 		if db.otherErrors == nil then db.otherErrors = {} end
 		if MV.UI then MV.UI:ApplyPosition() end
 		MV:FoldPendingErrors()
+		MV:CreateMinimapButton()
 	elseif event == "PLAYER_LOGIN" then
 		MV:Print(("v%s loaded - /mvpro"):format(MV.VERSION))
+		-- The minimap may only be built by login on some clients, so both events
+		-- ask for the button; it creates itself once and ignores the second call.
+		MV:CreateMinimapButton()
 	elseif event == "UPDATE_MACROS" then
 		local ui = MV.UI
 		if ui and ui.frame and ui.frame:IsShown() then

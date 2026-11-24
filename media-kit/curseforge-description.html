@@ -80,12 +80,12 @@
 
 <h3>Remembers where you left it</h3>
 
-<p>The window position, the last tab, your default scope and the sheet layout are saved per account in <code>MacroVaultProDB</code>.</p>
+<p>The window position, the last tab, your default scope, the sheet layout and where the minimap button sits are saved per account in <code>MacroVaultProDB</code>.</p>
 
 <h2>How to use it</h2>
 
 <ol>
-	<li>Type <code>/mvpro</code> in chat to open the window.</li>
+	<li>Type <code>/mvpro</code> in chat, or click the addon's icon by the minimap, to open the window.</li>
 	<li><strong>My macros</strong> &mdash; search, click a macro, then <strong>Inject</strong>, <strong>Edit</strong>, <strong>Duplicate</strong> or <strong>Macro UI</strong>.</li>
 	<li><strong>Tools</strong> &mdash; click an entry. The tool runs immediately; output appears in chat or in the client's own window.</li>
 	<li><strong>Library</strong> &mdash; pick a macro, check its body, then <strong>Create</strong> or <strong>Create &amp; pick up</strong>.</li>
@@ -129,7 +129,8 @@
 <ul>
 	<li><strong>Capacity numbers</strong>: if a client exposes neither <code>MAX_ACCOUNT_MACROS</code>, <code>MAX_CHARACTER_MACROS</code> nor a usable <code>Constants</code> entry, the window shows the built-in defaults of 120 account and 30 character slots until you run <code>/mvpro selftest</code>, which measures the real split.</li>
 	<li><strong>Slash tools are UI tools.</strong> They toggle debug frames, print information and change console settings. MacroVaultPro never casts, moves or fights for you.</li>
-	<li><strong>Panels stay put.</strong> Window position, tab, default scope and the sheet layout are the only settings stored; the error log is the only other thing written.</li>
+	<li><strong>Panels stay put.</strong> Window position, tab, default scope, sheet layout and the minimap button's place are the only settings stored; the error log is the only other thing written.</li>
+	<li><strong>Minimap button.</strong> The icon beside the minimap opens the window. Drag it to walk it around the edge of the map, right-click it to put it back where it started. It is built into the addon, so it adds no dependency.</li>
 	<li><strong>Errors are kept, not swallowed.</strong> A failure in the addon's own code lands in <code>/mvpro errors</code> and in <code>WTF/Account/&lt;account&gt;/SavedVariables/MacroVaultPro.lua</code> after a reload, so it can be reported with its traceback instead of a screenshot of a dialog.</li>
 </ul>
 

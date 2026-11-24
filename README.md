@@ -3,11 +3,13 @@
 A World of Warcraft addon for the **Forever** client (interface 16001) that puts
 every macro you own in one window.
 
-Open it with `/mvpro` or `/macrovaultpro`. The **My macros** tab lists account and
-character macros together and tags each with its real scope, so you can search,
-inject onto your bars, edit, duplicate, or jump to the client's own macro window.
-The **Library** tab has 26 ready-made targeting, utility and developer macros you
-can read before creating. The **Tools** tab runs the client's own debug tools —
+Open it with `/mvpro` or `/macrovaultpro`, or click the addon's icon beside the
+minimap — drag that icon around the edge of the map to move it, right-click it
+to put it back. The **My macros** tab lists account and character macros
+together and tags each with its real scope, so you can search, inject onto your
+bars, edit, duplicate, or jump to the client's own macro window. The **Library**
+tab has 26 ready-made targeting, utility and developer macros you can read
+before creating. The **Tools** tab runs the client's own debug tools —
 `/fstack`, `/etrace`, `/api`, build info, script errors, taint log — without
 typing them. The **Sheet** tab puts the macro list beside 36 icon slots: drag one
 onto a slot, drag one slot onto another to reorder it, right-click to clear;
