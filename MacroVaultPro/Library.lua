@@ -1,4 +1,4 @@
--- MacroVault - built-in tool palette and macro library
+-- MacroVaultPro - built-in tool palette and macro library
 local ADDON_NAME, MV = ...
 
 local ICONS = {

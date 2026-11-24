@@ -1,4 +1,4 @@
--- MacroVault
+-- MacroVaultPro
 -- Browse every macro on the account and character, inject them onto your bars,
 -- and run the client's own UI/debug slash commands (like /fstack) from one panel.
 --
@@ -6,18 +6,18 @@
 
 local ADDON_NAME, MV = ...
 
-_G.MacroVault = MV
+_G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.0"
 MV.MAX_BODY      = 255
 MV.MAX_NAME      = 16
 
 -- Only used when a client exposes no limits at all. The real account /
--- character split is read from the client; /mvault selftest confirms it.
+-- character split is read from the client; /mvpro selftest confirms it.
 MV.DEFAULT_ACCOUNT_SLOTS   = 120
 MV.DEFAULT_CHARACTER_SLOTS = 30
 
-local PREFIX = "|cffa78bfaMacroVault|r  "
+local PREFIX = "|cffa78bfaMacroVaultPro|r  "
 
 local function trim(value)
 	return (tostring(value or ""):gsub("^%s*(.-)%s*$", "%1"))
@@ -82,8 +82,8 @@ end
 -- Clients do not agree on the index where character slots start, so the
 -- boundary is read from the client rather than assumed: the MAX_* globals or
 -- Constants.MacroConsts, then the built-in defaults. Nothing in here creates a
--- macro, so opening the window never touches the player's macros: /mvault
--- selftest is the only place that probes. Every macro MacroVault creates also
+-- macro, so opening the window never touches the player's macros: /mvpro
+-- selftest is the only place that probes. Every macro MacroVaultPro creates also
 -- teaches the exact scope of its own slot.
 -------------------------------------------------------------------------------
 
@@ -160,7 +160,7 @@ function MV:ProbeScope(perCharacter)
 	local name = ("MVProbe%d"):format(probeCount)
 	if #name > self.MAX_NAME then name = name:sub(1, self.MAX_NAME) end
 
-	local ok, index = pcall(create, name, 134400, "/say MacroVault probe", perCharacter and true or nil)
+	local ok, index = pcall(create, name, 134400, "/say MacroVaultPro probe", perCharacter and true or nil)
 	if not ok or type(index) ~= "number" then
 		return nil, ("could not create a %s macro (that scope may be full)"):format(
 			perCharacter and "character" or "account"), false
@@ -462,11 +462,11 @@ end
 
 function MV:SavePosition()
 	local frame = self.UI and self.UI.frame
-	if not frame or not MacroVaultDB then return end
+	if not frame or not MacroVaultProDB then return end
 
 	local point, _, relPoint, x, y = frame:GetPoint(1)
 	if point then
-		MacroVaultDB.position = { point = point, relPoint = relPoint, x = x, y = y }
+		MacroVaultProDB.position = { point = point, relPoint = relPoint, x = x, y = y }
 	end
 end
 
@@ -490,7 +490,7 @@ function MV:Toggle()
 end
 
 -------------------------------------------------------------------------------
--- Self test: /mvault selftest
+-- Self test: /mvpro selftest
 -------------------------------------------------------------------------------
 
 function MV:Selftest()
@@ -501,7 +501,7 @@ function MV:Selftest()
 		clientVersion, clientBuild, tocVersion = "?", "?", "?"
 	end
 
-	self:Print(("selftest  -  MacroVault %s on client %s (build %s, interface %s)"):format(
+	self:Print(("selftest  -  MacroVaultPro %s on client %s (build %s, interface %s)"):format(
 		self.VERSION, tostring(clientVersion), tostring(clientBuild), tostring(tocVersion)))
 
 	self:Print(("globals: MAX_ACCOUNT_MACROS=%s  MAX_CHARACTER_MACROS=%s"):format(
@@ -525,7 +525,7 @@ function MV:Selftest()
 		usedAccount, layout.accountSlots, usedCharacter, layout.characterSlots))
 
 	if self:EditBlocked() then
-		self:Print("|cffff8080temporary macro check skipped:|r you are in combat - run /mvault selftest out of combat.")
+		self:Print("|cffff8080temporary macro check skipped:|r you are in combat - run /mvpro selftest out of combat.")
 		return
 	end
 
@@ -583,8 +583,8 @@ loader:RegisterEvent("UPDATE_MACROS")
 loader:SetScript("OnEvent", function(_, event, arg1)
 	if event == "ADDON_LOADED" then
 		if arg1 ~= ADDON_NAME then return end
-		MacroVaultDB = MacroVaultDB or {}
-		local db = MacroVaultDB
+		MacroVaultProDB = MacroVaultProDB or {}
+		local db = MacroVaultProDB
 		if db.perCharacter == nil then db.perCharacter = false end
 		if db.tab == nil then db.tab = "macros" end
 		if MV.UI then MV.UI:ApplyPosition() end
@@ -596,9 +596,9 @@ loader:SetScript("OnEvent", function(_, event, arg1)
 	end
 end)
 
-SLASH_MACROVAULT1 = "/macrovault"
-SLASH_MACROVAULT2 = "/mvault"
-SlashCmdList["MACROVAULT"] = function(msg)
+SLASH_MACROVAULTPRO1 = "/macrovaultpro"
+SLASH_MACROVAULTPRO2 = "/mvpro"
+SlashCmdList["MACROVAULTPRO"] = function(msg)
 	msg = trim(msg):lower()
 	if msg == "" then
 		MV:Toggle()
@@ -607,8 +607,8 @@ SlashCmdList["MACROVAULT"] = function(msg)
 	elseif msg == "selftest" or msg == "test" then
 		MV:Selftest()
 	elseif msg == "reset" then
-		MacroVaultDB = MacroVaultDB or {}
-		MacroVaultDB.position = nil
+		MacroVaultProDB = MacroVaultProDB or {}
+		MacroVaultProDB.position = nil
 		if MV.UI and MV.UI.frame then
 			MV.UI:ApplyPosition()
 			MV:Notify("Window position reset.")
@@ -616,6 +616,6 @@ SlashCmdList["MACROVAULT"] = function(msg)
 			MV:Print("Window position reset.")
 		end
 	else
-		MV:Print("Usage: /mvault  |  /mvault tools  |  /mvault library  |  /mvault editor  |  /mvault selftest  |  /mvault reset")
+		MV:Print("Usage: /mvpro  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro selftest  |  /mvpro reset")
 	end
 end

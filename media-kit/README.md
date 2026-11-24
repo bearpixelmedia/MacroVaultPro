@@ -1,4 +1,4 @@
-# MacroVault — CurseForge media kit
+# MacroVaultPro — CurseForge media kit
 
 Everything the CurseForge project page needs, in the sizes CurseForge asks for.
 
@@ -19,7 +19,7 @@ Everything the CurseForge project page needs, in the sizes CurseForge asks for.
 
 ## Upload checklist
 
-1. **Project name** `MacroVault`, slug `macrovault` — check it is still free.
+1. **Project name** `MacroVaultPro`, slug `macrovault` — check it is still free.
 2. **Summary** — paste the 118-character line from `curseforge-listing.md`.
 3. **Avatar** — upload `images/avatar-400.png`. Square, original art, no game logo, no text.
 4. **Description** — put the editor in HTML mode and paste
@@ -47,7 +47,7 @@ the panels:
 | 2 | **Library** tab, Targeting group, with the body of a macro visible |
 | 3 | **Tools** tab, showing the frame stack / `/fstack` entries |
 | 4 | **Editor** tab with a macro open |
-| 5 | Chat after `/mvault selftest`, out of combat — the `detected:` and `confirmed:` lines |
+| 5 | Chat after `/mvpro selftest`, out of combat — the `detected:` and `confirmed:` lines |
 
 Shoot at 1280 × 720 (or larger, 16:9) with default UI scale, `/fstack` off, and the
 rest of the UI as clean as you like it. Give each one a one-line title in the Images
@@ -64,13 +64,13 @@ The panels are HTML/CSS, so the text stays crisp and editable.
   That one command rebuilds every asset in this kit: it drives headless Edge to
   capture each tile at its own size, then cuts `build/avatar-source.png` at 1024,
   400 and 64 px. The 64 px cut goes two places — `images/icon-64.png` to look at,
-  and the addon's own icon `../MacroVault/Media/icon.tga`, because the client
-  reads TGA and not PNG. `MacroVault.toc` points at it with
-  `## IconTexture: Interface\AddOns\MacroVault\Media\icon.tga`. The run prints
+  and the addon's own icon `../MacroVaultPro/Media/icon.tga`, because the client
+  reads TGA and not PNG. `MacroVaultPro.toc` points at it with
+  `## IconTexture: Interface\AddOns\MacroVaultPro\Media\icon.tga`. The run prints
   every size and re-reads the TGA header, so a malformed icon fails loudly
   instead of shipping broken.
 - The avatar art is `build/avatar-source.png`; replace it and re-run to re-cut all
   four sizes. `Media/icon.tga` belongs in the addon zip; `build/` does not.
 
 Keep `build-media-kit.html` and `build/` out of the addon zip — they belong with
-the marketing assets, not in `Interface/AddOns/MacroVault`.
+the marketing assets, not in `Interface/AddOns/MacroVaultPro`.

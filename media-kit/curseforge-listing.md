@@ -1,4 +1,4 @@
-# CurseForge listing — MacroVault
+# CurseForge listing — MacroVaultPro
 
 Copy-paste values for each field on the project page.
 
@@ -7,8 +7,8 @@ Copy-paste values for each field on the project page.
 | Field | Value |
 | --- | --- |
 | Game | World of Warcraft |
-| Project name | MacroVault |
-| Slug | macrovault |
+| Project name | MacroVaultPro |
+| Slug | macrovaultpro |
 | Class | Addons |
 | Categories | Action Bars, Development Tools (add Miscellaneous only if a third is wanted) |
 | Flavor | Forever |
@@ -54,13 +54,13 @@ one-line description for the Images tab.
 | Field | Value |
 | --- | --- |
 | Release type | Release |
-| Display name | `MacroVault 1.0.0` |
+| Display name | `MacroVaultPro 1.0.0` |
 | Game version | Forever 1.60.1 |
 | Changelog | `changelog-1.0.0.md` |
-| File name | `MacroVault-1.0.0.zip` |
+| File name | `MacroVaultPro-1.0.0.zip` |
 
-Zip the `MacroVault` folder itself, so the archive contains
-`MacroVault/MacroVault.toc`, `Core.lua`, `Library.lua`, `UI.lua` and
+Zip the `MacroVaultPro` folder itself, so the archive contains
+`MacroVaultPro/MacroVaultPro.toc`, `Core.lua`, `Library.lua`, `UI.lua` and
 `Media/icon.tga` (the addon-list icon the `.toc` points at). Do not put
 `media-kit` or `build` inside the zip.
 

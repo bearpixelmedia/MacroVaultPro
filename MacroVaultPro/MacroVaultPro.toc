@@ -1,10 +1,10 @@
 ## Interface: 16001, 120105
-## Title: MacroVault
+## Title: MacroVaultPro
 ## Notes: Browse every macro you own, inject them onto your bars, and run the client's own tools like /fstack.
 ## Author: Bear Pixel Media
 ## Version: 1.0.0
-## SavedVariables: MacroVaultDB
-## IconTexture: Interface\AddOns\MacroVault\Media\icon.tga
+## SavedVariables: MacroVaultProDB
+## IconTexture: Interface\AddOns\MacroVaultPro\Media\icon.tga
 
 Core.lua
 Library.lua

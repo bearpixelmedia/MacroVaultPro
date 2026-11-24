@@ -1,10 +1,10 @@
-# MacroVault media kit renderer.
+# MacroVaultPro media kit renderer.
 #
 # Builds every asset in one run: the banner and four gallery panels from
 # build-media-kit.html via headless Edge at their exact pixel size, then the
 # avatar art at 1024, 400 and 64 px. The 64 px cut is also written into the
 # addon as an uncompressed 32-bit TGA, because that is the file the client
-# shows in the addon list (see ## IconTexture in MacroVault.toc).
+# shows in the addon list (see ## IconTexture in MacroVaultPro.toc).
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File media-kit/build/render.ps1
 #
@@ -18,7 +18,7 @@ $build = $PSScriptRoot
 $kit   = Split-Path -Parent $build
 $out   = Join-Path $kit "images"
 $page  = Join-Path $kit "build-media-kit.html"
-$media = Join-Path (Split-Path -Parent $kit) "MacroVault\Media"
+$media = Join-Path (Split-Path -Parent $kit) "MacroVaultPro\Media"
 
 $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 if (-not (Test-Path $edge)) { $edge = "C:\Program Files\Microsoft\Edge\Application\msedge.exe" }

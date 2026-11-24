@@ -1,8 +1,8 @@
-# MacroVault
+# MacroVaultPro
 
 **Every macro you own in one window — and the client's own tools one click away.**
 
-MacroVault lists every account-wide and character macro you have in a single
+MacroVaultPro lists every account-wide and character macro you have in a single
 searchable window. Pick one, read its whole body, and put it straight onto your
 action bars without opening the macro window, retyping a command or working out
 which slot it lives in. The same window carries the slash commands you end up
@@ -51,7 +51,7 @@ actual numbers rather than silently truncated.
 | Dump mouseover frame | `/dump GetMouseFocus()` |
 
 These call the client's own slash handlers, so they behave exactly as if you had
-typed the command into chat. If the client does not have the command, MacroVault
+typed the command into chat. If the client does not have the command, MacroVaultPro
 says so in chat instead of failing quietly.
 
 ### 26 ready-made macros
@@ -68,10 +68,10 @@ toggle chooses whether new macros land in your account-wide or character slots.
 
 ### Sensible about account and character slots
 
-Clients do not agree on which slot index character macros start at, so MacroVault
+Clients do not agree on which slot index character macros start at, so MacroVaultPro
 reads the limit from the client — the `MAX_ACCOUNT_MACROS` and
 `MAX_CHARACTER_MACROS` globals where they exist, then `Constants`, then built-in
-defaults of 120 account and 30 character slots. Every macro MacroVault creates
+defaults of 120 account and 30 character slots. Every macro MacroVaultPro creates
 also records the exact scope of its own slot, so the tags stay right even when
 the detected boundary is only an estimate.
 
@@ -80,31 +80,31 @@ Opening the window is read-only. It never creates or deletes anything.
 ### Remembers where you left it
 
 The window position, the last tab and your default scope are saved per account in
-`MacroVaultDB`.
+`MacroVaultProDB`.
 
 ## How to use it
 
-1. Type `/mvault` in chat to open the window.
+1. Type `/mvpro` in chat to open the window.
 2. **My macros** — search, click a macro, then **Inject**, **Edit**, **Duplicate**
    or **Macro UI**.
 3. **Tools** — click an entry. The tool runs immediately; output appears in chat
    or in the client's own window.
 4. **Library** — pick a macro, check its body, then **Create** or **Create & pick up**.
-5. Close with Escape, or type `/mvault` again.
+5. Close with Escape, or type `/mvpro` again.
 
 ## Slash commands
 
 | Command | What it does |
 | --- | --- |
-| `/mvault` or `/macrovault` | Open or close the window |
-| `/mvault macros` | Open the My macros tab |
-| `/mvault tools` | Open the Tools tab |
-| `/mvault library` | Open the Library tab |
-| `/mvault editor` | Open the editor |
-| `/mvault selftest` | Print client and limit diagnostics, then confirm the account/character boundary |
-| `/mvault reset` | Forget the saved window position |
+| `/mvpro` or `/macrovaultpro` | Open or close the window |
+| `/mvpro macros` | Open the My macros tab |
+| `/mvpro tools` | Open the Tools tab |
+| `/mvpro library` | Open the Library tab |
+| `/mvpro editor` | Open the editor |
+| `/mvpro selftest` | Print client and limit diagnostics, then confirm the account/character boundary |
+| `/mvpro reset` | Forget the saved window position |
 
-`/mvault selftest` is the only thing in the addon that creates a macro on its own:
+`/mvpro selftest` is the only thing in the addon that creates a macro on its own:
 one temporary macro per scope, deleted straight away, so it can report where
 character macros really begin. Run it out of combat. It prints the client build,
 the detected split, how many slots you use, and whether the probes confirmed or
@@ -125,9 +125,9 @@ corrected the boundary.
 - **Capacity numbers**: if a client exposes neither `MAX_ACCOUNT_MACROS`,
   `MAX_CHARACTER_MACROS` nor a usable `Constants` entry, the window shows the
   built-in defaults of 120 account and 30 character slots until you run
-  `/mvault selftest`, which measures the real split.
+  `/mvpro selftest`, which measures the real split.
 - **Slash tools are UI tools.** They toggle debug frames, print information and
-  change console settings. MacroVault never casts, moves or fights for you.
+  change console settings. MacroVaultPro never casts, moves or fights for you.
 - **Panels stay put.** Window position, tab and default scope are the only things
   stored.
 

@@ -1,4 +1,4 @@
--- MacroVault - the window: macro browser, tool palette, library and editor
+-- MacroVaultPro - the window: macro browser, tool palette, library and editor
 local ADDON_NAME, MV = ...
 
 local UI = {}
@@ -339,13 +339,13 @@ function UI:Build()
 	if self.frame then return end
 
 	if not self.libraryScope then
-		self.libraryScope = (MacroVaultDB and MacroVaultDB.perCharacter) and "char" or "account"
+		self.libraryScope = (MacroVaultProDB and MacroVaultProDB.perCharacter) and "char" or "account"
 	end
 	if not self.editorScope then
-		self.editorScope = (MacroVaultDB and MacroVaultDB.perCharacter) and "char" or "account"
+		self.editorScope = (MacroVaultProDB and MacroVaultProDB.perCharacter) and "char" or "account"
 	end
 
-	local frame = CreateFrame("Frame", "MacroVaultFrame", UIParent)
+	local frame = CreateFrame("Frame", "MacroVaultProFrame", UIParent)
 	self.frame = frame
 	frame:SetSize(WIDTH, HEIGHT)
 	frame:SetFrameStrata("DIALOG")
@@ -364,12 +364,12 @@ function UI:Build()
 	Paint(frame, 0.045, 0.045, 0.06, 0.97)
 	Border(frame, 0.30, 0.25, 0.45, 1)
 
-	tinsert(UISpecialFrames, "MacroVaultFrame")
+	tinsert(UISpecialFrames, "MacroVaultProFrame")
 	self:ApplyPosition()
 
 	local title = Text(frame, 19, ACCENT)
 	title:SetPoint("TOPLEFT", 16, -12)
-	title:SetText("MacroVault")
+	title:SetText("MacroVaultPro")
 
 	local subtitle = Text(frame, 11, MUTED)
 	subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 1, -2)
@@ -455,16 +455,16 @@ function UI:Build()
 
 	local footer = Text(frame, 10, MUTED, "RIGHT")
 	footer:SetPoint("BOTTOMRIGHT", -14, 13)
-	footer:SetText("Forever - /mvault")
+	footer:SetText("Forever - /mvpro")
 
-	self:SwitchTab((MacroVaultDB and MacroVaultDB.tab) or "macros")
+	self:SwitchTab((MacroVaultProDB and MacroVaultProDB.tab) or "macros")
 end
 
 function UI:ApplyPosition()
 	local frame = self.frame
 	if not frame then return end
 
-	local position = MacroVaultDB and MacroVaultDB.position
+	local position = MacroVaultProDB and MacroVaultProDB.position
 	frame:ClearAllPoints()
 	if position and position.point then
 		frame:SetPoint(position.point, UIParent, position.relPoint or position.point, position.x or 0, position.y or 0)
@@ -510,7 +510,7 @@ function UI:SwitchTab(id)
 	end
 
 	showIf(self.search, id == "macros" or id == "library")
-	if MacroVaultDB then MacroVaultDB.tab = id end
+	if MacroVaultProDB then MacroVaultProDB.tab = id end
 
 	self:Refresh()
 end
@@ -989,8 +989,8 @@ end
 
 function UI:ToggleLibraryScope()
 	self.libraryScope = self.libraryScope == "char" and "account" or "char"
-	if MacroVaultDB then
-		MacroVaultDB.perCharacter = self.libraryScope == "char"
+	if MacroVaultProDB then
+		MacroVaultProDB.perCharacter = self.libraryScope == "char"
 	end
 	if self.selectedLibrary then
 		self:ShowLibraryDetail(self.selectedLibrary)
@@ -1197,7 +1197,7 @@ function UI:LoadEditor(index, template)
 		if template then
 			self.editorScope = template.scope or "account"
 		else
-			self.editorScope = (MacroVaultDB and MacroVaultDB.perCharacter) and "char" or "account"
+			self.editorScope = (MacroVaultProDB and MacroVaultProDB.perCharacter) and "char" or "account"
 		end
 	end
 

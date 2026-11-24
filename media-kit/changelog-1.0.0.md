@@ -1,4 +1,4 @@
-# MacroVault 1.0.0
+# MacroVaultPro 1.0.0
 
 First release, for World of Warcraft: Forever (interface 16001).
 
@@ -21,11 +21,11 @@ First release, for World of Warcraft: Forever (interface 16001).
 - **Slot detection** — account and character limits are read from the client
   (`MAX_*` globals, then `Constants`, then defaults), and every macro the addon
   creates records the exact scope of its own slot.
-- **`/mvault selftest`** — prints the client build, the detected slot split, your
+- **`/mvpro selftest`** — prints the client build, the detected slot split, your
   usage, and confirms the account/character boundary with one temporary macro per
   scope, deleted immediately. Run it out of combat.
 - **Saved window position** — position, last tab and default scope persist in
-  `MacroVaultDB`; `/mvault reset` forgets the position.
+  `MacroVaultProDB`; `/mvpro reset` forgets the position.
 
 ## Notes
 
