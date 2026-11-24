@@ -178,10 +178,8 @@ function MV:PrintErrors()
 end
 
 function MV:ClearErrors()
-	ownStore()
-	otherStore()
-	MacroVaultProDB.errors = {}
-	MacroVaultProDB.otherErrors = {}
+	MacroVaultProDB = MacroVaultProDB or {}
+	MacroVaultProDB.errors, MacroVaultProDB.otherErrors = {}, {}
 	MV.pendingErrors, MV.pendingOtherErrors = {}, {}
 	self:Print("error log cleared.")
 end
@@ -755,7 +753,7 @@ loader:SetScript("OnEvent", function(_, event, arg1)
 		if MV.UI then MV.UI:ApplyPosition() end
 		MV:FoldPendingErrors()
 	elseif event == "PLAYER_LOGIN" then
-		MV:Print(("v%s loaded  -  /mvpro"):format(MV.VERSION))
+		MV:Print(("v%s loaded - /mvpro"):format(MV.VERSION))
 	elseif event == "UPDATE_MACROS" then
 		local ui = MV.UI
 		if ui and ui.frame and ui.frame:IsShown() then
@@ -788,6 +786,6 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 			MV:Print("Window position reset.")
 		end
 	else
-		MV:Print("Usage: /mvpro  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro selftest  |  /mvpro errors  |  /mvpro reset")
+		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro selftest  |  /mvpro errors  |  /mvpro reset")
 	end
 end

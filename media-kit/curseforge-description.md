@@ -131,8 +131,8 @@ corrected the boundary.
 ## Compatibility
 
 - **World of Warcraft: Forever** — interface 16001 (supported target).
-- The `.toc` also declares interface 120105, so a modern retail client will load
-  it; Forever is what it is written and tested against.
+- The `.toc` lists interface 120105 as a secondary value, but Forever is the
+  only client this is written and tested against.
 - No dependencies and no external libraries. One SavedVariables file for the
   window position, preferences and the error log.
 - Nothing is created, edited or deleted while you are in combat — the addon

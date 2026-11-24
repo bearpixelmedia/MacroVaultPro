@@ -768,8 +768,8 @@ function UI:BuildToolsPanel(panel)
 	local intro = Text(panel, 11, MUTED)
 	intro:SetPoint("TOPLEFT", 2, -2)
 	intro:SetWidth(780)
-	intro:SetText("Runs the client's own slash commands, exactly as if you typed them - /fstack included. " ..
-		"These are UI and debug tools; combat actions live in the Library as macros.")
+	intro:SetText("Runs the client's own UI and debug tools - /fstack included. The slash commands behave exactly as if you typed them; " ..
+		"combat actions live in the Library as macros.")
 
 	local grid = CreateFrame("Frame", nil, panel)
 	grid:SetPoint("TOPLEFT", 0, -42)

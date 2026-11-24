@@ -7,8 +7,8 @@ Open it with `/mvpro` or `/macrovaultpro`. The **My macros** tab lists account a
 character macros together and tags each with its real scope, so you can search,
 inject onto your bars, edit, duplicate, or jump to the client's own macro window.
 The **Library** tab has 26 ready-made targeting, utility and developer macros you
-can read before creating. The **Tools** tab runs the client's own debug commands
-— `/fstack`, `/etrace`, `/api`, build info, script errors, taint log — without
+can read before creating. The **Tools** tab runs the client's own debug tools —
+`/fstack`, `/etrace`, `/api`, build info, script errors, taint log — without
 typing them.
 
 Macro slots are read from the client rather than assumed, and nothing is written
