@@ -29,6 +29,164 @@ end
 MV.trim = trim
 
 -------------------------------------------------------------------------------
+-- Error log: /mvpro errors
+--
+-- Installed from the top of the first file the .toc loads, so mistakes in this
+-- file and in Library.lua / UI.lua are still caught while the addon is loading.
+-- The saved variables do not exist yet at that point, so early entries wait in
+-- MV.pending* and are folded into the DB when ADDON_LOADED fires.
+--
+-- Attribution is best effort. Some clients report stack paths too short to carry
+-- an addon name ("Core.lua:12"), which no name match can catch, so those errors
+-- go to a second list instead of being dropped: nothing this addon raises goes
+-- unrecorded, attributed or not.
+-------------------------------------------------------------------------------
+
+local MAX_OWN_ERRORS   = 20
+local MAX_OTHER_ERRORS = 10
+local MAX_ERROR_CHARS  = 4000
+
+MV.pendingErrors      = MV.pendingErrors or {}
+MV.pendingOtherErrors = MV.pendingOtherErrors or {}
+
+local function ownStore()
+	if type(MacroVaultProDB) == "table" then
+		MacroVaultProDB.errors = MacroVaultProDB.errors or {}
+		return MacroVaultProDB.errors
+	end
+	return MV.pendingErrors
+end
+
+local function otherStore()
+	if type(MacroVaultProDB) == "table" then
+		MacroVaultProDB.otherErrors = MacroVaultProDB.otherErrors or {}
+		return MacroVaultProDB.otherErrors
+	end
+	return MV.pendingOtherErrors
+end
+
+-- Prints without going through MV:Print, which does not exist yet while the
+-- addon is still loading.
+local function notice(message)
+	if type(DEFAULT_CHAT_FRAME) == "table" and DEFAULT_CHAT_FRAME.AddMessage then
+		pcall(DEFAULT_CHAT_FRAME.AddMessage, DEFAULT_CHAT_FRAME, PREFIX .. message)
+	end
+end
+
+function MV:LogError(message, stack, unattributed)
+	local text = tostring(message or "unknown error")
+	stack = tostring(stack or "")
+	if stack ~= "" and not text:find(stack, 1, true) then
+		text = text .. "\n" .. stack
+	end
+	if #text > MAX_ERROR_CHARS then
+		text = text:sub(1, MAX_ERROR_CHARS) .. "\n... (truncated)"
+	end
+
+	local list  = unattributed and otherStore() or ownStore()
+	local limit = unattributed and MAX_OTHER_ERRORS or MAX_OWN_ERRORS
+	local stamp = (type(date) == "function" and date("%Y-%m-%d %H:%M:%S")) or "?"
+	table.insert(list, 1, { when = stamp, text = text, unattributed = unattributed and true or nil })
+	while #list > limit do
+		table.remove(list)
+	end
+
+	-- A mistake repeated every frame must not flood the chat frame.
+	local now = (type(time) == "function" and time()) or 0
+	if now - (self.errorNotice or 0) > 3 then
+		self.errorNotice = now
+		notice("|cffff8080error logged|r - /mvpro errors to copy it")
+	end
+end
+
+-- Moves anything caught during load into the saved variables, which only exist
+-- once ADDON_LOADED has fired. Pending lists are newest-first, like the stores.
+function MV:FoldPendingErrors()
+	local own, other = ownStore(), otherStore()
+	for i = #MV.pendingErrors, 1, -1 do
+		table.insert(own, 1, MV.pendingErrors[i])
+	end
+	for i = #MV.pendingOtherErrors, 1, -1 do
+		table.insert(other, 1, MV.pendingOtherErrors[i])
+	end
+	MV.pendingErrors, MV.pendingOtherErrors = {}, {}
+	while #own > MAX_OWN_ERRORS do table.remove(own) end
+	while #other > MAX_OTHER_ERRORS do table.remove(other) end
+end
+
+-- Routes the client's error handler through the log. The original handler still
+-- runs, so the usual error dialog is untouched; this only records.
+function MV:InstallErrorLog()
+	if self.errorLogHooked then return end
+	self.errorLogHooked = true
+
+	if type(seterrorhandler) ~= "function" then return end
+	local original = type(geterrorhandler) == "function" and geterrorhandler() or nil
+	if type(original) ~= "function" then original = nil end
+
+	local logging = false
+
+	seterrorhandler(function(message)
+		if not logging then
+			logging = true
+			local ok, stack = pcall(debugstack, 2, 20, 20)
+			stack = (ok and type(stack) == "string") and stack or ""
+			local text = tostring(message or "unknown error")
+			local ours = text:find("MacroVaultPro", 1, true) ~= nil
+				or stack:find("MacroVaultPro", 1, true) ~= nil
+			MV:LogError(text, stack, not ours)
+			logging = false
+		end
+		if original then return original(message) end
+	end)
+end
+
+MV:InstallErrorLog()
+
+local function printEntry(entry)
+	if type(DEFAULT_CHAT_FRAME) ~= "table" then return end
+	DEFAULT_CHAT_FRAME:AddMessage(("|cffa78bfa[%s]|r"):format(tostring(entry.when or "?")))
+	for line in tostring(entry.text or ""):gmatch("[^\n]+") do
+		DEFAULT_CHAT_FRAME:AddMessage("|cffb8b8c0  " .. line .. "|r")
+	end
+end
+
+function MV:PrintErrors()
+	local own, other = ownStore(), otherStore()
+
+	local ok, clientVersion, clientBuild, _, tocVersion = pcall(GetBuildInfo)
+	if not ok then clientVersion, clientBuild, tocVersion = "?", "?", "?" end
+	self:Print(("error log - MacroVaultPro %s, client %s (build %s), interface %s"):format(
+		self.VERSION, tostring(clientVersion), tostring(clientBuild), tostring(tocVersion)))
+
+	if #own == 0 and #other == 0 then
+		self:Print("nothing logged.")
+		return
+	end
+
+	for i = #own, 1, -1 do printEntry(own[i]) end
+
+	if #other > 0 then
+		self:Print(("|cffffd166%d error%s with no addon path in the traceback|r - listed in case one is ours:"):format(
+			#other, #other == 1 and "" or "s"))
+		for i = #other, 1, -1 do printEntry(other[i]) end
+	end
+
+	local total = #own + #other
+	self:Print(("%d entr%s saved in WTF/Account/<account>/SavedVariables/MacroVaultPro.lua"):format(
+		total, total == 1 and "y" or "ies"))
+end
+
+function MV:ClearErrors()
+	ownStore()
+	otherStore()
+	MacroVaultProDB.errors = {}
+	MacroVaultProDB.otherErrors = {}
+	MV.pendingErrors, MV.pendingOtherErrors = {}, {}
+	self:Print("error log cleared.")
+end
+
+-------------------------------------------------------------------------------
 -- Chat / status helpers
 -------------------------------------------------------------------------------
 
@@ -578,107 +736,6 @@ function MV:Selftest()
 end
 
 -------------------------------------------------------------------------------
--- Error log: /mvpro errors
---
--- Every Lua error raised from this addon's own files is kept in a short ring
--- buffer in SavedVariables, so it survives the error dialog being dismissed
--- and can be copied into a bug report. Errors from other addons are ignored;
--- their stack does not mention this addon.
--------------------------------------------------------------------------------
-
-local MAX_ERRORS      = 20
-local MAX_ERROR_CHARS = 4000
-
-local function errorStore()
-	MacroVaultProDB = MacroVaultProDB or {}
-	MacroVaultProDB.errors = MacroVaultProDB.errors or {}
-	return MacroVaultProDB.errors
-end
-
-function MV:LogError(message, stack)
-	local text = tostring(message or "unknown error")
-	stack = tostring(stack or "")
-	if stack ~= "" and not text:find(stack, 1, true) then
-		text = text .. "\n" .. stack
-	end
-	if #text > MAX_ERROR_CHARS then
-		text = text:sub(1, MAX_ERROR_CHARS) .. "\n... (truncated)"
-	end
-
-	local stamp = (type(date) == "function" and date("%Y-%m-%d %H:%M:%S")) or "?"
-	local entries = errorStore()
-	table.insert(entries, 1, { when = stamp, text = text })
-	while #entries > MAX_ERRORS do
-		table.remove(entries)
-	end
-
-	-- An addon that fails on every frame can otherwise flood the chat frame.
-	local now = (type(time) == "function" and time()) or 0
-	if now - (self.errorNotice or 0) > 3 then
-		self.errorNotice = now
-		self:Print("|cffff8080error logged|r - /mvpro errors to copy it")
-	end
-end
-
-function MV:PrintErrors()
-	local entries = errorStore()
-
-	local ok, clientVersion, clientBuild, _, tocVersion = pcall(GetBuildInfo)
-	if not ok then clientVersion, clientBuild, tocVersion = "?", "?", "?" end
-	self:Print(("error log - MacroVaultPro %s, client %s (build %s), interface %s"):format(
-		self.VERSION, tostring(clientVersion), tostring(clientBuild), tostring(tocVersion)))
-
-	if #entries == 0 then
-		self:Print("nothing logged.")
-		return
-	end
-
-	for i = #entries, 1, -1 do
-		local entry = entries[i]
-		DEFAULT_CHAT_FRAME:AddMessage(("|cffa78bfa[%s]|r"):format(tostring(entry.when or "?")))
-		for line in tostring(entry.text or ""):gmatch("[^\n]+") do
-			DEFAULT_CHAT_FRAME:AddMessage("|cffb8b8c0  " .. line .. "|r")
-		end
-	end
-
-	self:Print(("%d entr%s saved in WTF/Account/<account>/SavedVariables/MacroVaultPro.lua"):format(
-		#entries, #entries == 1 and "y" or "ies"))
-end
-
-function MV:ClearErrors()
-	errorStore()
-	MacroVaultProDB.errors = {}
-	self:Print("error log cleared.")
-end
-
--- Routes the client's error handler through the log. The original handler still
--- runs, so the usual error dialog is untouched; this only records.
-function MV:InstallErrorLog()
-	if self.errorLogHooked then return end
-	self.errorLogHooked = true
-
-	if type(seterrorhandler) ~= "function" then return end
-	local original = type(geterrorhandler) == "function" and geterrorhandler() or nil
-	if type(original) ~= "function" then original = nil end
-
-	local logging = false
-
-	seterrorhandler(function(message)
-		if not logging then
-			logging = true
-			local ok, stack = pcall(debugstack, 2, 20, 20)
-			stack = (ok and type(stack) == "string") and stack or ""
-			local text = tostring(message or "unknown error")
-			if text:find("MacroVaultPro", 1, true) or stack:find("MacroVaultPro", 1, true) then
-				MV:LogError(text, stack)
-			end
-			logging = false
-		end
-		if original then return original(message) end
-	end)
-end
-
--------------------------------------------------------------------------------
 -- Events and slash commands
 -------------------------------------------------------------------------------
 
@@ -694,8 +751,9 @@ loader:SetScript("OnEvent", function(_, event, arg1)
 		if db.perCharacter == nil then db.perCharacter = false end
 		if db.tab == nil then db.tab = "macros" end
 		if db.errors == nil then db.errors = {} end
+		if db.otherErrors == nil then db.otherErrors = {} end
 		if MV.UI then MV.UI:ApplyPosition() end
-		MV:InstallErrorLog()
+		MV:FoldPendingErrors()
 	elseif event == "PLAYER_LOGIN" then
 		MV:Print(("v%s loaded  -  /mvpro"):format(MV.VERSION))
 	elseif event == "UPDATE_MACROS" then
