@@ -553,6 +553,30 @@ local function buildAliasCache()
 	return map
 end
 
+-- Not every command the tools ship lives in SlashCmdList: /dump, /api and
+-- /fstack are handled by the client itself or by a Blizzard addon that only
+-- loads once the command is typed, so there is no handler to call and the
+-- lookup below would report them missing. Sending the line through the chat
+-- parser is the path a typed command takes, so anything that works when typed
+-- works from here too.
+local function runThroughChat(line)
+	local editBox = _G.ChatFrame1EditBox or (_G.ChatFrame1 and _G.ChatFrame1.editBox)
+	if not editBox or type(_G.ChatEdit_SendText) ~= "function" then return false end
+	if type(editBox.SetText) ~= "function" then return false end
+
+	-- Never swallow a message the player had half-typed.
+	local previous = ""
+	if type(editBox.GetText) == "function" then
+		local got, value = pcall(editBox.GetText, editBox)
+		if got and value then previous = value end
+	end
+
+	editBox:SetText(line)
+	local ok = pcall(_G.ChatEdit_SendText, editBox, false)
+	pcall(editBox.SetText, editBox, previous)
+	return ok
+end
+
 function MV:RunSlash(command)
 	local slash, rest = tostring(command or ""):match("^(%S+)%s*(.-)$")
 	if not slash then return false, "No command given." end
@@ -578,6 +602,10 @@ function MV:RunSlash(command)
 		handler = aliasCache[slash]
 	end
 	if not handler then
+		-- Client-native and lazily loaded commands end up here. Hand the exact
+		-- line to the chat parser before calling the command missing.
+		local line = rest ~= "" and (slash .. " " .. rest) or slash
+		if runThroughChat(line) then return true end
 		return false, ("%s is not available on this client."):format(slash)
 	end
 
