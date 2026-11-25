@@ -64,7 +64,7 @@
 
 <h3>A sheet you arrange yourself</h3>
 
-<p>The <strong>Sheet</strong> tab puts every macro in a list beside 36 icon slots. Drag one out of the list and it lands in whichever slot you let go over, drag one slot onto another to swap their places, and right-click a slot to clear it. Each slot wears its macro's own icon and shows the name, scope and body on hover; clicking one selects it in My macros. Slots hold the macro's name and scope rather than a slot number, so the sheet survives macros being created and deleted &mdash; a slot whose macro has gone stays visible with a red border, so nothing disappears without you seeing it. The layout is written to <code>MacroVaultProDB</code> as you change it, and <strong>Save layout</strong> writes it again on demand.</p>
+<p>The <strong>Sheet</strong> tab puts every macro in a list beside 36 icon slots. Drag one out of the list and it lands in whichever slot you let go over, drag one slot onto another to swap their places, and right-click a slot to clear it. Each slot wears its macro's own icon and shows the name, scope and body on hover; clicking one selects it in My macros. Slots hold the macro's name and scope rather than a slot number, so the sheet survives macros being created and deleted &mdash; a slot whose macro has gone stays visible with a red border, so nothing disappears without you seeing it. The layout is written to <code>MacroVaultProDB</code> as you change it, and <strong>Save layout</strong> writes it again on demand. <strong>Undo</strong>, beside it, takes back the last clear or move, once, so a misclick costs you one slot at most.</p>
 
 <h3>Sensible about account and character slots</h3>
 
@@ -78,6 +78,8 @@
 
 <p>If something inside the addon does raise a Lua error, <code>/mvpro errors</code> prints it with its timestamp, message and traceback, ready to paste into a bug report. It records errors raised in the addon's own files, including ones thrown while it is still loading, and keeps the last 20 plus up to 10 whose traceback carries no addon name. The list is saved in <code>MacroVaultProDB</code>, so it survives a reload, and <code>/mvpro errors clear</code> empties it.</p>
 
+<p><code>/mvpro diag</code> prints one block, ready to paste: the addon's build stamp, the client build, whether the client exposes <code>RegisterForDrag</code>, <code>IsMouseButtonDown</code> and <code>GetMouseFocus</code>, the minimap size and shape, the detected slot split, and how many drags each of the two drag paths has started since you logged in &mdash; so a report says exactly which path works.</p>
+
 <h3>Remembers where you left it</h3>
 
 <p>The window position, the last tab, your default scope, the sheet layout, where the minimap button sits and whether it is shown are saved per account in <code>MacroVaultProDB</code>.</p>
@@ -89,7 +91,7 @@
 	<li><strong>My macros</strong> &mdash; search, click a macro, then <strong>Inject</strong>, <strong>Edit</strong>, <strong>Duplicate</strong> or <strong>Macro UI</strong>.</li>
 	<li><strong>Tools</strong> &mdash; click an entry. The tool runs immediately; output appears in chat or in the client's own window.</li>
 	<li><strong>Library</strong> &mdash; pick a macro, check its body, then <strong>Create</strong> or <strong>Create &amp; pick up</strong>.</li>
-	<li><strong>Sheet</strong> &mdash; drag macros out of My macros into the slots, drag slots to reorder, right-click to clear.</li>
+	<li><strong>Sheet</strong> &mdash; drag macros out of My macros into the slots, drag slots to reorder, right-click to clear. <strong>Undo</strong> takes back the last change.</li>
 	<li>Close with Escape, or type <code>/mvpro</code> again.</li>
 </ol>
 
@@ -108,6 +110,8 @@
 		<tr><td><code>/mvpro sheet</code></td><td>Open the sheet</td></tr>
 		<tr><td><code>/mvpro minimap</code></td><td>Show or hide the minimap button</td></tr>
 		<tr><td><code>/mvpro selftest</code></td><td>Print client and limit diagnostics, then confirm the account/character boundary</td></tr>
+		<tr><td><code>/mvpro diag</code></td><td>Print one copyable block: build stamp, client build, drag APIs, minimap and slot split</td></tr>
+		<tr><td><code>/mvpro undo</code></td><td>Take back the last Sheet clear or move</td></tr>
 		<tr><td><code>/mvpro errors</code></td><td>Print the addon's error log, ready to copy</td></tr>
 		<tr><td><code>/mvpro errors clear</code></td><td>Empty the error log</td></tr>
 		<tr><td><code>/mvpro reset</code></td><td>Forget the saved window position</td></tr>

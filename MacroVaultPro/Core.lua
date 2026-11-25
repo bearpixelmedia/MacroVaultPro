@@ -14,7 +14,15 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.0"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-25b"
+MV.BUILD         = "2026-11-25c"
+
+-- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
+-- actually started or finished the drag, so a retest report can say which of
+-- the two paths the client raised. In memory only: a reload starts again at 0.
+MV.dragStats = MV.dragStats or {
+	press = 0, client = 0, drops = 0,
+	minimapPress = 0, minimapClient = 0,
+}
 MV.MAX_BODY      = 255
 MV.MAX_NAME      = 16
 
@@ -199,6 +207,19 @@ function MV:Notify(message, isError)
 	if self.UI and self.UI.SetStatus then
 		self.UI:SetStatus(message, isError)
 	end
+end
+
+-- A line of a copyable block: no prefix and no colour codes, so the whole block
+-- can be pasted into a message as it stands.
+function MV:PrintRaw(message)
+	if type(DEFAULT_CHAT_FRAME) == "table" and DEFAULT_CHAT_FRAME.AddMessage then
+		pcall(DEFAULT_CHAT_FRAME.AddMessage, DEFAULT_CHAT_FRAME, tostring(message))
+	end
+end
+
+function MV:CountDrag(key)
+	self.dragStats = self.dragStats or {}
+	self.dragStats[key] = (self.dragStats[key] or 0) + 1
 end
 
 -------------------------------------------------------------------------------
@@ -761,6 +782,7 @@ function MV:CreateMinimapButton()
 				return
 			end
 			self.moved = true
+			MV:CountDrag("minimapPress")
 		end
 
 		local scale = Minimap:GetEffectiveScale()
@@ -785,6 +807,9 @@ function MV:CreateMinimapButton()
 	-- has had a frame to run.
 	local function startMinimapDrag(self, fromDragEvent)
 		if fromDragEvent then
+			if not self.moved then
+				MV:CountDrag("minimapClient")
+			end
 			self.moved = true
 		end
 		self:SetScript("OnUpdate", trackMinimap)
@@ -955,6 +980,79 @@ function MV:Selftest()
 end
 
 -------------------------------------------------------------------------------
+-- Diag: /mvpro diag
+--
+-- One block, meant to be pasted whole into a bug report. It answers the
+-- questions a drag bug raises: which copy of the files is loaded, whether the
+-- client has the APIs the two drag paths use, and which path actually fired the
+-- last time something was dragged. The counts start again after a reload.
+-------------------------------------------------------------------------------
+
+local function yesNo(value)
+	return value and "yes" or "no"
+end
+
+local function angleText(angle)
+	if type(angle) ~= "number" then return "?" end
+	if type(math.deg) == "function" then
+		return ("%.0f deg"):format(math.deg(angle))
+	end
+	return ("%.2f rad"):format(angle)
+end
+
+function MV:Diag()
+	local layout = self:GetLayout(true)
+	local stats  = self.dragStats or {}
+
+	local okBuild, clientVersion, clientBuild, _, tocVersion = pcall(GetBuildInfo)
+	if not okBuild then
+		clientVersion, clientBuild, tocVersion = "?", "?", "?"
+	end
+
+	-- Widget methods are globals on most clients; the frame probe covers a client
+	-- that only answers RegisterForDrag on a frame that exists.
+	local frame = self.UI and self.UI.frame
+	if not frame and type(CreateFrame) == "function" then
+		local made, probe = pcall(CreateFrame, "Frame")
+		if made then frame = probe end
+	end
+	local registerForDrag = type(_G.RegisterForDrag) == "function"
+		or (frame and type(frame.RegisterForDrag) == "function")
+
+	local minimap  = _G.Minimap
+	local mapWidth  = minimap and minimap.GetWidth  and minimap:GetWidth()
+	local mapHeight = minimap and minimap.GetHeight and minimap:GetHeight()
+	local mapShape  = minimap and minimap.GetShape  and minimap:GetShape()
+	local button    = self.minimapButton
+
+	self:Print("--- MacroVaultPro diag ---  copy down to the end line")
+	self:PrintRaw(("addon %s  build %s  interface %s"):format(
+		self.VERSION, self.BUILD, tostring(tocVersion)))
+	self:PrintRaw(("client %s  build %s"):format(tostring(clientVersion), tostring(clientBuild)))
+	self:PrintRaw(("globals MAX_ACCOUNT_MACROS=%s  MAX_CHARACTER_MACROS=%s"):format(
+		tostring(_G.MAX_ACCOUNT_MACROS or "unset"), tostring(_G.MAX_CHARACTER_MACROS or "unset")))
+	self:PrintRaw(("slots account 1-%d  character %d-%d  total %d  (from %s)"):format(
+		layout.accountSlots, layout.boundary, layout.total, layout.total, layout.source))
+	self:PrintRaw(("drag api RegisterForDrag=%s  IsMouseButtonDown=%s  GetMouseFocus=%s"):format(
+		yesNo(registerForDrag),
+		yesNo(type(_G.IsMouseButtonDown) == "function"),
+		yesNo(type(_G.GetMouseFocus) == "function")))
+	self:PrintRaw(("drag counts since load  press=%d  client=%d  drops=%d"):format(
+		stats.press or 0, stats.client or 0, stats.drops or 0))
+	self:PrintRaw(("minimap drags since load  press=%d  client=%d"):format(
+		stats.minimapPress or 0, stats.minimapClient or 0))
+	self:PrintRaw(("minimap %sx%s  shape %s  button %s  shown %s  angle %s"):format(
+		mapWidth and math.floor(mapWidth + 0.5) or "?",
+		mapHeight and math.floor(mapHeight + 0.5) or "?",
+		tostring(mapShape or "?"),
+		button and "built" or "missing",
+		yesNo(self:MinimapShown()),
+		angleText(button and button.angle)))
+	self:PrintRaw("paths: press = button tracker, client = OnDragStart/OnDragStop")
+	self:Print("--- end MacroVaultPro diag ---")
+end
+
+-------------------------------------------------------------------------------
 -- Events and slash commands
 -------------------------------------------------------------------------------
 
@@ -997,6 +1095,11 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 		MV:Open(msg)
 	elseif msg == "selftest" or msg == "test" then
 		MV:Selftest()
+	elseif msg == "diag" then
+		MV:Diag()
+	elseif msg == "undo" then
+		MV.UI:Build()
+		MV.UI:UndoSheet()
 	elseif msg == "minimap" then
 		MV:ToggleMinimap()
 	elseif msg == "errors" then
@@ -1013,6 +1116,6 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 			MV:Print("Window position reset.")
 		end
 	else
-		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro sheet  |  /mvpro minimap  |  /mvpro selftest  |  /mvpro errors  |  /mvpro reset")
+		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro sheet  |  /mvpro undo  |  /mvpro minimap  |  /mvpro selftest  |  /mvpro diag  |  /mvpro errors  |  /mvpro reset")
 	end
 end

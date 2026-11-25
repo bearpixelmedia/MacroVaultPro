@@ -689,7 +689,7 @@ function UI:RefreshMacros()
 		function(row, item) self:RenderMacroRow(row, item) end,
 		function(item) self:SelectMacro(item.index) end,
 		function(item) self:PressDrag({ macro = item }) end,
-		function(item) self:BeginDrag({ macro = item }) end
+		function(item) self:BeginDrag({ macro = item }, "client") end
 	)
 	self.macroList:SetSelected(self.selectedMacroIndex)
 
@@ -1354,6 +1354,43 @@ function UI:SaveSheet()
 	MacroVaultProDB.sheet = saved
 end
 
+-- One level of undo for the two destructive things this tab does: clearing a
+-- slot and moving a macro between slots. The snapshot is a plain copy, so what
+-- gets restored cannot be changed by anything that happens after it is taken.
+function UI:CopySheet()
+	local copy = {}
+	for position, entry in pairs(self:GetSheet()) do
+		copy[position] = { name = entry.name, scope = entry.scope }
+	end
+	return copy
+end
+
+function UI:SnapshotSheet(label)
+	self.sheetUndo = { entries = self:CopySheet(), label = label }
+end
+
+function UI:UndoSheet()
+	local undo = self.sheetUndo
+	if not undo then
+		self:SetStatus("Nothing to undo.")
+		return false
+	end
+
+	self.sheet = undo.entries
+	self.sheetUndo = nil
+	self:SaveSheet()
+	self:RefreshSheet()
+	self:RefreshUndoButton()
+	self:SetStatus(("Undid %s."):format(undo.label))
+	return true
+end
+
+function UI:RefreshUndoButton()
+	local button = self.undoButton
+	if not button then return end
+	button:SetAlpha(self.sheetUndo and 1 or 0.4)
+end
+
 function UI:SheetMap()
 	if not self.sheetMacroMap then
 		local map = {}
@@ -1403,7 +1440,7 @@ function UI:RefreshSheet()
 			function(row, item) self:RenderMacroRow(row, item) end,
 			function(item) self:SelectMacro(item.index) end,
 			function(item) self:PressDrag({ macro = item }) end,
-			function(item) self:BeginDrag({ macro = item }) end
+			function(item) self:BeginDrag({ macro = item }, "client") end
 		)
 		self.sheetList:SetSelected(self.selectedMacroIndex)
 
@@ -1437,6 +1474,8 @@ function UI:RefreshSheet()
 	if self.sheetHeader then
 		self.sheetHeader:SetText(("MACRO SHEET  %d/%d"):format(self:SheetCount(), SHEET_SLOTS))
 	end
+
+	self:RefreshUndoButton()
 end
 
 function UI:ClearSheetSlot(position)
@@ -1444,10 +1483,11 @@ function UI:ClearSheetSlot(position)
 	local entry = sheet[position]
 	if not entry then return end
 
+	self:SnapshotSheet(("clearing slot %d - %s"):format(position, entry.name))
 	sheet[position] = nil
 	self:SaveSheet()
 	self:RefreshSheet()
-	self:SetStatus(("Cleared slot %d - %s."):format(position, entry.name))
+	self:SetStatus(("Cleared slot %d - %s. Undo is in this tab."):format(position, entry.name))
 end
 
 function UI:BuildDragGhost()
@@ -1500,7 +1540,7 @@ function UI:DragTick()
 	if press and not self.drag then
 		if x and y and (math.abs(x - press.x) + math.abs(y - press.y)) >= 6 then
 			self.pressDrag = nil
-			self:BeginDrag(press.payload)
+			self:BeginDrag(press.payload, "press")
 		end
 	end
 
@@ -1535,9 +1575,10 @@ end
 
 -- Starts a drag. Payload is { macro = <macro> } from a list row, optionally
 -- with slot = <position> when the drag started on the sheet itself.
-function UI:BeginDrag(payload)
+function UI:BeginDrag(payload, source)
 	if not payload or not payload.macro then return end
 	if self.drag then return end
+	if source then MV:CountDrag(source) end
 
 	local ghost = self.dragGhost or self:BuildDragGhost()
 	ghost.icon:SetTexture(payload.macro.icon or 134400)
@@ -1597,6 +1638,7 @@ function UI:DropDrag()
 	end
 
 	if target then
+		MV:CountDrag("drops")
 		self:DropOnSlot(target, drag)
 	else
 		self:RefreshSheet()
@@ -1607,6 +1649,7 @@ function UI:DropOnSlot(target, drag)
 	if type(target) ~= "number" or target < 1 or target > SHEET_SLOTS then return end
 
 	local sheet = self:GetSheet()
+	local before = self:CopySheet()
 	local moved = false
 
 	if drag.slot then
@@ -1629,9 +1672,16 @@ function UI:DropOnSlot(target, drag)
 
 	if not moved then return end
 
+	self.sheetUndo = {
+		entries = before,
+		label = drag.slot
+			and ("moving slot %d to slot %d"):format(drag.slot, target)
+			or ("placing %s in slot %d"):format(drag.macro.name, target),
+	}
+
 	self:SaveSheet()
 	self:RefreshSheet()
-	self:SetStatus(("Sheet saved - slot %d."):format(target))
+	self:SetStatus(("Sheet saved - slot %d. Undo is in this tab."):format(target))
 end
 
 function UI:BuildSheetPanel(panel)
@@ -1717,7 +1767,7 @@ function UI:BuildSheetPanel(panel)
 		slot:SetScript("OnDragStart", function(self)
 			local macro = ui:SheetMacroAt(self.sheetSlot)
 			if macro then
-				ui:BeginDrag({ macro = macro, slot = self.sheetSlot })
+				ui:BeginDrag({ macro = macro, slot = self.sheetSlot }, "client")
 			end
 		end)
 		slot:SetScript("OnDragStop", function()
@@ -1775,4 +1825,24 @@ function UI:BuildSheetPanel(panel)
 		ui:SetStatus(("Sheet saved - %d of %d slots filled."):format(ui:SheetCount(), SHEET_SLOTS))
 	end)
 	save:SetPoint("BOTTOMLEFT", 12, 10)
+
+	-- One level back from the last clear or move. Dimmed rather than disabled, so
+	-- it still explains itself when there is nothing to undo.
+	local undo = ui:MakeButton(sheetPane, "Undo", 70, function()
+		ui:UndoSheet()
+	end)
+	undo:SetPoint("BOTTOMLEFT", save, "BOTTOMRIGHT", 8, 0)
+	undo:SetAlpha(0.4)
+	undo:SetScript("OnEnter", function(self)
+		local label = ui.sheetUndo and ui.sheetUndo.label
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Undo", 1, 1, 1)
+		GameTooltip:AddLine(label and ("Undo %s."):format(label) or "Nothing to undo yet.",
+			0.82, 0.82, 0.88, true)
+		GameTooltip:Show()
+	end)
+	undo:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+	end)
+	ui.undoButton = undo
 end

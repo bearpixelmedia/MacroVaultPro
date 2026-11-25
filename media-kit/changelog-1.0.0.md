@@ -23,13 +23,18 @@ First release, for World of Warcraft: Forever (interface 16001).
   and scope rather than by slot number, so the layout survives macros being
   created or deleted; a slot whose macro is gone stays visible with a red border.
   The layout is saved to `MacroVaultProDB` as you change it, and **Save layout**
-  writes it again on demand.
+  writes it again on demand. **Undo** takes back the last clear or move, once.
 - **Slot detection** — account and character limits are read from the client
   (`MAX_*` globals, then `Constants`, then defaults), and every macro the addon
   creates records the exact scope of its own slot.
 - **`/mvpro selftest`** — prints the client build, the detected slot split, your
   usage, and confirms the account/character boundary with one temporary macro per
   scope, deleted immediately. Run it out of combat.
+- **`/mvpro diag`** — prints one pasteable block for a bug report: the addon's
+  build stamp, the client build, whether the client exposes `RegisterForDrag`,
+  `IsMouseButtonDown` and `GetMouseFocus`, the minimap size and shape, the
+  detected slot split, and how many drags each drag path has started since you
+  logged in — so the report says exactly which path works.
 - **`/mvpro errors`** — a log of every Lua error raised in the addon's own files,
   including ones thrown while the addon is still loading. Each entry keeps its
   timestamp, message and traceback; the last 20 are kept, plus up to 10 whose

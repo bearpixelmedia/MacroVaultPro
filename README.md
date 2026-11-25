@@ -13,8 +13,9 @@ tab has 26 ready-made targeting, utility and developer macros you can read
 before creating. The **Tools** tab runs the client's own debug tools —
 `/fstack`, `/etrace`, `/api`, build info, script errors, taint log — without
 typing them. The **Sheet** tab puts the macro list beside 36 icon slots: drag one
-onto a slot, drag one slot onto another to reorder it, right-click to clear;
-the layout is saved with the rest of the addon's settings.
+onto a slot, drag one slot onto another to reorder it, right-click to clear
+(Undo takes back the last clear or move); the layout is saved with the rest of
+the addon's settings.
 
 Macro slots are read from the client rather than assumed, and nothing is written
 while you are in combat.
@@ -32,7 +33,10 @@ game with no addons disabled, and the window opens from `/mvpro` or
 and traceback — ready to paste into a bug report. It covers errors raised in the
 addon's own files, including ones thrown while it loads. The same list is saved
 in `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload, and
-`/mvpro errors clear` empties it.
+`/mvpro errors clear` empties it. For a drag or load problem, `/mvpro diag`
+prints one copyable block — build stamp, client build, which drag APIs the
+client has, the minimap size and the detected slot split — so a report says
+exactly which drag path works.
 
 ## What lives where
 

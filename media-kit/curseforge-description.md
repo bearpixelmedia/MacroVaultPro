@@ -81,7 +81,8 @@ Slots hold the macro's name and scope rather than a slot number, so the sheet
 survives macros being created and deleted - a slot whose macro has gone stays
 visible with a red border, so nothing disappears without you seeing it. The
 layout is written to `MacroVaultProDB` as you change it, and **Save layout**
-writes it again on demand.
+writes it again on demand. **Undo**, beside it, takes back the last clear or
+move, once, so a misclick costs you one slot at most.
 
 ### Sensible about account and character slots
 
@@ -107,6 +108,12 @@ still loading, and keeps the last 20 plus up to 10 whose traceback carries no
 addon name. The list is saved in `MacroVaultProDB`, so it survives a reload, and
 `/mvpro errors clear` empties it.
 
+`/mvpro diag` prints one block, ready to paste: the addon's build stamp, the
+client build, whether the client exposes `RegisterForDrag`,
+`IsMouseButtonDown` and `GetMouseFocus`, the minimap size and shape, the
+detected slot split, and how many drags each of the two drag paths has started
+since you logged in — so a report says exactly which path works.
+
 ### Remembers where you left it
 
 The window position, the last tab, your default scope, the sheet layout, where
@@ -123,7 +130,7 @@ the minimap button sits and whether it is shown are saved per account in
    or in the client's own window.
 4. **Library** — pick a macro, check its body, then **Create** or **Create & pick up**.
 5. **Sheet** — drag macros out of My macros into the slots, drag slots to
-   reorder, right-click to clear.
+   reorder, right-click to clear. **Undo** takes back the last change.
 6. Close with Escape, or type `/mvpro` again.
 
 ## Slash commands
@@ -138,6 +145,8 @@ the minimap button sits and whether it is shown are saved per account in
 | `/mvpro sheet` | Open the sheet |
 | `/mvpro minimap` | Show or hide the minimap button |
 | `/mvpro selftest` | Print client and limit diagnostics, then confirm the account/character boundary |
+| `/mvpro diag` | Print one copyable block: build stamp, client build, drag APIs, minimap and slot split |
+| `/mvpro undo` | Take back the last Sheet clear or move |
 | `/mvpro errors` | Print the addon's error log, ready to copy |
 | `/mvpro errors clear` | Empty the error log |
 | `/mvpro reset` | Forget the saved window position |
