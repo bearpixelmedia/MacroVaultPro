@@ -135,20 +135,22 @@ $changelogText = ($lines -join "`n") + "`n"
 "build:     {0} -> {1}" -f $oldStamp, $stamp
 "changelog: {0}  ({1} entries from {2})" -f $changelogPath, $entryCount, $notesSource
 
-if ($DryRun) {
-	"--- changelog (dry run, nothing written) ---"
-	$changelogText
-	exit 0
-}
-
 # ---- pre-flight ----------------------------------------------------------
-# Runs before anything is written, so a failed check leaves the version, the stamp
-# and the changelog exactly as they were. The checks are the moderation list in
-# media-kit/README.md: avatar, name, changelog, gallery disclosure, summary.
+# Runs before anything is written, and on -DryRun as well, so a dry run exercises
+# the same hand-off a real release does instead of skipping it. A failed check
+# leaves the version, the stamp and the changelog exactly as they were. The checks
+# are the moderation list in media-kit/README.md: avatar, name, changelog, gallery
+# disclosure, summary.
 ""
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "preflight.ps1") -Version $Version
 if ($LASTEXITCODE -ne 0) {
 	throw "preflight.ps1 failed - nothing was written or packaged"
+}
+
+if ($DryRun) {
+	"--- changelog (dry run, nothing written) ---"
+	$changelogText
+	exit 0
 }
 
 # ---- write it ------------------------------------------------------------
