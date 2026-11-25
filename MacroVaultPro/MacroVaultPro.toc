@@ -1,4 +1,4 @@
-## Interface: 16001, 120105
+## Interface: 16001
 ## Title: MacroVaultPro
 ## Notes: Browse every macro you own, inject them onto your bars, and run the client's own tools like /fstack.
 ## Author: Bear Pixel Media
