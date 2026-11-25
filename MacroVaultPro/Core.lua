@@ -13,6 +13,8 @@ MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.0"
+-- Printed by /mvpro selftest so a report says which copy of the files is loaded.
+MV.BUILD         = "2026-11-25"
 MV.MAX_BODY      = 255
 MV.MAX_NAME      = 16
 
@@ -685,13 +687,23 @@ end
 -- radius is fixed, so the button stays in its ring on any minimap size.
 -------------------------------------------------------------------------------
 
-local MINIMAP_ICON   = "Interface\\AddOns\\MacroVaultPro\\Media\\icon.tga"
-local MINIMAP_RADIUS = 80
-local MINIMAP_ANGLE  = math.rad(220)
+local MINIMAP_ICON  = "Interface\\AddOns\\MacroVaultPro\\Media\\icon.tga"
+local MINIMAP_ANGLE = math.rad(220)
+
+-- Sit on the rim of whatever minimap the client uses; a fixed radius drifts off
+-- a smaller map and leaves a gap on a larger one.
+local function minimapRadius()
+	local width = Minimap and Minimap.GetWidth and Minimap:GetWidth()
+	if type(width) == "number" and width > 0 then
+		return width / 2 + 10
+	end
+	return 80
+end
 
 local function placeMinimapButton(button, angle)
+	local radius = minimapRadius()
 	button:ClearAllPoints()
-	button:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * MINIMAP_RADIUS, math.sin(angle) * MINIMAP_RADIUS)
+	button:SetPoint("CENTER", Minimap, "CENTER", math.cos(angle) * radius, math.sin(angle) * radius)
 end
 
 function MV:CreateMinimapButton()
@@ -702,13 +714,12 @@ function MV:CreateMinimapButton()
 	button:SetFrameStrata("MEDIUM")
 	button:EnableMouse(true)
 	button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-	button:RegisterForDrag("LeftButton")
 
 	-- Dark plate behind the icon: the addon's own art is square, and a bare
 	-- square on top of a round minimap edge reads as a hole.
 	button.plate = button:CreateTexture(nil, "BACKGROUND")
 	button.plate:SetAllPoints(button)
-	button.plate:SetColorTexture(0.04, 0.035, 0.06, 0.92)
+	button.plate:SetColorTexture(0.09, 0.08, 0.13, 0.95)
 
 	button.icon = button:CreateTexture(nil, "ARTWORK")
 	button.icon:SetPoint("TOPLEFT", 3, -3)
@@ -722,6 +733,7 @@ function MV:CreateMinimapButton()
 	button.angle = (MacroVaultProDB and type(MacroVaultProDB.minimapAngle) == "number")
 		and MacroVaultProDB.minimapAngle or MINIMAP_ANGLE
 	placeMinimapButton(button, button.angle)
+	button:Raise()
 
 	button:SetScript("OnClick", function(self, mouseButton)
 		if mouseButton == "RightButton" then
@@ -729,31 +741,50 @@ function MV:CreateMinimapButton()
 			placeMinimapButton(self, self.angle)
 			if MacroVaultProDB then MacroVaultProDB.minimapAngle = self.angle end
 			MV:Notify("Minimap button reset.")
+		elseif self.moved then
+			-- That press moved the icon around the ring, so it was a drag, not a click.
+			self.moved = false
 		else
 			MV:Toggle()
 		end
 	end)
 
-	-- Dragging walks the button around the edge rather than moving it freely, so
-	-- it cannot be lost off the edge of the screen.
-	button:SetScript("OnDragStart", function(self)
-		self:SetScript("OnUpdate", function(self)
-			local scale = Minimap:GetEffectiveScale()
-			if not scale or scale == 0 then return end
+	-- Press, move, release. OnDragStart is not raised for every frame on every
+	-- client, and when it is not, the icon looks glued in place.
+	local function trackMinimap(self)
+		local x, y = GetCursorPosition()
+		if not x or not y then return end
 
-			local x, y = GetCursorPosition()
-			x, y = x / scale, y / scale
-			local centerX, centerY = Minimap:GetCenter()
-			if not centerX or not centerY then return end
+		if not self.moved then
+			if math.abs(x - (self.pressX or x)) + math.abs(y - (self.pressY or y)) < 6 then
+				return
+			end
+			self.moved = true
+		end
 
-			self.angle = (math.atan2 or math.atan)(y - centerY, x - centerX)
-			placeMinimapButton(self, self.angle)
-		end)
+		local scale = Minimap:GetEffectiveScale()
+		if not scale or scale == 0 then return end
+		local centerX, centerY = Minimap:GetCenter()
+		if not centerX or not centerY then return end
+
+		self.angle = (math.atan2 or math.atan)(y / scale - centerY, x / scale - centerX)
+		placeMinimapButton(self, self.angle)
+	end
+
+	button:SetScript("OnMouseDown", function(self, mouseButton)
+		if mouseButton ~= "LeftButton" then return end
+		local x, y = GetCursorPosition()
+		self.pressX, self.pressY = x or 0, y or 0
+		self.moved = false
+		self:SetScript("OnUpdate", trackMinimap)
 	end)
 
-	button:SetScript("OnDragStop", function(self)
+	button:SetScript("OnMouseUp", function(self, mouseButton)
+		if mouseButton ~= "LeftButton" then return end
 		self:SetScript("OnUpdate", nil)
-		if MacroVaultProDB then MacroVaultProDB.minimapAngle = self.angle end
+		if self.moved and MacroVaultProDB then
+			MacroVaultProDB.minimapAngle = self.angle
+		end
 	end)
 
 	button:SetScript("OnEnter", function(self)
@@ -825,8 +856,8 @@ function MV:Selftest()
 		clientVersion, clientBuild, tocVersion = "?", "?", "?"
 	end
 
-	self:Print(("selftest  -  MacroVaultPro %s on client %s (build %s, interface %s)"):format(
-		self.VERSION, tostring(clientVersion), tostring(clientBuild), tostring(tocVersion)))
+	self:Print(("selftest  -  MacroVaultPro %s [%s] on client %s (build %s, interface %s)"):format(
+		self.VERSION, self.BUILD, tostring(clientVersion), tostring(clientBuild), tostring(tocVersion)))
 
 	self:Print(("globals: MAX_ACCOUNT_MACROS=%s  MAX_CHARACTER_MACROS=%s"):format(
 		tostring(_G.MAX_ACCOUNT_MACROS or "unset"),

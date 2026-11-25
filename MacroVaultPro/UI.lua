@@ -256,9 +256,11 @@ function UI:CreateList(parent)
 		row:SetPoint("TOPRIGHT", 0, -((index - 1) * ROW_HEIGHT))
 		row:EnableMouseWheel(true)
 		row:SetScript("OnMouseWheel", scrollBy)
-		row:RegisterForDrag("LeftButton")
-		row:SetScript("OnDragStart", function(self)
-			if list.onDrag then list.onDrag(self.item) end
+		-- A press starts a possible drag; the tracker decides when the pointer has
+		-- actually moved. Waiting for OnDragStart leaves the row dead on a client
+		-- that does not raise it for a plain Button.
+		row:SetScript("OnMouseDown", function(self, button)
+			if button == "LeftButton" and list.onDrag then list.onDrag(self.item) end
 		end)
 
 		row.sel = row:CreateTexture(nil, "BACKGROUND")
@@ -674,7 +676,7 @@ function UI:RefreshMacros()
 		items,
 		function(row, item) self:RenderMacroRow(row, item) end,
 		function(item) self:SelectMacro(item.index) end,
-		function(item) self:BeginDrag({ macro = item }) end
+		function(item) self:PressDrag({ macro = item }) end
 	)
 	self.macroList:SetSelected(self.selectedMacroIndex)
 
@@ -1387,7 +1389,7 @@ function UI:RefreshSheet()
 			items,
 			function(row, item) self:RenderMacroRow(row, item) end,
 			function(item) self:SelectMacro(item.index) end,
-			function(item) self:BeginDrag({ macro = item }) end
+			function(item) self:PressDrag({ macro = item }) end
 		)
 		self.sheetList:SetSelected(self.selectedMacroIndex)
 
@@ -1446,18 +1448,77 @@ function UI:BuildDragGhost()
 	Border(ghost, ACCENT[1], ACCENT[2], ACCENT[3], 0.9)
 
 	ghost:Hide()
-	ghost:SetScript("OnUpdate", function(self)
-		local scale = UIParent:GetEffectiveScale()
-		local x, y = GetCursorPosition()
-		self:ClearAllPoints()
-		self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
-		if not (IsMouseButtonDown and IsMouseButtonDown("LeftButton")) then
-			UI:DropDrag()
-		end
-	end)
-
 	self.dragGhost = ghost
 	return ghost
+end
+
+-- Drags are tracked from the mouse button rather than from OnDragStart: press,
+-- watch the pointer, and drop on release. This starts on the first pixel of
+-- movement and does not rely on the client raising a drag event for the frame.
+function UI:PressDrag(payload)
+	if not payload or not payload.macro then return end
+
+	local x, y = GetCursorPosition()
+	self.pressDrag = { payload = payload, x = x or 0, y = y or 0 }
+	self:TrackDrag()
+end
+
+function UI:TrackDrag()
+	local tracker = self.dragTracker
+	if not tracker then
+		tracker = CreateFrame("Frame", nil, UIParent)
+		tracker:SetSize(1, 1)
+		tracker:SetPoint("TOPLEFT")
+		tracker:SetScript("OnUpdate", function() UI:DragTick() end)
+		self.dragTracker = tracker
+	end
+	tracker:Show()
+end
+
+function UI:StopDragTracking()
+	if self.dragTracker then self.dragTracker:Hide() end
+end
+
+function UI:DragTick()
+	local press = self.pressDrag
+	local x, y = GetCursorPosition()
+
+	if press and not self.drag then
+		if x and y and (math.abs(x - press.x) + math.abs(y - press.y)) >= 6 then
+			self.pressDrag = nil
+			self:BeginDrag(press.payload)
+		end
+	end
+
+	if self.drag then
+		self:MoveDragGhost()
+	end
+
+	local down = false
+	if type(IsMouseButtonDown) == "function" then
+		down = IsMouseButtonDown("LeftButton") and true or false
+	end
+	if not down then
+		self.pressDrag = nil
+		if self.drag then self:DropDrag() end
+		self:StopDragTracking()
+	end
+end
+
+function UI:MoveDragGhost()
+	local ghost = self.dragGhost
+	if not ghost or not ghost:IsShown() then return end
+
+	local root = self.frame or UIParent
+	if not root or not root.GetEffectiveScale then return end
+	local scale = root:GetEffectiveScale()
+	if not scale or scale == 0 then return end
+
+	local x, y = GetCursorPosition()
+	if not x or not y then return end
+
+	ghost:ClearAllPoints()
+	ghost:SetPoint("CENTER", root, "BOTTOMLEFT", x / scale, y / scale)
 end
 
 -- Starts a drag. Payload is { macro = <macro> } from a list row, optionally
@@ -1469,6 +1530,7 @@ function UI:BeginDrag(payload)
 	ghost.icon:SetTexture(payload.macro.icon or 134400)
 	ghost:Show()
 
+	self.pressDrag = nil
 	self.drag = payload
 	GameTooltip:Hide()
 	if self.sheetSlots then
@@ -1476,16 +1538,48 @@ function UI:BeginDrag(payload)
 	end
 end
 
+-- The slot under the pointer, worked out from the slot rectangles. The frame
+-- under the cursor is not a dependable answer once a mouse button is held.
+function UI:SlotAtCursor()
+	local slots = self.sheetSlots
+	if not slots then return nil end
+
+	local root = self.frame or UIParent
+	if not root or not root.GetEffectiveScale then return nil end
+	local scale = root:GetEffectiveScale()
+	if not scale or scale == 0 then return nil end
+
+	local x, y = GetCursorPosition()
+	if not x or not y then return nil end
+	x, y = x / scale, y / scale
+
+	for _, slot in ipairs(slots) do
+		local left, bottom = slot:GetLeft(), slot:GetBottom()
+		local right, top = slot:GetRight(), slot:GetTop()
+		if left and bottom and right and top
+			and x >= left and x <= right and y >= bottom and y <= top then
+			return slot.sheetSlot
+		end
+	end
+	return nil
+end
+
 function UI:DropDrag()
 	local ghost = self.dragGhost
 	if ghost then ghost:Hide() end
+	self:StopDragTracking()
+	self.pressDrag = nil
 
 	local drag = self.drag
 	self.drag = nil
 	if not drag then return end
 
-	local focus = GetMouseFocus and GetMouseFocus()
-	local target = focus and focus.sheetSlot
+	local target = self:SlotAtCursor()
+	if not target then
+		local focus = GetMouseFocus and GetMouseFocus()
+		target = focus and focus.sheetSlot
+	end
+
 	if target then
 		self:DropOnSlot(target, drag)
 	else
@@ -1575,7 +1669,6 @@ function UI:BuildSheetPanel(panel)
 		slot:SetSize(SHEET_ICON, SHEET_ICON)
 		slot:SetPoint("TOPLEFT", column * (SHEET_ICON + SHEET_GAP), -line * (SHEET_ICON + SHEET_GAP))
 		slot:EnableMouse(true)
-		slot:RegisterForDrag("LeftButton")
 		slot.sheetSlot = position
 
 		slot.bg = slot:CreateTexture(nil, "BACKGROUND")
@@ -1594,10 +1687,11 @@ function UI:BuildSheetPanel(panel)
 		slot.plus:SetPoint("CENTER", 0, 0)
 		slot.plus:SetText("+")
 
-		slot:SetScript("OnDragStart", function(self)
+		slot:SetScript("OnMouseDown", function(self, button)
+			if button ~= "LeftButton" then return end
 			local macro = ui:SheetMacroAt(self.sheetSlot)
 			if macro then
-				ui:BeginDrag({ macro = macro, slot = self.sheetSlot })
+				ui:PressDrag({ macro = macro, slot = self.sheetSlot })
 			end
 		end)
 
