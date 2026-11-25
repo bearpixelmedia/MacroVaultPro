@@ -15,7 +15,7 @@
 <ul>
 	<li><strong>Inject</strong> picks the macro up, so one click on an action button drops it there.</li>
 	<li><strong>Edit</strong> opens it in the editor without retyping the body.</li>
-	<li><strong>Duplicate</strong> copies it so you can change a copy and keep the original.</li>
+	<li><strong>Duplicate</strong> opens the editor pre-filled with the macro's name, body and icon, so you save a changed copy and keep the original.</li>
 	<li><strong>Macro UI</strong> opens the game's own macro window when you would rather drag it.</li>
 </ul>
 
@@ -45,7 +45,7 @@
 	</tbody>
 </table>
 
-<p>Eight of these run the client's own slash commands, so they behave exactly as if you had typed them into chat. The other four &mdash; the macro window, build info, the mouseover inspector and the frame dump &mdash; call the client's API directly, so they work whatever the client does with its slash commands. If a command really is missing, MacroVaultPro says so in the window rather than failing quietly.</p>
+<p>Eight of these run the client's own slash commands: the addon calls the handler the client registered for the command, and hands the line to the chat parser when there is no handler, which is the path a client-native or lazily loaded command like <code>/fstack</code> or <code>/api</code> takes. The other four don't depend on the command text &mdash; build info and the two mouseover inspectors call <code>GetBuildInfo()</code> and <code>GetMouseFocus()</code> in Lua, and the macro window opens the client's macro frame (<code>/macro</code> where the client registers it, <code>ShowMacroFrame</code> otherwise). If a command really is missing, MacroVaultPro says so in the window rather than failing quietly.</p>
 
 <h3>26 ready-made macros</h3>
 
@@ -74,7 +74,7 @@
 
 <h3>Tells you it loaded, and logs its own errors</h3>
 
-<p>On login the addon prints one line &mdash; <code>v1.0.0 loaded - /mvpro</code> &mdash; so a fresh install reports that it is running instead of looking inert until you type a command.</p>
+<p>On login the addon prints one line &mdash; <code>v&lt;version&gt; loaded - /mvpro</code> &mdash; so a fresh install reports that it is running instead of looking inert until you type a command.</p>
 
 <p>If something inside the addon does raise a Lua error, <code>/mvpro errors</code> assembles the log as one plain-text block &mdash; build line, both counts, then each entry with its timestamp, message and traceback &mdash; and hands it to a small read-only window instead of printing it into chat; chat is the fallback when that window cannot be built. <strong>Copy</strong> fills the window's text with that block and selects all of it. It records errors raised in the addon's own files, including ones thrown while it is still loading, and keeps the last 20 plus up to 10 whose traceback carries no addon name. The list is saved in <code>MacroVaultProDB</code>, so it survives a reload, and <strong>Clear log</strong> empties both stored lists, drops the entries still waiting to be saved, and rebuilds the window from the empty log.</p>
 
@@ -144,4 +144,4 @@
 
 <h2>Version</h2>
 
-<p>1.0.0 &mdash; first release. See the changelog on the Files tab.</p>
+<p>1.0.1 &mdash; see the changelog on the Files tab.</p>

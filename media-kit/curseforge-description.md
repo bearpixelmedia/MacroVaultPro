@@ -24,7 +24,8 @@ four things you can do about it:
 
 - **Inject** picks the macro up, so one click on an action button drops it there.
 - **Edit** opens it in the editor without retyping the body.
-- **Duplicate** copies it so you can change a copy and keep the original.
+- **Duplicate** opens the editor pre-filled with the macro's name, body and icon,
+  so you save a changed copy and keep the original.
 - **Macro UI** opens the game's own macro window when you would rather drag it.
 
 ### An editor that respects the client's limits
@@ -52,11 +53,15 @@ characters.
 | Mouseover frame | prints the frame under your cursor |
 | Dump mouseover frame | `GetMouseFocus()`, read in Lua |
 
-Eight of these run the client's own slash commands, so they behave exactly as if
-you had typed them into chat. The other four - the macro window, build info, the
-mouseover inspector and the frame dump - call the client's API directly, so they
-work whatever the client does with its slash commands. If a command really is
-missing, MacroVaultPro says so in the window rather than failing quietly.
+Eight of these run the client's own slash commands: the addon calls the handler
+the client registered for the command, and hands the line to the chat parser when
+there is no handler, which is the path a client-native or lazily loaded command
+like `/fstack` or `/api` takes. The other four don't depend on the command text -
+build info and the two mouseover inspectors call `GetBuildInfo()` and
+`GetMouseFocus()` in Lua, and the macro window opens the client's macro frame
+(`/macro` where the client registers it, `ShowMacroFrame` otherwise). If a command
+really is missing, MacroVaultPro says so in the window rather than failing
+quietly.
 
 ### 26 ready-made macros
 
@@ -97,7 +102,7 @@ Opening the window is read-only. It never creates or deletes anything.
 
 ### Tells you it loaded, and logs its own errors
 
-On login the addon prints one line — `v1.0.0 loaded - /mvpro` — so a fresh
+On login the addon prints one line — `v<version> loaded - /mvpro` — so a fresh
 install reports that it is running instead of looking inert until you type a
 command.
 
@@ -199,4 +204,4 @@ See the Images tab for the full set of panels.
 
 ## Version
 
-1.0.0 — first release. See the changelog on the Files tab.
+1.0.1 — see the changelog on the Files tab.
