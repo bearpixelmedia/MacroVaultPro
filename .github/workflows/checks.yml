@@ -1,0 +1,41 @@
+# The release scripts are only ever run by hand, so this is the only thing that
+# reads them on a push: a broken block or a pre-flight rule that no longer holds
+# should fail here, not during a release.
+name: checks
+
+on:
+  push:
+
+jobs:
+  checks:
+    # Windows, because preflight.ps1 reads the avatar through System.Drawing and
+    # the release scripts are Windows PowerShell.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $failed = $false
+          $files = @(Get-ChildItem -Path tools, media-kit/build -Filter *.ps1 -File)
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) {
+              $failed = $true
+              foreach ($e in $errors) {
+                Write-Output "::error file=$($file.FullName)::$($e.Message)"
+              }
+            } else {
+              Write-Output "ok    $($file.Name)"
+            }
+          }
+          Write-Output "parsed $($files.Count) script(s)"
+          if ($failed) { exit 1 }
+
+      - name: Pre-flight
+        shell: pwsh
+        run: ./tools/preflight.ps1

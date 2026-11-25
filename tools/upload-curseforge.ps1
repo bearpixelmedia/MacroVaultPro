@@ -247,13 +247,38 @@ $json = $metadata | ConvertTo-Json -Depth 4
 "release type: {0}" -f $ReleaseType
 
 # ---- duplicate guard ------------------------------------------------------
-# The site's file list is public, so this needs no token. A file with the same name
-# and the same byte count is the same build: uploading it again is the "re-upload
-# without changes" case in the moderation rules, and the site rejects it as a
-# duplicate anyway - better to stop before sending anything. The check runs on
-# -DryRun too, so a release can be tested without creating a second file.
+# A hash identifies a build; a name does not. The site's public record carries no
+# hash, so the check fetches the published file and hashes it, and refuses the
+# upload when those bytes are already there - a renamed archive is still a
+# re-upload without changes under the fair-play rule. The file list gives
+# fileLength for free and equal bytes always have equal length, so only published
+# files of exactly this size are downloaded: usually none, at most a couple.
+# The check runs on -DryRun too, so a release can be tested without uploading.
 $sizeBytes = (Get-Item $Zip).Length
-$uploadName = [System.IO.Path]::GetFileName($Zip)
+$localHash  = (Get-FileHash $Zip -Algorithm SHA256).Hash
+
+function Get-PublishedHash {
+	param([string]$Url)
+
+	$temp = $null
+	$get  = New-Object System.Net.Http.HttpClient
+	$get.Timeout = [TimeSpan]::FromMinutes(3)
+	$get.DefaultRequestHeaders.Add("User-Agent",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+	try {
+		$download = $get.GetAsync($Url).Result
+		if (-not $download.IsSuccessStatusCode) { return $null }
+		$bytes = $download.Content.ReadAsByteArrayAsync().Result
+		$temp = [System.IO.Path]::GetTempFileName()
+		[System.IO.File]::WriteAllBytes($temp, $bytes)
+		return (Get-FileHash $temp -Algorithm SHA256).Hash
+	} catch {
+		return $null
+	} finally {
+		$get.Dispose()
+		if ($temp) { Remove-Item $temp -ErrorAction SilentlyContinue }
+	}
+}
 $published = @()
 $listClient = New-Object System.Net.Http.HttpClient
 $listClient.Timeout = [TimeSpan]::FromSeconds(30)
@@ -274,13 +299,28 @@ try {
 	}
 } finally { $listClient.Dispose() }
 
-$duplicate = @($published | Where-Object {
-	$_.fileName -eq $uploadName -and [int]$_.fileLength -eq [int]$sizeBytes
-}) | Select-Object -First 1
-if ($duplicate) {
-	throw ("Refusing to upload: file id {0} is already {1} ({2:N0} bytes). The moderation rules treat that as a re-upload without changes. Bump the version for a new build, or check the existing file with -VerifyId {0}." -f $duplicate.id, $uploadName, $sizeBytes)
+$duplicate  = $null
+$candidates = @($published | Where-Object { $_.fileName -and [int]$_.fileLength -eq [int]$sizeBytes })
+foreach ($candidate in $candidates) {
+	$candidateId = [int]$candidate.id
+	$chunkA = [int][math]::Floor($candidateId / 1000)
+	$chunkB = $candidateId % 1000
+	$archiveUrl = "https://mediafilez.forgecdn.net/files/$chunkA/$chunkB/$($candidate.fileName)"
+	"checking:     file id {0}  {1}  {2:N0} bytes" -f $candidateId, $candidate.fileName, $candidate.fileLength
+	$publishedHash = Get-PublishedHash -Url $archiveUrl
+	if (-not $publishedHash) {
+		throw "Refusing to upload: file id $candidateId has this archive's size but could not be downloaded from $archiveUrl, so it cannot be ruled out as a duplicate. Retry, or check it with -VerifyId $candidateId."
+	}
+	if ($publishedHash -eq $localHash) { $duplicate = $candidate; break }
 }
-"duplicate:    none - no published file has this name and size"
+if ($duplicate) {
+	throw ("Refusing to upload: file id {0} ({1}) is byte-for-byte this archive - sha256 {2}. Renaming a build does not make it a new one; bump the version for real changes, or check the file with -VerifyId {0}." -f $duplicate.id, $duplicate.fileName, $localHash)
+}
+if ($candidates.Count -eq 0) {
+	"duplicate:    none - no published file has this archive's size ({0:N0} bytes)" -f $sizeBytes
+} else {
+	"duplicate:    none - {0} published file(s) of this size hashed, none matched $localHash" -f $candidates.Count
+}
 
 if ($DryRun) {
 	"--- metadata (dry run, nothing uploaded) ---"
