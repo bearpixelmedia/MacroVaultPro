@@ -69,7 +69,8 @@ in game stays out until it has been.
 - **Editor** — plain-text macro editing with the client's real limits applied
   (255-character bodies, 16-character names).
 - **Sheet** — a list of every macro beside 36 icon slots: drag one from the list
-  onto a slot, drag slot onto slot to reorder, and right-click a slot to clear.
+  onto a slot, drag one slot onto another to swap the two, and right-click a slot to
+  clear.
   Slots remember their macro by name and scope rather than by slot number, so the
   layout survives macros being created or deleted; a slot whose macro is gone
   stays visible with a red border. The layout is saved to `MacroVaultProDB` as

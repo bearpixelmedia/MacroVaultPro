@@ -72,17 +72,17 @@ toggle chooses whether new macros land in your account-wide or character slots.
 
 ### A sheet you arrange yourself
 
-The **Sheet** tab puts every macro in a list beside 36 icon slots. Drag one out of
-the list and it lands in whichever slot you let go over, drag one slot onto
-another to swap their places,
-and right-click a slot to clear it. Each slot wears its macro's own icon and
+The **Sheet** tab puts every macro in a list beside 36 icon slots. A drop from the list writes the macro into the slot under the pointer
+and takes it out of wherever it already sat; a drop from one slot onto another
+swaps the two, and right-clicking a slot clears it. Each slot wears its macro's own icon and
 shows the name, scope and body on hover; clicking one selects it in My macros.
 Slots hold the macro's name and scope rather than a slot number, so the sheet
 survives macros being created and deleted - a slot whose macro has gone stays
 visible with a red border, so nothing disappears without you seeing it. The
 layout is written to `MacroVaultProDB` as you change it, and **Save layout**
-writes it again on demand. **Undo**, beside it, takes back the last clear or
-move, once, so a misclick costs you one slot at most.
+writes it again on demand. **Undo**, beside it, holds the copy of the layout
+taken just before the last clear or move and writes it back — one step, then
+nothing older until the next change.
 
 ### Sensible about account and character slots
 
@@ -101,14 +101,17 @@ On login the addon prints one line — `v1.0.0 loaded - /mvpro` — so a fresh
 install reports that it is running instead of looking inert until you type a
 command.
 
-If something inside the addon does raise a Lua error, `/mvpro errors` opens a
-small read-only window instead of dumping the log into chat. Each entry keeps its
-timestamp, message and traceback, and **Copy** selects the whole log so Ctrl+C
-puts it on the clipboard, ready to paste into a bug report. It records errors
+If something inside the addon does raise a Lua error, `/mvpro errors` assembles
+the log as one plain-text block — build line, both counts, then each entry with
+its timestamp, message and traceback — and hands it to a small read-only window
+instead of printing it into chat; chat is the fallback when that window cannot be
+built. **Copy** fills the window's text with that block and selects all of it.
+It records errors
 raised in the addon's own files, including ones thrown while it is still loading,
 and keeps the last 20 plus up to 10 whose traceback carries no addon name. The
-list is saved in `MacroVaultProDB`, so it survives a reload, and **Clear log** in
-that window empties it.
+list is saved in `MacroVaultProDB`, so it survives a reload, and **Clear log**
+empties both stored lists, drops the entries still waiting to be saved, and
+rebuilds the window from the empty log.
 
 `/mvpro diag` prints one block, ready to paste: the addon's build stamp, the
 client build, whether the client exposes `RegisterForDrag`,
@@ -131,8 +134,9 @@ the minimap button sits and whether it is shown are saved per account in
 3. **Tools** — click an entry. The tool runs immediately; output appears in chat
    or in the client's own window.
 4. **Library** — pick a macro, check its body, then **Create** or **Create & pick up**.
-5. **Sheet** — drag macros out of My macros into the slots, drag slots to
-   reorder, right-click to clear. **Undo** takes back the last change.
+5. **Sheet** — drag macros out of My macros into the slots, drag a slot onto
+   another to swap them, right-click to clear. **Undo** writes back the layout
+   from before that last clear or move.
 6. Close with Escape, or type `/mvpro` again.
 
 ## Slash commands
@@ -148,8 +152,8 @@ the minimap button sits and whether it is shown are saved per account in
 | `/mvpro minimap` | Show or hide the minimap button |
 | `/mvpro selftest` | Print client and limit diagnostics, then confirm the account/character boundary |
 | `/mvpro diag` | Print one copyable block: build stamp, client build, drag APIs, minimap and slot split |
-| `/mvpro undo` | Take back the last Sheet clear or move |
-| `/mvpro errors` | Open the error log in a read-only window with a Copy button |
+| `/mvpro undo` | Write back the layout from before the last Sheet clear or move |
+| `/mvpro errors` | Assemble the error log and show it in a read-only window, with Copy |
 | `/mvpro errors clear` | Empty the error log |
 | `/mvpro reset` | Forget the saved window position |
 
@@ -179,14 +183,15 @@ corrected the boundary.
 - **Panels stay put.** Window position, tab, default scope, sheet layout, and the
   minimap button's place and visibility are the only settings stored; the error
   log is the only other thing written.
-- **Minimap button.** The icon beside the minimap opens the window. Drag it to
-  walk it around the edge of the map, right-click it to put it back where it
-  started, and type `/mvpro minimap` to hide or show it if you would rather not
+- **Minimap button.** The icon beside the minimap is wired to open the window; a
+  drag writes a new angle around the map edge back to `MacroVaultProDB`, and
+  right-click writes the default angle back, so nothing about where it sits is
+  hard-coded. Type `/mvpro minimap` to hide or show it if you would rather not
   have it on the map. It is built into the addon, so it adds no dependency.
-- **Errors are kept, not swallowed.** A failure in the addon's own code appears
-  in the `/mvpro errors` window and in
-  `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload, so it
-  can be copied with its traceback instead of screenshotted from a dialog.
+- **Errors are kept, not swallowed.** A failure in the addon's own code is stored
+  for the `/mvpro errors` window and written into
+  `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` on reload, so the
+  message and traceback exist as text rather than only in a dialog.
 
 ## Gallery
 
