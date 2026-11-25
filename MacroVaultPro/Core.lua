@@ -741,7 +741,48 @@ function MV:CreateMinimapButton()
 		GameTooltip:Hide()
 	end)
 
+	-- A hidden button still gets built; it just never shows. Building it once and
+	-- toggling its visibility keeps the saved angle and the drag scripts intact.
+	-- Both branches are explicit rather than leaning on the client's default.
+	if self:MinimapShown() then button:Show() else button:Hide() end
+
 	self.minimapButton = button
+end
+
+-- Whether the button should be on screen. No setting means shown, so a fresh
+-- install gets the button without having to opt in.
+function MV:MinimapShown()
+	return not (type(MacroVaultProDB) == "table" and MacroVaultProDB.minimapHidden)
+end
+
+function MV:SetMinimapShown(shown)
+	self:CreateMinimapButton()
+	local button = self.minimapButton
+	if not button then return false, "The minimap is not available on this client." end
+
+	MacroVaultProDB = MacroVaultProDB or {}
+	if shown then
+		MacroVaultProDB.minimapHidden = nil
+		button:Show()
+	else
+		MacroVaultProDB.minimapHidden = true
+		button:Hide()
+	end
+	return true
+end
+
+function MV:ToggleMinimap()
+	local show = not self:MinimapShown()
+	local ok, err = self:SetMinimapShown(show)
+	if not ok then
+		self:Notify(err, true)
+		return
+	end
+	if show then
+		self:Notify("Minimap button shown.")
+	else
+		self:Notify("Minimap button hidden - /mvpro minimap brings it back.")
+	end
 end
 
 -------------------------------------------------------------------------------
@@ -871,6 +912,8 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 		MV:Open(msg)
 	elseif msg == "selftest" or msg == "test" then
 		MV:Selftest()
+	elseif msg == "minimap" then
+		MV:ToggleMinimap()
 	elseif msg == "errors" then
 		MV:PrintErrors()
 	elseif msg == "errors clear" or msg == "clearerrors" then
@@ -885,6 +928,6 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 			MV:Print("Window position reset.")
 		end
 	else
-		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro sheet  |  /mvpro selftest  |  /mvpro errors  |  /mvpro reset")
+		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro sheet  |  /mvpro minimap  |  /mvpro selftest  |  /mvpro errors  |  /mvpro reset")
 	end
 end

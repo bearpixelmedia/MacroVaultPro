@@ -38,7 +38,8 @@ First release, for World of Warcraft: Forever (interface 16001).
   `/mvpro errors clear` empties it.
 - **Minimap button** — the addon's icon sits by the minimap and opens the window.
   Drag it to walk it around the edge of the map, right-click to put it back where
-  it started; where it sits is saved. Hand-rolled, so it adds no dependency.
+  it started; where it sits is saved. `/mvpro minimap` hides or shows the button
+  and remembers which you chose. Hand-rolled, so it adds no dependency.
 - **Load confirmation** — one line in chat on login, so a fresh install reports
   that it loaded instead of looking inert until you type the command.
 - **Saved window position** — position, last tab, default scope and the sheet

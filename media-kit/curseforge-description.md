@@ -108,8 +108,9 @@ addon name. The list is saved in `MacroVaultProDB`, so it survives a reload, and
 
 ### Remembers where you left it
 
-The window position, the last tab, your default scope, the sheet layout and where
-the minimap button sits are saved per account in `MacroVaultProDB`.
+The window position, the last tab, your default scope, the sheet layout, where
+the minimap button sits and whether it is shown are saved per account in
+`MacroVaultProDB`.
 
 ## How to use it
 
@@ -134,6 +135,7 @@ the minimap button sits are saved per account in `MacroVaultProDB`.
 | `/mvpro library` | Open the Library tab |
 | `/mvpro editor` | Open the editor |
 | `/mvpro sheet` | Open the sheet |
+| `/mvpro minimap` | Show or hide the minimap button |
 | `/mvpro selftest` | Print client and limit diagnostics, then confirm the account/character boundary |
 | `/mvpro errors` | Print the addon's error log, ready to copy |
 | `/mvpro errors clear` | Empty the error log |
@@ -163,12 +165,13 @@ corrected the boundary.
   `/mvpro selftest`, which measures the real split.
 - **Slash tools are UI tools.** They toggle debug frames, print information and
   change console settings. MacroVaultPro never casts, moves or fights for you.
-- **Panels stay put.** Window position, tab, default scope, sheet layout and the
-  minimap button's place are the only settings stored; the error log is the only
-  other thing written.
+- **Panels stay put.** Window position, tab, default scope, sheet layout, and the
+  minimap button's place and visibility are the only settings stored; the error
+  log is the only other thing written.
 - **Minimap button.** The icon beside the minimap opens the window. Drag it to
   walk it around the edge of the map, right-click it to put it back where it
-  started. It is built into the addon, so it adds no dependency.
+  started, and type `/mvpro minimap` to hide or show it if you would rather not
+  have it on the map. It is built into the addon, so it adds no dependency.
 - **Errors are kept, not swallowed.** A failure in the addon's own code lands in
   `/mvpro errors` and in
   `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload, so it

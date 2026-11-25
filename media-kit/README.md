@@ -49,6 +49,7 @@ the panels:
 | 4 | **Editor** tab with a macro open |
 | 5 | Chat after `/mvpro selftest`, out of combat — the `detected:` and `confirmed:` lines |
 | 6 | **Sheet** tab with several macros dropped into slots |
+| 7 | The minimap button at the edge of the minimap, with its tooltip visible |
 
 Shoot at 1280 × 720 (or larger, 16:9) with default UI scale, `/fstack` off, and the
 rest of the UI as clean as you like it. Give each one a one-line title in the Images

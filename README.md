@@ -5,7 +5,8 @@ every macro you own in one window.
 
 Open it with `/mvpro` or `/macrovaultpro`, or click the addon's icon beside the
 minimap — drag that icon around the edge of the map to move it, right-click it
-to put it back. The **My macros** tab lists account and character macros
+to put it back. `/mvpro minimap` hides or shows that icon, and the choice is
+saved with the rest of the settings. The **My macros** tab lists account and character macros
 together and tags each with its real scope, so you can search, inject onto your
 bars, edit, duplicate, or jump to the client's own macro window. The **Library**
 tab has 26 ready-made targeting, utility and developer macros you can read
