@@ -23,6 +23,10 @@ param(
 	[ValidateSet("release", "beta", "alpha")]
 	[string]$ReleaseType = "release",
 	[string]$GameVersion = "1.60.1",
+	# Forever's version type. Several flavors ship a version called "1.60.1", and
+	# tagging the file with the wrong one is how an addon ends up hidden as
+	# incompatible with the client it was built for.
+	[int]$GameVersionTypeId = 88568,
 	[string]$DisplayName,
 	[string]$TokenFile,
 	[switch]$DryRun
@@ -88,7 +92,14 @@ if ($token) {
 		}
 		$versions = $response.Content.ReadAsStringAsync().Result | ConvertFrom-Json
 
-		$hit = @($versions | Where-Object { $_.name -eq $GameVersion }) | Select-Object -First 1
+		$hit = @($versions | Where-Object { $_.name -eq $GameVersion -and $_.gameVersionTypeID -eq $GameVersionTypeId }) | Select-Object -First 1
+		if (-not $hit) {
+			# Fall back to the name, but say so: the file may land on another flavor.
+			$hit = @($versions | Where-Object { $_.name -eq $GameVersion }) | Select-Object -First 1
+			if ($hit) {
+				"warning:   no version '$GameVersion' under type $GameVersionTypeId - using type $($hit.gameVersionTypeID)"
+			}
+		}
 		if (-not $hit) {
 			$near = @($versions | Where-Object { $_.name -like "$GameVersion*" } | Select-Object -First 6 |
 				ForEach-Object { "$($_.name) (id $($_.id), type $($_.gameVersionTypeID))" })
