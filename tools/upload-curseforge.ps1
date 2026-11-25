@@ -2,11 +2,16 @@
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/upload-curseforge.ps1 -DryRun
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/upload-curseforge.ps1
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/upload-curseforge.ps1 -VerifyId 9810929
 #
 # Needs an author API token: the project page has an "API Tokens" page, where a
 # token can be generated. Put it in .curseforge-token at the repository root
 # (gitignored) or in the CURSEFORGE_TOKEN environment variable. The token is
 # read and used, never printed.
+#
+# -VerifyId checks one file id and exits before the archive, changelog or token
+# are needed. It prints whether that id is live, pending or blocked on the site,
+# so the check an upload prints can be exercised without uploading another file.
 #
 # This covers files only: POST /api/projects/<id>/upload-file with a metadata
 # field and the archive. The project description, gallery and settings live on

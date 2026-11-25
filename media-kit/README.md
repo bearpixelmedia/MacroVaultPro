@@ -33,6 +33,15 @@ Everything the CurseForge project page needs, in the sizes CurseForge asks for.
    `Release`, changelog from the version's section in `release-notes.md`.
 7. Add the banner at the top of the description if you want a header image.
 
+## Checking a published file
+
+`tools/upload-curseforge.ps1 -VerifyId <file id>` loads the id's public record and prints `live`,
+`pending`, `blocked` or `unknown`. `live` means the site returns the file with its name, size and
+approval status 4; `pending` means the id has no public record yet (still in review, or rejected).
+It needs no token and uploads nothing, so it is safe to run against any id — for example
+`-VerifyId 9810929` for the 1.0.1 archive. It is the same check a real upload prints afterwards,
+which is why the file page's own 404 is not used: Cloudflare answers 403 to non-browser clients.
+
 ## About the gallery images
 
 The four gallery panels are graphic feature cards, not in-game screenshots — no WoW
