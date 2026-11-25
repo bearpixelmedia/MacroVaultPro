@@ -53,6 +53,10 @@ style preference.
 - [ ] **One upload per build** — a second upload of the same archive is rejected as a
       duplicate (file 9811070 was) and counts against the fair-play rule.
 
+Rows one to five are enforced by `tools/preflight.ps1`, which `tools/release.ps1` runs
+before it writes anything; the duplicate row is enforced by `tools/upload-curseforge.ps1`,
+which refuses a file whose name and byte count already exist on the project.
+
 ## Checking a published file
 
 `tools/upload-curseforge.ps1 -VerifyId <file id>` loads the id's public record and prints `live`,

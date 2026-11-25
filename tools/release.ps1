@@ -141,6 +141,16 @@ if ($DryRun) {
 	exit 0
 }
 
+# ---- pre-flight ----------------------------------------------------------
+# Runs before anything is written, so a failed check leaves the version, the stamp
+# and the changelog exactly as they were. The checks are the moderation list in
+# media-kit/README.md: avatar, name, changelog, gallery disclosure, summary.
+""
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "preflight.ps1") -Version $Version
+if ($LASTEXITCODE -ne 0) {
+	throw "preflight.ps1 failed - nothing was written or packaged"
+}
+
 # ---- write it ------------------------------------------------------------
 # No BOM: these are Lua and .toc files, and the client reads them as bytes.
 $utf8 = New-Object System.Text.UTF8Encoding($false)

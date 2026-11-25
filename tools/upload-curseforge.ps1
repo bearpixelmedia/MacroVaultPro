@@ -243,6 +243,42 @@ $json = $metadata | ConvertTo-Json -Depth 4
 "display name: {0}" -f $DisplayName
 "release type: {0}" -f $ReleaseType
 
+# ---- duplicate guard ------------------------------------------------------
+# The site's file list is public, so this needs no token. A file with the same name
+# and the same byte count is the same build: uploading it again is the "re-upload
+# without changes" case in the moderation rules, and the site rejects it as a
+# duplicate anyway - better to stop before sending anything. The check runs on
+# -DryRun too, so a release can be tested without creating a second file.
+$sizeBytes = (Get-Item $Zip).Length
+$uploadName = [System.IO.Path]::GetFileName($Zip)
+$published = @()
+$listClient = New-Object System.Net.Http.HttpClient
+$listClient.Timeout = [TimeSpan]::FromSeconds(30)
+$listClient.DefaultRequestHeaders.Add("User-Agent",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+$listClient.DefaultRequestHeaders.Add("Accept", "application/json")
+try {
+	for ($index = 0; $index -lt 300; $index += 50) {
+		$listUrl = "https://www.curseforge.com/api/v1/mods/$ProjectId/files?pageSize=50&index=$index"
+		$listResponse = $listClient.GetAsync($listUrl).Result
+		if (-not $listResponse.IsSuccessStatusCode) {
+			throw "Could not read the project's file list: HTTP $([int]$listResponse.StatusCode) from $listUrl"
+		}
+		$page = @(($listResponse.Content.ReadAsStringAsync().Result | ConvertFrom-Json).data | Where-Object { $_ })
+		if ($page.Count -eq 0) { break }
+		$published += $page
+		if ($page.Count -lt 50) { break }
+	}
+} finally { $listClient.Dispose() }
+
+$duplicate = @($published | Where-Object {
+	$_.fileName -eq $uploadName -and [int]$_.fileLength -eq [int]$sizeBytes
+}) | Select-Object -First 1
+if ($duplicate) {
+	throw ("Refusing to upload: file id {0} is already {1} ({2:N0} bytes). The moderation rules treat that as a re-upload without changes. Bump the version for a new build, or check the existing file with -VerifyId {0}." -f $duplicate.id, $uploadName, $sizeBytes)
+}
+"duplicate:    none - no published file has this name and size"
+
 if ($DryRun) {
 	"--- metadata (dry run, nothing uploaded) ---"
 	$json
