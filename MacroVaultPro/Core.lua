@@ -14,7 +14,7 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.0"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-25d"
+MV.BUILD         = "2026-11-25e"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
