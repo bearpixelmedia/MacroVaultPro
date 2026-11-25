@@ -45,7 +45,10 @@ which is why the file page's own 404 is not used: Cloudflare answers 403 to non-
 ## About the gallery images
 
 The four gallery panels are graphic feature cards, not in-game screenshots — no WoW
-client was available while this kit was made. They are accurate about what the addon
+client was available while this kit was made. The description says so on the project
+page, because CurseForge's moderation rules treat a showcase image that could pass for
+in-game content as something that needs a visible disclaimer; keep that paragraph if the
+panels stay. They are accurate about what the addon
 does, but CurseForge reviewers and players both prefer real screenshots, so capture
 these in game when the addon is installed and add them alongside (or in place of)
 the panels:

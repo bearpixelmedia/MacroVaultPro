@@ -200,7 +200,10 @@ corrected the boundary.
 
 ## Gallery
 
-See the Images tab for the full set of panels.
+The four panels on the Images tab are illustrations drawn from the addon's own layout
+to show what each tab holds. They are renderings, not in-game screenshots, so spacing
+and button positions can differ from the client; in-game captures will replace them as
+they are taken.
 
 ## Version
 
