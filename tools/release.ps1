@@ -100,8 +100,11 @@ if ($Notes) {
 		throw "Missing $notesPath. The changelog is what players read on CurseForge, so each release needs a '## $Version' section there, or pass -Notes."
 	}
 	$notesText = [System.IO.File]::ReadAllText($notesPath)
-	foreach ($block in [regex]::Matches($notesText, '(?ms)^##\s+(.+?)\r?\n(.*?)(?=^##\s|\z)')) {
-		if ($block.Groups[1].Value.Trim() -match "(^|\s)$([regex]::Escape($Version))(\s|$)") {
+	# Only '## <version>' starts a section, so a section may carry '### Added'
+	# or a '## Added' line without being cut in half.
+	$pattern = '(?ms)^##\s+v?(\d+(?:\.\d+)*)[^\r\n]*\r?\n(.*?)(?=^##\s+v?\d|\z)'
+	foreach ($block in [regex]::Matches($notesText, $pattern)) {
+		if ($block.Groups[1].Value -eq $Version) {
 			$section = $block.Groups[2].Value.Trim()
 			break
 		}

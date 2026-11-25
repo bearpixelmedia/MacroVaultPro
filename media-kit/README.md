@@ -15,7 +15,7 @@ Everything the CurseForge project page needs, in the sizes CurseForge asks for.
 | `curseforge-listing.md` | — | Name, summary, categories, tags, gallery captions |
 | `curseforge-description.html` | — | The project description body, paste-ready HTML |
 | `curseforge-description.md` | — | The same description as Markdown |
-| `changelog-1.0.0.md` | — | Changelog for the 1.0.0 file upload |
+| `release-notes.md` | — | Player-facing notes per version; `tools/release.ps1` turns the section for a version into that version's changelog |
 
 ## Upload checklist
 
@@ -30,7 +30,7 @@ Everything the CurseForge project page needs, in the sizes CurseForge asks for.
 5. **Images tab** — upload the four gallery panels in order with the captions from
    `curseforge-listing.md`, and enable the carousel.
 6. **Game version** — Forever (interface 16001); file version `1.0.0`, release type
-   `Release`, changelog from `changelog-1.0.0.md`.
+   `Release`, changelog from the version's section in `release-notes.md`.
 7. Add the banner at the top of the description if you want a header image.
 
 ## About the gallery images
