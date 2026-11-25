@@ -35,10 +35,25 @@ MV.TOOLS = {
 		desc  = "Toggle Blizzard's event trace window.",
 	},
 	{
-		label = "Build info",
-		icon  = ICONS.note,
-		cmd   = "/dump select(4, GetBuildInfo())",
-		desc  = "Print the client's interface version (Forever is 16001).",
+		label  = "Build info",
+		icon   = ICONS.note,
+		detail = "GetBuildInfo(), run in Lua",
+		desc   = "Print the client's interface version (Forever is 16001).",
+		-- Read in Lua rather than through /dump, so it works whatever the client
+		-- does with its own slash commands.
+		run    = function()
+			if type(GetBuildInfo) ~= "function" then
+				MV:Notify("This client does not report its build.", true)
+				return
+			end
+			local ok, version, build, _, toc = pcall(GetBuildInfo)
+			if not ok then
+				MV:Notify("This client does not report its build.", true)
+				return
+			end
+			MV:Notify(("client %s (build %s), interface %s"):format(
+				tostring(version), tostring(build), tostring(toc)))
+		end,
 	},
 	{
 		label = "API browser",
@@ -99,10 +114,23 @@ MV.TOOLS = {
 		end,
 	},
 	{
-		label = "Dump mouseover frame",
-		icon  = ICONS.note,
-		cmd   = "/dump GetMouseFocus()",
-		desc  = "Print the whole mouseover frame table, including its regions.",
+		label  = "Dump mouseover frame",
+		icon   = ICONS.note,
+		detail = "GetMouseFocus(), run in Lua",
+		desc   = "Print the frame under your cursor, its type and whether it is shown.",
+		-- Inspected in Lua rather than through /dump, so no chat parser is needed.
+		run    = function()
+			local frame = GetMouseFocus and GetMouseFocus()
+			if not frame then
+				MV:Notify("No frame under the cursor - point at something and try again.", true)
+				return
+			end
+
+			local name = frame.GetName and frame:GetName() or nil
+			local kind = frame.GetObjectType and frame:GetObjectType() or "Frame"
+			local shown = (frame.IsShown and frame:IsShown()) and "shown" or "hidden"
+			MV:Notify(("%s  (%s, %s)"):format(name or "<anonymous frame>", kind, shown))
+		end,
 	},
 }
 

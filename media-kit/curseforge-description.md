@@ -37,12 +37,12 @@ characters.
 
 ### Twelve client tools
 
-| Tool | Command |
+| Tool | What it runs |
 | --- | --- |
 | Frame stack | `/fstack` |
 | Frame stack + hidden frames | `/fstack true` |
 | Event trace | `/etrace` |
-| Build info | `/dump select(4, GetBuildInfo())` |
+| Build info | `GetBuildInfo()`, read in Lua |
 | API browser | `/api` |
 | Macro window | opens the client's macro frame |
 | Reload UI | `/reload` |
@@ -50,12 +50,13 @@ characters.
 | Script errors off | `/console scriptErrors 0` |
 | Taint log | `/console taintLog 1` |
 | Mouseover frame | prints the frame under your cursor |
-| Dump mouseover frame | `/dump GetMouseFocus()` |
+| Dump mouseover frame | `GetMouseFocus()`, read in Lua |
 
-Ten of these run the client's own slash commands, so they behave exactly as if
-you had typed them into chat; the macro window and the mouseover inspector call
-the client's API instead. If the client does not have a command, MacroVaultPro
-says so in the window rather than failing quietly.
+Eight of these run the client's own slash commands, so they behave exactly as if
+you had typed them into chat. The other four - the macro window, build info, the
+mouseover inspector and the frame dump - call the client's API directly, so they
+work whatever the client does with its slash commands. If a command really is
+missing, MacroVaultPro says so in the window rather than failing quietly.
 
 ### 26 ready-made macros
 

@@ -263,6 +263,17 @@ function UI:CreateList(parent)
 			if button == "LeftButton" and list.onDrag then list.onDrag(self.item) end
 		end)
 
+		-- OnDragStart/OnDragStop are the client's own drag events. They are wired
+		-- alongside the press tracker so the row drags on either path; both end
+		-- in the same drop, which ignores a drag that is already finished.
+		row:RegisterForDrag("LeftButton")
+		row:SetScript("OnDragStart", function(self)
+			if self.item and list.onDragStart then list.onDragStart(self.item) end
+		end)
+		row:SetScript("OnDragStop", function()
+			UI:DropDrag()
+		end)
+
 		row.sel = row:CreateTexture(nil, "BACKGROUND")
 		row.sel:SetAllPoints(row)
 		row.sel:SetColorTexture(ACCENT[1], ACCENT[2], ACCENT[3], 0.18)
@@ -307,11 +318,12 @@ function UI:CreateList(parent)
 		self:ApplySelection()
 	end
 
-	function list:SetItems(items, render, onSelect, onDrag)
+	function list:SetItems(items, render, onSelect, onDrag, onDragStart)
 		self.items = items
 		self.render = render
 		self.onSelect = onSelect
 		self.onDrag = onDrag
+		self.onDragStart = onDragStart
 
 		local count = #items
 		for i = 1, count do
@@ -676,7 +688,8 @@ function UI:RefreshMacros()
 		items,
 		function(row, item) self:RenderMacroRow(row, item) end,
 		function(item) self:SelectMacro(item.index) end,
-		function(item) self:PressDrag({ macro = item }) end
+		function(item) self:PressDrag({ macro = item }) end,
+		function(item) self:BeginDrag({ macro = item }) end
 	)
 	self.macroList:SetSelected(self.selectedMacroIndex)
 
@@ -817,7 +830,7 @@ function UI:BuildToolsPanel(panel)
 		local detail = Text(button, 10, MUTED)
 		detail:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
 		detail:SetWidth(310)
-		detail:SetText(tool.cmd or "open")
+		detail:SetText(tool.detail or tool.cmd or "open")
 		if detail.SetWordWrap then
 			detail:SetWordWrap(false)
 		end
@@ -1389,7 +1402,8 @@ function UI:RefreshSheet()
 			items,
 			function(row, item) self:RenderMacroRow(row, item) end,
 			function(item) self:SelectMacro(item.index) end,
-			function(item) self:PressDrag({ macro = item }) end
+			function(item) self:PressDrag({ macro = item }) end,
+			function(item) self:BeginDrag({ macro = item }) end
 		)
 		self.sheetList:SetSelected(self.selectedMacroIndex)
 
@@ -1494,11 +1508,9 @@ function UI:DragTick()
 		self:MoveDragGhost()
 	end
 
-	local down = false
-	if type(IsMouseButtonDown) == "function" then
-		down = IsMouseButtonDown("LeftButton") and true or false
-	end
-	if not down then
+	-- Only the clients that report the button state can be dropped here; where
+	-- the global is missing, OnDragStop is what ends the drag.
+	if type(IsMouseButtonDown) == "function" and not IsMouseButtonDown("LeftButton") then
 		self.pressDrag = nil
 		if self.drag then self:DropDrag() end
 		self:StopDragTracking()
@@ -1525,6 +1537,7 @@ end
 -- with slot = <position> when the drag started on the sheet itself.
 function UI:BeginDrag(payload)
 	if not payload or not payload.macro then return end
+	if self.drag then return end
 
 	local ghost = self.dragGhost or self:BuildDragGhost()
 	ghost.icon:SetTexture(payload.macro.icon or 134400)
@@ -1532,6 +1545,9 @@ function UI:BeginDrag(payload)
 
 	self.pressDrag = nil
 	self.drag = payload
+	-- An OnDragStart drag can begin without the press tracker running, so make
+	-- sure the ghost is being moved and the release is watched either way.
+	self:TrackDrag()
 	GameTooltip:Hide()
 	if self.sheetSlots then
 		self:RefreshSheet()
@@ -1693,6 +1709,19 @@ function UI:BuildSheetPanel(panel)
 			if macro then
 				ui:PressDrag({ macro = macro, slot = self.sheetSlot })
 			end
+		end)
+
+		-- The client's own drag events, wired next to the press tracker so a slot
+		-- drags whichever of the two the client raises.
+		slot:RegisterForDrag("LeftButton")
+		slot:SetScript("OnDragStart", function(self)
+			local macro = ui:SheetMacroAt(self.sheetSlot)
+			if macro then
+				ui:BeginDrag({ macro = macro, slot = self.sheetSlot })
+			end
+		end)
+		slot:SetScript("OnDragStop", function()
+			ui:DropDrag()
 		end)
 
 		slot:SetScript("OnEnter", function(self)

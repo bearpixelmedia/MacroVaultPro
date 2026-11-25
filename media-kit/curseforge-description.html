@@ -27,13 +27,13 @@
 
 <table>
 	<thead>
-		<tr><th>Tool</th><th>Command</th></tr>
+		<tr><th>Tool</th><th>What it runs</th></tr>
 	</thead>
 	<tbody>
 		<tr><td>Frame stack</td><td><code>/fstack</code></td></tr>
 		<tr><td>Frame stack + hidden frames</td><td><code>/fstack true</code></td></tr>
 		<tr><td>Event trace</td><td><code>/etrace</code></td></tr>
-		<tr><td>Build info</td><td><code>/dump select(4, GetBuildInfo())</code></td></tr>
+		<tr><td>Build info</td><td><code>GetBuildInfo()</code>, read in Lua</td></tr>
 		<tr><td>API browser</td><td><code>/api</code></td></tr>
 		<tr><td>Macro window</td><td>opens the client's macro frame</td></tr>
 		<tr><td>Reload UI</td><td><code>/reload</code></td></tr>
@@ -41,11 +41,11 @@
 		<tr><td>Script errors off</td><td><code>/console scriptErrors 0</code></td></tr>
 		<tr><td>Taint log</td><td><code>/console taintLog 1</code></td></tr>
 		<tr><td>Mouseover frame</td><td>prints the frame under your cursor</td></tr>
-		<tr><td>Dump mouseover frame</td><td><code>/dump GetMouseFocus()</code></td></tr>
+		<tr><td>Dump mouseover frame</td><td><code>GetMouseFocus()</code>, read in Lua</td></tr>
 	</tbody>
 </table>
 
-<p>Ten of these run the client's own slash commands, so they behave exactly as if you had typed them into chat; the macro window and the mouseover inspector call the client's API instead. If the client does not have a command, MacroVaultPro says so in the window rather than failing quietly.</p>
+<p>Eight of these run the client's own slash commands, so they behave exactly as if you had typed them into chat. The other four &mdash; the macro window, build info, the mouseover inspector and the frame dump &mdash; call the client's API directly, so they work whatever the client does with its slash commands. If a command really is missing, MacroVaultPro says so in the window rather than failing quietly.</p>
 
 <h3>26 ready-made macros</h3>
 

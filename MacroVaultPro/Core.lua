@@ -14,7 +14,7 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.0"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-25"
+MV.BUILD         = "2026-11-25b"
 MV.MAX_BODY      = 255
 MV.MAX_NAME      = 16
 
@@ -749,8 +749,9 @@ function MV:CreateMinimapButton()
 		end
 	end)
 
-	-- Press, move, release. OnDragStart is not raised for every frame on every
-	-- client, and when it is not, the icon looks glued in place.
+	-- Press, move, release: this is the path that does not depend on the client
+	-- raising a drag event. OnDragStart/OnDragStop are wired below as well, so
+	-- whichever of the two the client offers moves the icon.
 	local function trackMinimap(self)
 		local x, y = GetCursorPosition()
 		if not x or not y then return end
@@ -771,20 +772,45 @@ function MV:CreateMinimapButton()
 		placeMinimapButton(self, self.angle)
 	end
 
+	-- Ends a drag from either path. Running twice is harmless.
+	local function finishMinimapDrag(self)
+		self:SetScript("OnUpdate", nil)
+		if self.moved and MacroVaultProDB then
+			MacroVaultProDB.minimapAngle = self.angle
+		end
+	end
+
+	-- Starts tracking from either path. OnDragStart only fires once the pointer
+	-- has moved, so that press counts as a drag even before our own threshold
+	-- has had a frame to run.
+	local function startMinimapDrag(self, fromDragEvent)
+		if fromDragEvent then
+			self.moved = true
+		end
+		self:SetScript("OnUpdate", trackMinimap)
+	end
+
+	button:RegisterForDrag("LeftButton")
+
+	button:SetScript("OnDragStart", function(self)
+		startMinimapDrag(self, true)
+	end)
+
+	button:SetScript("OnDragStop", function(self)
+		finishMinimapDrag(self)
+	end)
+
 	button:SetScript("OnMouseDown", function(self, mouseButton)
 		if mouseButton ~= "LeftButton" then return end
 		local x, y = GetCursorPosition()
 		self.pressX, self.pressY = x or 0, y or 0
 		self.moved = false
-		self:SetScript("OnUpdate", trackMinimap)
+		startMinimapDrag(self, false)
 	end)
 
 	button:SetScript("OnMouseUp", function(self, mouseButton)
 		if mouseButton ~= "LeftButton" then return end
-		self:SetScript("OnUpdate", nil)
-		if self.moved and MacroVaultProDB then
-			MacroVaultProDB.minimapAngle = self.angle
-		end
+		finishMinimapDrag(self)
 	end)
 
 	button:SetScript("OnEnter", function(self)
