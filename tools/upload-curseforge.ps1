@@ -142,7 +142,10 @@ $client.DefaultRequestHeaders.Add("X-Api-Token", $token)
 try {
 	$body = New-Object System.Net.Http.MultipartFormDataContent
 	$body.Add((New-Object System.Net.Http.StringContent($json, [System.Text.Encoding]::UTF8)), "metadata")
-	$fileContent = New-Object System.Net.Http.ByteArrayContent(@([System.IO.File]::ReadAllBytes($Zip)))
+	# PowerShell unrolls an array passed to New-Object into separate arguments, so a
+	# 38 KB archive became 38,510 constructor arguments. ::new() takes the array whole.
+	$fileBytes = [System.IO.File]::ReadAllBytes($Zip)
+	$fileContent = [System.Net.Http.ByteArrayContent]::new($fileBytes)
 	$fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse("application/zip")
 	$body.Add($fileContent, "file", [System.IO.Path]::GetFileName($Zip))
 
