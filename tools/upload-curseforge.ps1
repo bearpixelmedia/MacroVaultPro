@@ -28,6 +28,8 @@ param(
 	# incompatible with the client it was built for.
 	[int]$GameVersionTypeId = 88568,
 	[string]$DisplayName,
+	# Used only to build the public file URL the upload is checked against.
+	[string]$Slug = "macrovaultpro",
 	[string]$TokenFile,
 	[switch]$DryRun
 )
@@ -156,11 +158,57 @@ try {
 		throw "Upload failed: HTTP $([int]$response.StatusCode) from $url`: $result"
 	}
 
-	try {
-		$parsed = $result | ConvertFrom-Json
-		"uploaded:     file id {0}  {1}" -f $parsed.id, $parsed.fileName
-	} catch {
-		"uploaded:     $result"
+	# The receipt is an id and nothing else - that is all this endpoint returns - so
+	# it cannot say whether the file exists. The file's own page can: 200 means it
+	# is public, 404 means the record exists but is not visible yet (uploads sit in
+	# review), and 403 means the check itself was refused rather than the file
+	# missing. None of those is treated as a failed upload, because the file was
+	# already created; the point is to say which of the three it is.
+	$parsed = $null
+	try { $parsed = $result | ConvertFrom-Json } catch { }
+	if (-not $parsed -or -not $parsed.id) {
+		throw "Upload returned no file id. Raw response: $result"
 	}
-	"project:      https://www.curseforge.com/wow/addons/macrovaultpro/files"
+	"uploaded:     file id {0}" -f $parsed.id
+
+	# The HTML file page cannot be used as the probe: Cloudflare answers 403 to any
+	# non-browser client, for a live file as readily as a missing one, so it would
+	# always read as "blocked". The site's own JSON endpoint is not gated the same
+	# way and is the check that actually discriminates: it returns the file record
+	# with its name, size and approval status once the file is public, and
+	# {"data":null} for an id that is pending, rejected or unknown.
+	$fileUrl  = "https://www.curseforge.com/wow/addons/$Slug/files/$($parsed.id)"
+	$probeUrl = "https://www.curseforge.com/api/v1/mods/$ProjectId/files/$($parsed.id)"
+	$probeStatus = 0
+	$record = $null
+	$probe = New-Object System.Net.Http.HttpClient
+	$probe.Timeout = [TimeSpan]::FromSeconds(30)
+	$probe.DefaultRequestHeaders.Add("User-Agent",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+	$probe.DefaultRequestHeaders.Add("Accept", "application/json")
+	try {
+		$page = $probe.GetAsync($probeUrl).Result
+		$probeStatus = [int]$page.StatusCode
+		if ($probeStatus -eq 200) {
+			$record = ($page.Content.ReadAsStringAsync().Result | ConvertFrom-Json).data
+		}
+	} catch {
+		$probeStatus = 0
+	} finally { $probe.Dispose() }
+
+	if ($probeStatus -eq 200 -and $record -and $record.fileName) {
+		if ([int]$record.status -eq 4) {
+			"status:       live - {0}  {1:N0} bytes  file id {2}" -f $record.fileName, $record.fileLength, $record.id
+		} else {
+			"status:       pending - {0} is on the site but approval status is {1}, so it is not public yet; check $fileUrl" -f $record.fileName, $record.status
+		}
+	} elseif ($probeStatus -eq 200) {
+		"status:       pending - the site has no public record for file id {0} yet (review, or rejected); check $fileUrl" -f $parsed.id
+	} elseif ($probeStatus -eq 403) {
+		"status:       blocked - the site refused the check (HTTP 403), so this upload is unconfirmed either way; check $fileUrl"
+	} else {
+		"status:       unknown - HTTP $probeStatus from $probeUrl"
+	}
+	"file page:    $fileUrl"
+	"project:      https://www.curseforge.com/wow/addons/$Slug/files"
 } finally { $client.Dispose() }
