@@ -1,2 +1,5 @@
 .freebuff/
 .cloud-attachments/
+
+# CurseForge author API token - never commit
+.curseforge-token

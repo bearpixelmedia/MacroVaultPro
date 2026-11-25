@@ -47,7 +47,7 @@ exactly which drag path works.
 | `MacroVaultPro/` | The addon itself — the only folder that ships to players. `MacroVaultPro.toc` declares the interface, version, SavedVariables and icon; `Core.lua` holds the data layer and slash commands, `Library.lua` the 26 ready-made macros, `UI.lua` the window, and `Media/icon.tga` the addon-list icon the `.toc` points at. |
 | `media-kit/` | The CurseForge listing: paste-ready description, listing copy, changelog, avatar, banner and gallery images. `media-kit/README.md` is the upload checklist. |
 | `media-kit/build/` | The HTML/CSS the banner and gallery cards are rendered from, the avatar master, and `render.ps1`, which regenerates every image in the kit. Development only — never goes in the zip. |
-| `tools/` | `package.ps1`, the release packager. |
+| `tools/` | `package.ps1`, the release packager, and `install.ps1`, which installs the built zip into the client and verifies it. |
 | `dist/` | Build output: `MacroVaultPro-<version>.zip`, the file you upload. |
 
 ## Rebuilding
@@ -71,6 +71,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 
 The packager deletes older `dist/MacroVaultPro-*.zip` files, so bump
 `## Version:` in the `.toc` before you build the next release.
+
+**Install for testing** — copies `dist/MacroVaultPro-<version>.zip` into
+`D:\World of Warcraft\_forever_\Interface\AddOns` (pass `-AddOns` for another
+install). It refuses an archive that no longer matches the source tree, deletes
+the destination folder before extracting so nothing stale survives, then hashes
+every installed file against the archive and re-reads the build stamp from disk:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/install.ps1
+```
+
+Run `/reload` afterwards — the script says so when the client is running. The
+previous install is copied to `<install>\_addon-archive\backups\` first.
 
 ## License
 
