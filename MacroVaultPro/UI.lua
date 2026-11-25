@@ -503,6 +503,115 @@ function UI:Show(tab)
 	self:SwitchTab(tab or self.activeTab or "macros")
 end
 
+-------------------------------------------------------------------------------
+-- Error log window: read-only text, Copy selects it for Ctrl+C
+-------------------------------------------------------------------------------
+
+local ERROR_WIDTH, ERROR_HEIGHT = 470, 380
+
+function UI:BuildErrorWindow()
+	if self.errorFrame then return self.errorFrame end
+
+	local frame = CreateFrame("Frame", "MacroVaultProErrorsFrame", UIParent)
+	frame:SetSize(ERROR_WIDTH, ERROR_HEIGHT)
+	frame:SetPoint("CENTER")
+	frame:SetFrameStrata("DIALOG")
+	frame:SetToplevel(true)
+	frame:SetClampedToScreen(true)
+	frame:SetMovable(true)
+	frame:EnableMouse(true)
+	frame:RegisterForDrag("LeftButton")
+	frame:SetScript("OnDragStart", frame.StartMoving)
+	frame:SetScript("OnDragStop", function(self)
+		self:StopMovingOrSizing()
+	end)
+	frame:Hide()
+
+	Paint(frame, 0.045, 0.045, 0.06, 0.97)
+	Border(frame, 0.30, 0.25, 0.45, 1)
+	if type(UISpecialFrames) == "table" then
+		tinsert(UISpecialFrames, "MacroVaultProErrorsFrame")
+	end
+
+	local title = Text(frame, 16, ACCENT)
+	title:SetPoint("TOPLEFT", 14, -10)
+	title:SetText("Error log")
+
+	local summary = Text(frame, 11, MUTED)
+	summary:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 1, -3)
+	summary:SetWidth(340)
+	summary:SetText("")
+
+	local close = self:MakeButton(frame, "X", 24, function() frame:Hide() end)
+	close:SetPoint("TOPRIGHT", -8, -8)
+
+	local body = CreateFrame("Frame", nil, frame)
+	body:SetPoint("TOPLEFT", 6, -46)
+	body:SetPoint("BOTTOMRIGHT", -6, 46)
+	local _, bodyText, setBody = CreateBodyView(body)
+
+	local copy = self:MakeButton(frame, "Copy", 84, function() self:CopyErrorLog() end)
+	copy:SetPoint("BOTTOMLEFT", 12, 12)
+
+	local clear = self:MakeButton(frame, "Clear log", 92, function() MV:ClearErrors() end)
+	clear:SetPoint("LEFT", copy, "RIGHT", 8, 0)
+
+	local hint = Text(frame, 10, MUTED)
+	hint:SetPoint("LEFT", clear, "RIGHT", 10, 0)
+	hint:SetWidth(190)
+	hint:SetText("Copy selects the log - Ctrl+C")
+
+	local done = self:MakeButton(frame, "Close", 76, function() frame:Hide() end)
+	done:SetPoint("BOTTOMRIGHT", -12, 12)
+
+	-- There is no clipboard API, so Copy puts the whole log in this focusable box
+	-- and selects it; the player's Ctrl+C then copies the selection. The visible
+	-- text above stays a FontString, so the window really is read-only.
+	local box = CreateFrame("EditBox", nil, frame)
+	box:SetMultiLine(true)
+	box:SetAutoFocus(false)
+	box:SetFont(FONT, 12, "")
+	box:SetTextInsets(0, 0, 0, 0)
+	box:SetSize(1, 1)
+	box:SetPoint("BOTTOMLEFT", 10, 10)
+	box:SetAlpha(0)
+	box:SetScript("OnEscapePressed", function(self)
+		self:ClearFocus()
+	end)
+
+	frame:SetScript("OnHide", function()
+		box:ClearFocus()
+	end)
+
+	self.errorFrame = frame
+	self.errorSetText = setBody
+	self.errorBodyText = bodyText
+	self.errorSummary = summary
+	self.errorHint = hint
+	self.errorBox = box
+	return frame
+end
+
+function UI:ShowErrorLog(text, summary)
+	local frame = self:BuildErrorWindow()
+	self.errorText = tostring(text or "")
+	self.errorSummary:SetText(tostring(summary or ""))
+	self.errorHint:SetText("Copy selects the log - Ctrl+C")
+	self.errorBox:ClearFocus()
+	self.errorSetText(self.errorText)
+	frame:Show()
+	frame:Raise()
+end
+
+function UI:CopyErrorLog()
+	local box = self.errorBox
+	if not box then return end
+	box:SetText(self.errorText or "")
+	box:SetFocus()
+	box:HighlightText()
+	self.errorHint:SetText("Selected - press Ctrl+C to copy")
+end
+
 function UI:SetStatus(message, isError)
 	if not self.status then return end
 	self.status:SetText(tostring(message or ""))

@@ -29,11 +29,13 @@ game with no addons disabled, and the window opens from `/mvpro` or
 
 ## If something goes wrong
 
-`/mvpro errors` prints any Lua error the addon has logged — timestamp, message
-and traceback — ready to paste into a bug report. It covers errors raised in the
-addon's own files, including ones thrown while it loads. The same list is saved
-in `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload, and
-`/mvpro errors clear` empties it. For a drag or load problem, `/mvpro diag`
+`/mvpro errors` opens a small read-only window with any Lua error the addon has
+logged — timestamp, message and traceback — plus a Copy button that selects the
+whole log so Ctrl+C puts it on the clipboard, ready to paste into a bug report.
+It covers errors raised in the addon's own files, including ones thrown while it
+loads. The same list is saved in
+`WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload; the
+window's Clear log button empties it. For a drag or load problem, `/mvpro diag`
 prints one copyable block — build stamp, client build, which drag APIs the
 client has, the minimap size and the detected slot split — so a report says
 exactly which drag path works.

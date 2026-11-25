@@ -14,7 +14,7 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.0"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-25c"
+MV.BUILD         = "2026-11-25d"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -153,44 +153,68 @@ end
 
 MV:InstallErrorLog()
 
-local function printEntry(entry)
-	if type(DEFAULT_CHAT_FRAME) ~= "table" then return end
-	DEFAULT_CHAT_FRAME:AddMessage(("|cffa78bfa[%s]|r"):format(tostring(entry.when or "?")))
+local function appendEntry(lines, entry)
+	local tag = entry.unattributed and "  (no addon path)" or ""
+	lines[#lines + 1] = ("[%s]%s"):format(tostring(entry.when or "?"), tag)
 	for line in tostring(entry.text or ""):gmatch("[^\n]+") do
-		DEFAULT_CHAT_FRAME:AddMessage("|cffb8b8c0  " .. line .. "|r")
+		lines[#lines + 1] = line
 	end
+	lines[#lines + 1] = ""
 end
 
-function MV:PrintErrors()
+-- The whole log as one plain-text block - no prefix and no colour codes - so
+-- the window's Copy button hands over exactly what a bug report needs.
+function MV:ErrorsText()
 	local own, other = ownStore(), otherStore()
 
 	local ok, clientVersion, clientBuild, _, tocVersion = pcall(GetBuildInfo)
 	if not ok then clientVersion, clientBuild, tocVersion = "?", "?", "?" end
-	self:Print(("error log - MacroVaultPro %s, client %s (build %s), interface %s"):format(
-		self.VERSION, tostring(clientVersion), tostring(clientBuild), tostring(tocVersion)))
+
+	local lines = {
+		("MacroVaultPro %s  build %s  client %s (build %s)  interface %s"):format(
+			self.VERSION, self.BUILD, tostring(clientVersion), tostring(clientBuild), tostring(tocVersion)),
+	}
 
 	if #own == 0 and #other == 0 then
-		self:Print("nothing logged.")
-		return
+		lines[#lines + 1] = "nothing logged."
+		return table.concat(lines, "\n")
 	end
 
-	for i = #own, 1, -1 do printEntry(own[i]) end
+	lines[#lines + 1] = ("%d own + %d unattributed  -  saved in WTF/Account/<account>/SavedVariables/MacroVaultPro.lua"):format(
+		#own, #other)
+	lines[#lines + 1] = ""
+
+	for i = #own, 1, -1 do appendEntry(lines, own[i]) end
 
 	if #other > 0 then
-		self:Print(("|cffffd166%d error%s with no addon path in the traceback|r - listed in case one is ours:"):format(
-			#other, #other == 1 and "" or "s"))
-		for i = #other, 1, -1 do printEntry(other[i]) end
+		lines[#lines + 1] = ("-- %d with no addon path in the traceback - listed in case one is ours --"):format(#other)
+		for i = #other, 1, -1 do appendEntry(lines, other[i]) end
 	end
 
-	local total = #own + #other
-	self:Print(("%d entr%s saved in WTF/Account/<account>/SavedVariables/MacroVaultPro.lua"):format(
-		total, total == 1 and "y" or "ies"))
+	return table.concat(lines, "\n")
+end
+
+-- Opens the log in its own small read-only window. Chat is only the fallback
+-- for the case where the UI is missing, which should not happen after load.
+function MV:ShowErrors()
+	local own, other = ownStore(), otherStore()
+	local text = self:ErrorsText()
+	if self.UI and self.UI.ShowErrorLog then
+		self.UI:ShowErrorLog(text, ("%d own, %d unattributed"):format(#own, #other))
+	else
+		for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+			self:PrintRaw(line)
+		end
+	end
 end
 
 function MV:ClearErrors()
 	MacroVaultProDB = MacroVaultProDB or {}
 	MacroVaultProDB.errors, MacroVaultProDB.otherErrors = {}, {}
 	MV.pendingErrors, MV.pendingOtherErrors = {}, {}
+	if self.UI and self.UI.errorFrame and self.UI.errorFrame:IsShown() then
+		self:ShowErrors()
+	end
 	self:Print("error log cleared.")
 end
 
@@ -1103,7 +1127,7 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 	elseif msg == "minimap" then
 		MV:ToggleMinimap()
 	elseif msg == "errors" then
-		MV:PrintErrors()
+		MV:ShowErrors()
 	elseif msg == "errors clear" or msg == "clearerrors" then
 		MV:ClearErrors()
 	elseif msg == "reset" then

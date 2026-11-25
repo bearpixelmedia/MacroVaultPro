@@ -101,12 +101,14 @@ On login the addon prints one line — `v1.0.0 loaded - /mvpro` — so a fresh
 install reports that it is running instead of looking inert until you type a
 command.
 
-If something inside the addon does raise a Lua error, `/mvpro errors` prints it
-with its timestamp, message and traceback, ready to paste into a bug report. It
-records errors raised in the addon's own files, including ones thrown while it is
-still loading, and keeps the last 20 plus up to 10 whose traceback carries no
-addon name. The list is saved in `MacroVaultProDB`, so it survives a reload, and
-`/mvpro errors clear` empties it.
+If something inside the addon does raise a Lua error, `/mvpro errors` opens a
+small read-only window instead of dumping the log into chat. Each entry keeps its
+timestamp, message and traceback, and **Copy** selects the whole log so Ctrl+C
+puts it on the clipboard, ready to paste into a bug report. It records errors
+raised in the addon's own files, including ones thrown while it is still loading,
+and keeps the last 20 plus up to 10 whose traceback carries no addon name. The
+list is saved in `MacroVaultProDB`, so it survives a reload, and **Clear log** in
+that window empties it.
 
 `/mvpro diag` prints one block, ready to paste: the addon's build stamp, the
 client build, whether the client exposes `RegisterForDrag`,
@@ -147,7 +149,7 @@ the minimap button sits and whether it is shown are saved per account in
 | `/mvpro selftest` | Print client and limit diagnostics, then confirm the account/character boundary |
 | `/mvpro diag` | Print one copyable block: build stamp, client build, drag APIs, minimap and slot split |
 | `/mvpro undo` | Take back the last Sheet clear or move |
-| `/mvpro errors` | Print the addon's error log, ready to copy |
+| `/mvpro errors` | Open the error log in a read-only window with a Copy button |
 | `/mvpro errors clear` | Empty the error log |
 | `/mvpro reset` | Forget the saved window position |
 
@@ -181,10 +183,10 @@ corrected the boundary.
   walk it around the edge of the map, right-click it to put it back where it
   started, and type `/mvpro minimap` to hide or show it if you would rather not
   have it on the map. It is built into the addon, so it adds no dependency.
-- **Errors are kept, not swallowed.** A failure in the addon's own code lands in
-  `/mvpro errors` and in
+- **Errors are kept, not swallowed.** A failure in the addon's own code appears
+  in the `/mvpro errors` window and in
   `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload, so it
-  can be reported with its traceback instead of a screenshot of a dialog.
+  can be copied with its traceback instead of screenshotted from a dialog.
 
 ## Gallery
 

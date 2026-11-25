@@ -35,12 +35,14 @@ First release, for World of Warcraft: Forever (interface 16001).
   `IsMouseButtonDown` and `GetMouseFocus`, the minimap size and shape, the
   detected slot split, and how many drags each drag path has started since you
   logged in — so the report says exactly which path works.
-- **`/mvpro errors`** — a log of every Lua error raised in the addon's own files,
-  including ones thrown while the addon is still loading. Each entry keeps its
-  timestamp, message and traceback; the last 20 are kept, plus up to 10 whose
-  traceback carries no addon name (some clients report only short paths), and
-  the list is saved in `MacroVaultProDB` so it survives a reload.
-  `/mvpro errors clear` empties it.
+- **`/mvpro errors`** — opens the log in a small read-only window instead of
+  dumping it into chat: every Lua error raised in the addon's own files,
+  including ones thrown while the addon is still loading, each with its
+  timestamp, message and traceback. **Copy** selects the whole log so Ctrl+C
+  puts it on the clipboard, and **Clear log** empties it. The last 20 are kept,
+  plus up to 10 whose traceback carries no addon name (some clients report only
+  short paths), and the list is saved in `MacroVaultProDB` so it survives a
+  reload.
 - **Minimap button** — the addon's icon sits by the minimap and opens the window.
   Drag it to walk it around the edge of the map, right-click to put it back where
   it started; where it sits is saved. `/mvpro minimap` hides or shows the button
@@ -56,6 +58,6 @@ First release, for World of Warcraft: Forever (interface 16001).
 - No macros are created, edited or deleted in combat; the addon tells you and you
   can retry afterwards.
 - No dependencies and no external libraries.
-- If something misbehaves, `/mvpro errors` prints the log to chat ready to copy;
-  the same entries are in
+- If something misbehaves, `/mvpro errors` opens the log in a read-only window
+  with a Copy button; the same entries are in
   `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload.
