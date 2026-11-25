@@ -36,6 +36,9 @@ param(
 	# Used only to build the public file URL the upload is checked against.
 	[string]$Slug = "macrovaultpro",
 	[string]$TokenFile,
+	# Optional path that receives the new file id. A caller that chains this script
+	# (release.ps1) reads the id from there instead of parsing console text.
+	[string]$IdFile,
 	# Check one file id and exit, without uploading anything: -VerifyId 9810929
 	[int]$VerifyId,
 	[switch]$DryRun
@@ -320,6 +323,9 @@ try {
 		throw "Upload returned no file id. Raw response: $result"
 	}
 	"uploaded:     file id {0}" -f $parsed.id
+	if ($IdFile) {
+		[System.IO.File]::WriteAllText($IdFile, [string]$parsed.id)
+	}
 
 	$status = Get-FileStatus -Id ([int]$parsed.id)
 	"status:       $($status.Text)"

@@ -181,26 +181,33 @@ if ($NoUpload) {
 	exit 0
 }
 $uploadScript = Join-Path $PSScriptRoot "upload-curseforge.ps1"
-$uploadLog = & powershell -NoProfile -ExecutionPolicy Bypass -File $uploadScript -ProjectId $ProjectId 2>&1
-$uploadLog | ForEach-Object { "$_" }
-if ($LASTEXITCODE -ne 0) { throw "upload failed - the archive and changelog are written, so this can be retried" }
+# The file id comes back through a file, not through the uploader's console text.
+# Parsing formatted output would break silently if a line were reworded, and a
+# regex that matches nothing has no way to tell "no id" from "new format". The
+# uploader writes the id; reading it either succeeds or it does not.
+$idFile = [System.IO.Path]::GetTempFileName()
+try {
+	& powershell -NoProfile -ExecutionPolicy Bypass -File $uploadScript -ProjectId $ProjectId -IdFile $idFile
+	if ($LASTEXITCODE -ne 0) { throw "upload failed - the archive and changelog are written, so this can be retried" }
+	$fileId = (Get-Content -LiteralPath $idFile -Raw).Trim()
+	if ($fileId -notmatch '^\d+$') { throw "the upload did not write a file id, so the published archive cannot be verified" }
 
-# ---- verify the published bytes -------------------------------------------
-# The upload receipt is only an id. The one proof the site holds this build is to
-# fetch it back and compare hashes, so the release asks -VerifyId to do exactly
-# that and refuses to finish on anything but IDENTICAL. A file still in review has
-# no public record to hash, which is not proof either, so that stops here too with
-# the id to re-check once it is approved.
-$idMatch = [regex]::Match(($uploadLog -join "`n"), 'uploaded:\s+file id (\d+)')
-if (-not $idMatch.Success) { throw "the upload did not report a file id, so the published archive cannot be verified" }
-$fileId = $idMatch.Groups[1].Value
-""
-$verifyLog = & powershell -NoProfile -ExecutionPolicy Bypass -File $uploadScript -VerifyId $fileId 2>&1
-$verifyLog | ForEach-Object { "$_" }
-if ($LASTEXITCODE -ne 0) {
-	throw "the published file $fileId does not match dist\$addon-$Version.zip - the release is not complete"
+	# ---- verify the published bytes ---------------------------------------
+	# The upload receipt is only an id. The one proof the site holds this build is to
+	# fetch it back and compare hashes, so the release asks -VerifyId to do exactly
+	# that and refuses to finish on anything but IDENTICAL. A file still in review has
+	# no public record to hash, which is not proof either, so that stops here too with
+	# the id to re-check once it is approved.
+	""
+	$verifyLog = & powershell -NoProfile -ExecutionPolicy Bypass -File $uploadScript -VerifyId $fileId 2>&1
+	$verifyLog | ForEach-Object { "$_" }
+	if ($LASTEXITCODE -ne 0) {
+		throw "the published file $fileId does not match dist\$addon-$Version.zip - the release is not complete"
+	}
+	if (-not (($verifyLog -join "`n") -match 'verdict:\s+IDENTICAL')) {
+		throw "file $fileId is uploaded but has no public record yet, so its bytes could not be verified - run tools/upload-curseforge.ps1 -VerifyId $fileId once it is approved"
+	}
+	"verified:  published bytes match dist\$addon-$Version.zip"
+} finally {
+	Remove-Item -LiteralPath $idFile -ErrorAction SilentlyContinue
 }
-if (-not (($verifyLog -join "`n") -match 'verdict:\s+IDENTICAL')) {
-	throw "file $fileId is uploaded but has no public record yet, so its bytes could not be verified - run tools/upload-curseforge.ps1 -VerifyId $fileId once it is approved"
-}
-"verified:  published bytes match dist\$addon-$Version.zip"

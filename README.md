@@ -86,6 +86,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/install.ps1
 Run `/reload` afterwards — the script says so when the client is running. The
 previous install is copied to `<install>\_addon-archive\backups\` first.
 
+**Release** — `tools/release.ps1` chains the whole thing: it bumps the version,
+writes the changelog, runs the pre-flight checks, packages, installs, uploads, then
+downloads the published file and compares its SHA-256 with `dist/`. A release does
+not finish unless the two match; a file still in review has no public copy to hash,
+so it stops with the id to re-check.
+
 ## License
 
 All rights reserved. See [LICENSE](LICENSE).
