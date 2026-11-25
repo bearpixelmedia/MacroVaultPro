@@ -7,35 +7,36 @@ Open it with `/mvpro` or `/macrovaultpro`, or click the addon's icon beside the
 minimap — drag that icon around the edge of the map to move it, right-click it
 to put it back. `/mvpro minimap` hides or shows that icon, and the choice is
 saved with the rest of the settings. The **My macros** tab lists account and character macros
-together and tags each with its real scope, so you can search, inject onto your
-bars, edit, duplicate, or jump to the client's own macro window. The **Library**
+together and tags each with its real scope, so you can search, pick a macro up
+onto your cursor, edit it, open the editor on a copy, or jump to the client's own
+macro window. The **Library**
 tab has 26 ready-made targeting, utility and developer macros you can read
 before creating. The **Tools** tab runs the client's own debug tools —
 `/fstack`, `/etrace`, `/api`, build info, script errors, taint log — without
 typing them. The **Sheet** tab puts the macro list beside 36 icon slots: drag one
-onto a slot, drag one slot onto another to reorder it, right-click to clear
-(Undo takes back the last clear or move); the layout is saved with the rest of
-the addon's settings.
+onto a slot, drag one slot onto another to swap the two, right-click to clear
+(Undo writes back the layout from before that last clear or move); the layout is
+saved with the rest of the addon's settings.
 
 Macro slots are read from the client rather than assumed, and nothing is written
 while you are in combat.
 
 ## Install
 
-Unzip `MacroVaultPro-1.0.0.zip` into the client's `Interface/AddOns/` folder, so
+Unzip `MacroVaultPro-<version>.zip` into the client's `Interface/AddOns/` folder, so
 the path ends up as `Interface/AddOns/MacroVaultPro/MacroVaultPro.toc`. Start the
 game with no addons disabled, and the window opens from `/mvpro` or
 `/macrovaultpro`.
 
 ## If something goes wrong
 
-`/mvpro errors` opens a small read-only window with any Lua error the addon has
-logged — timestamp, message and traceback — plus a Copy button that selects the
-whole log so Ctrl+C puts it on the clipboard, ready to paste into a bug report.
-It covers errors raised in the addon's own files, including ones thrown while it
-loads. The same list is saved in
+`/mvpro errors` assembles the log as one plain-text block — timestamp, message
+and traceback for each entry — and hands it to a small read-only window, with
+chat as the fallback when that window cannot be built. Its Copy button selects the
+whole block and says to press Ctrl+C. It covers errors raised in the addon's own
+files, including ones thrown while it loads. The same list is saved in
 `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload; the
-window's Clear log button empties it. For a drag or load problem, `/mvpro diag`
+window's Clear log button empties both stored lists and rebuilds the window. For a drag or load problem, `/mvpro diag`
 prints one copyable block — build stamp, client build, which drag APIs the
 client has, the minimap size and the detected slot split — so a report says
 exactly which drag path works.
