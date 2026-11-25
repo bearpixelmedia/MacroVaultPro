@@ -33,6 +33,26 @@ Everything the CurseForge project page needs, in the sizes CurseForge asks for.
    `Release`, changelog from the version's section in `release-notes.md`.
 7. Add the banner at the top of the description if you want a header image.
 
+## CurseForge pre-flight
+
+Run through this before any file goes up. Each line is a moderation rule, not a
+style preference.
+
+- [ ] **Avatar** — `images/avatar-400.png`, exactly **400 × 400**, PNG. Not webp (the
+      site has a known bug with it), not a solid colour, no game logo or borrowed art.
+- [ ] **Changelog** — `release-notes.md` has a `## <version>` section for the build being
+      uploaded. `tools/release.ps1` turns it into `changelog-<version>.md` and refuses to
+      package without it; every file must describe what changed from the last one.
+- [ ] **Name** — the project name and the file display name carry no game name, class
+      name or version number. `MacroVaultPro` is fine; `MacroVaultPro-WoW-1.0.1` is not.
+      Technical detail belongs in the description or the file tags.
+- [ ] **Gallery disclosure** — if the panels are still the HTML renderings, the
+      description's Gallery paragraph must say they are not in-game screenshots.
+- [ ] **Summary** — the 118-character line in `curseforge-listing.md`: one sentence, and
+      not the description's opening line copied across.
+- [ ] **One upload per build** — a second upload of the same archive is rejected as a
+      duplicate (file 9811070 was) and counts against the fair-play rule.
+
 ## Checking a published file
 
 `tools/upload-curseforge.ps1 -VerifyId <file id>` loads the id's public record and prints `live`,

@@ -101,7 +101,7 @@ function Get-FileStatus {
 		$text = "unknown - HTTP $code from $probeUrl"
 	}
 
-	[pscustomobject]@{ Id = $Id; Text = $text; PageUrl = $pageUrl }
+	[pscustomobject]@{ Id = $Id; Text = $text; PageUrl = $pageUrl; Record = $record }
 }
 
 if ($VerifyId) {
@@ -109,7 +109,61 @@ if ($VerifyId) {
 	"file id:      $VerifyId"
 	"status:       $($checked.Text)"
 	"file page:    $($checked.PageUrl)"
-	exit 0
+
+	$record = $checked.Record
+	if (-not $record -or -not $record.fileName) {
+		"archive:      not checked - the site has no public record for this id"
+		exit 0
+	}
+
+	# The CDN path is mechanical: the id split at its last three digits, then the name
+	# the site reports. It is the only route that serves the bytes to a script, because
+	# /wow/addons/<slug>/download/<id> answers 403 to anything but a browser.
+	$chunkA = [int][math]::Floor($VerifyId / 1000)
+	$chunkB = $VerifyId % 1000
+	$archiveUrl = "https://mediafilez.forgecdn.net/files/$chunkA/$chunkB/$($record.fileName)"
+	$localPath  = Join-Path $root ("dist\" + $record.fileName)
+	"archive url:  $archiveUrl"
+
+	$exitCode = 0
+	$temp = $null
+	try {
+		$get = New-Object System.Net.Http.HttpClient
+		$get.Timeout = [TimeSpan]::FromMinutes(3)
+		$get.DefaultRequestHeaders.Add("User-Agent",
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+		try {
+			$download = $get.GetAsync($archiveUrl).Result
+			if (-not $download.IsSuccessStatusCode) {
+				"archive:      download failed - HTTP $([int]$download.StatusCode) from the CDN"
+				$exitCode = 1
+			} else {
+				$bytes = $download.Content.ReadAsByteArrayAsync().Result
+				$temp = [System.IO.Path]::GetTempFileName()
+				[System.IO.File]::WriteAllBytes($temp, $bytes)
+				"live:         {0:N0} bytes" -f $bytes.Length
+				if (-not (Test-Path $localPath)) {
+					"local:        missing - no {0} in dist\" -f $record.fileName
+					$exitCode = 1
+				} else {
+					"local:        {0:N0} bytes  {1}" -f (Get-Item $localPath).Length, $localPath
+					$liveHash  = (Get-FileHash $temp      -Algorithm SHA256).Hash
+					$localHash = (Get-FileHash $localPath -Algorithm SHA256).Hash
+					"sha256 live:  $liveHash"
+					"sha256 local: $localHash"
+					if ($liveHash -eq $localHash) {
+						"verdict:      IDENTICAL - the published archive is the build in dist\"
+					} else {
+						"verdict:      DIFFERENT - the published archive is not this build"
+						$exitCode = 1
+					}
+				}
+			}
+		} finally { $get.Dispose() }
+	} finally {
+		if ($temp) { Remove-Item $temp -ErrorAction SilentlyContinue }
+	}
+	exit $exitCode
 }
 
 if (-not (Test-Path $toc)) { throw "Missing $toc" }
