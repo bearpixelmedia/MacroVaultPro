@@ -55,8 +55,9 @@ style preference.
 
 Rows one to five are enforced by `tools/preflight.ps1`, which `tools/release.ps1` runs
 before it writes anything; the duplicate row is enforced by `tools/upload-curseforge.ps1`,
-which hashes the published files of the same size and refuses an archive whose SHA-256 is
-already on the project, whatever it happens to be called.
+which hashes every published file that is the same size as the archive — or whose listing
+carries no readable size, so an incomplete listing cannot hide one — and refuses an archive
+whose SHA-256 is already on the project, whatever it happens to be called.
 
 ## Checking a published file
 

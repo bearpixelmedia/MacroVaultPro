@@ -252,7 +252,9 @@ $json = $metadata | ConvertTo-Json -Depth 4
 # upload when those bytes are already there - a renamed archive is still a
 # re-upload without changes under the fair-play rule. The file list gives
 # fileLength for free and equal bytes always have equal length, so only published
-# files of exactly this size are downloaded: usually none, at most a couple.
+# files of exactly this size are downloaded: usually none, at most a couple. A
+# record whose fileLength is missing or not a number is a candidate as well,
+# because an incomplete listing must not be able to hide a duplicate.
 # The check runs on -DryRun too, so a release can be tested without uploading.
 $sizeBytes = (Get-Item $Zip).Length
 $localHash  = (Get-FileHash $Zip -Algorithm SHA256).Hash
@@ -300,16 +302,30 @@ try {
 } finally { $listClient.Dispose() }
 
 $duplicate  = $null
-$candidates = @($published | Where-Object { $_.fileName -and [int]$_.fileLength -eq [int]$sizeBytes })
+function Test-SizeCandidate {
+	param($File)
+	if (-not $File.fileName) { return $false }
+	$length = [long]0
+	# Unknown size: cannot be excluded by size, so it is fetched and hashed.
+	if (-not [long]::TryParse([string]$File.fileLength, [ref]$length)) { return $true }
+	return ($length -eq $sizeBytes)
+}
+$candidates = @($published | Where-Object { Test-SizeCandidate $_ })
 foreach ($candidate in $candidates) {
 	$candidateId = [int]$candidate.id
 	$chunkA = [int][math]::Floor($candidateId / 1000)
 	$chunkB = $candidateId % 1000
 	$archiveUrl = "https://mediafilez.forgecdn.net/files/$chunkA/$chunkB/$($candidate.fileName)"
-	"checking:     file id {0}  {1}  {2:N0} bytes" -f $candidateId, $candidate.fileName, $candidate.fileLength
+	$listedSize = [long]0
+	$sizeText = if ([long]::TryParse([string]$candidate.fileLength, [ref]$listedSize)) {
+		"{0:N0} bytes" -f $listedSize
+	} else {
+		"size not listed"
+	}
+	"checking:     file id {0}  {1}  {2}" -f $candidateId, $candidate.fileName, $sizeText
 	$publishedHash = Get-PublishedHash -Url $archiveUrl
 	if (-not $publishedHash) {
-		throw "Refusing to upload: file id $candidateId has this archive's size but could not be downloaded from $archiveUrl, so it cannot be ruled out as a duplicate. Retry, or check it with -VerifyId $candidateId."
+		throw "Refusing to upload: published file id $candidateId ($sizeText) could not be downloaded from $archiveUrl, so it cannot be ruled out as a duplicate of this archive. Retry, or check it with -VerifyId $candidateId."
 	}
 	if ($publishedHash -eq $localHash) { $duplicate = $candidate; break }
 }
@@ -319,7 +335,7 @@ if ($duplicate) {
 if ($candidates.Count -eq 0) {
 	"duplicate:    none - no published file has this archive's size ({0:N0} bytes)" -f $sizeBytes
 } else {
-	"duplicate:    none - {0} published file(s) of this size hashed, none matched $localHash" -f $candidates.Count
+	"duplicate:    none - {0} published file(s) of this size or of unlisted size hashed, none matched $localHash" -f $candidates.Count
 }
 
 if ($DryRun) {
