@@ -4,7 +4,12 @@
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1 -DryRun
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1
-#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1 -Version 1.1.0 -NoUpload -NoInstall
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1 -Upload
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1 -Version 1.1.0 -Upload -NoInstall
+#
+# Publishing is a decision, not a default: a run without -Upload writes the
+# version, the build stamp and the changelog, then packages (and installs) and
+# stops. Nothing reaches CurseForge unless -Upload is given.
 #
 # MV.VERSION is bumped with the .toc: the addon prints that value on login and in
 # /mvpro selftest, so a release that only renamed the archive left the addon
@@ -27,7 +32,7 @@ param(
 	[string]$Version,
 	[string]$Notes,
 	[int]$ProjectId = 1827533,
-	[switch]$NoUpload,
+	[switch]$Upload,
 	[switch]$NoInstall,
 	[switch]$Force,
 	[switch]$DryRun
@@ -217,8 +222,11 @@ if ($NoInstall) {
 	if ($LASTEXITCODE -ne 0) { throw "install.ps1 failed" }
 }
 
-if ($NoUpload) {
-	"upload:    skipped (-NoUpload)"
+# Only -Upload publishes. The opposite flag (-NoUpload) meant a release sent the
+# archive to the site unless somebody remembered to opt out, which is how a build
+# meant to stay local went up by accident.
+if (-not $Upload) {
+	"upload:    skipped - nothing was sent to CurseForge. Re-run with -Upload to publish $addon $Version."
 	exit 0
 }
 $uploadScript = Join-Path $PSScriptRoot "upload-curseforge.ps1"
