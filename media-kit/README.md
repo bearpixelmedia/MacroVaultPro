@@ -67,8 +67,10 @@ approval status 4; `pending` means the id has no public record yet (still in rev
 It needs no token and uploads nothing, so it is safe to run against any id — for example
 `-VerifyId 9810929` for the 1.0.1 archive. It is the same check a real upload prints afterwards,
 which is why the file page's own 404 is not used: Cloudflare answers 403 to non-browser clients.
-`tools/release.ps1` runs this check on the file it just uploaded, so a release ends only with a hash
-match against `dist/`; a file still in review stops it with the id to re-check.
+It exits 0 only after the published bytes matched a build in `dist/`; 1 means they differ, or
+nothing was there to compare them with; 2 means the id could not be checked at all, which is not a
+pass. `tools/release.ps1` runs this check on the file it just uploaded, so a release ends only with
+a hash match against `dist/`; a file still in review stops it with the id to re-check.
 
 ## About the gallery images
 

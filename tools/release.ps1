@@ -77,13 +77,35 @@ if ($oldStamp -match "^$([regex]::Escape($today))([a-z])$") {
 # ---- changelog -----------------------------------------------------------
 # The last commit that touched `## Version:` is the boundary: everything after
 # it is what this release contains.
-$since = (git -C $root log -1 --format=%H -G"^## Version:" -- "MacroVaultPro/$addon.toc" 2>$null)
-if (-not $since) { $since = (git -C $root rev-list --max-parents=0 HEAD | Select-Object -Last 1) }
+# A git that cannot answer must not read as "nothing changed": a failed command
+# and an empty range both produce no lines, and -Force would carry on either way,
+# so the exit code is checked before the output is believed.
+$since = @(git -C $root log -1 --format=%H -G"^## Version:" -- "MacroVaultPro/$addon.toc" 2>$null)
+if ($LASTEXITCODE -ne 0) {
+	throw "git log failed (exit $LASTEXITCODE), so the last version change is unknown and this release's range cannot be built"
+}
+$since = ($since | Select-Object -First 1)
+if (-not $since) {
+	$roots = @(git -C $root rev-list --max-parents=0 HEAD 2>$null)
+	if ($LASTEXITCODE -ne 0) {
+		throw "git rev-list failed (exit $LASTEXITCODE), so the first commit is unknown and this release's range cannot be built"
+	}
+	$since = ($roots | Select-Object -Last 1)
+	if (-not $since) {
+		throw "git returned no first commit, so there is no history to compare against and what this release contains cannot be determined"
+	}
+}
 $range = "$since..HEAD"
 
 $subjects = @(git -C $root log --no-merges --pretty=format:"- %s (%h)" $range -- "MacroVaultPro/" 2>$null)
+if ($LASTEXITCODE -ne 0) {
+	throw "git log $range failed (exit $LASTEXITCODE), so the commits in this release are unknown - not empty"
+}
 if (-not $subjects.Count -and -not $Force) {
 	throw "No commits have changed $addon/ since the last version change ($since) - nothing to release. Use -Force to repackage anyway."
+}
+if (-not $subjects.Count) {
+	"commits:   git lists none in $range - continuing because -Force was given"
 }
 
 $changelogPath = Join-Path $root "media-kit\changelog-$Version.md"
@@ -189,7 +211,10 @@ $idFile = [System.IO.Path]::GetTempFileName()
 try {
 	& powershell -NoProfile -ExecutionPolicy Bypass -File $uploadScript -ProjectId $ProjectId -IdFile $idFile
 	if ($LASTEXITCODE -ne 0) { throw "upload failed - the archive and changelog are written, so this can be retried" }
-	$fileId = (Get-Content -LiteralPath $idFile -Raw).Trim()
+	# An empty temp file reads as $null, which used to fail on .Trim() instead of
+	# on the missing id; the check below is the one that should say so.
+	$rawId  = Get-Content -LiteralPath $idFile -Raw
+	$fileId = if ($rawId) { $rawId.Trim() } else { "" }
 	if ($fileId -notmatch '^\d+$') { throw "the upload did not write a file id, so the published archive cannot be verified" }
 
 	# ---- verify the published bytes ---------------------------------------
@@ -201,6 +226,11 @@ try {
 	""
 	$verifyLog = & powershell -NoProfile -ExecutionPolicy Bypass -File $uploadScript -VerifyId $fileId 2>&1
 	$verifyLog | ForEach-Object { "$_" }
+	# 2 is "could not check" (no public record, or the site refused the probe),
+	# which is not the same as a mismatch and must not be reported as one.
+	if ($LASTEXITCODE -eq 2) {
+		throw "file $fileId is uploaded but could not be verified - the site has no public record for it yet. Run tools/upload-curseforge.ps1 -VerifyId $fileId once it is approved; the release is not complete until that prints IDENTICAL."
+	}
 	if ($LASTEXITCODE -ne 0) {
 		throw "the published file $fileId does not match dist\$addon-$Version.zip - the release is not complete"
 	}

@@ -12,6 +12,10 @@
 # -VerifyId checks one file id and exits before the archive, changelog or token
 # are needed. It prints whether that id is live, pending or blocked on the site,
 # so the check an upload prints can be exercised without uploading another file.
+# It exits 0 only after the published bytes matched a build in dist/; 1 means they
+# differ or there is nothing to compare with, and 2 means the id could not be
+# checked at all. "Could not check" is not a pass: an unreadable record used to
+# return 0, which reads as a verified file to anything that trusts the exit code.
 #
 # This covers files only: POST /api/projects/<id>/upload-file with a metadata
 # field and the archive. The project description, gallery and settings live on
@@ -91,8 +95,10 @@ function Get-FileStatus {
 	} finally { $probe.Dispose() }
 
 	if ($code -eq 200 -and $record -and $record.fileName) {
+		$listedSize = [long]0
+		$sizeText = if ([long]::TryParse([string]$record.fileLength, [ref]$listedSize)) { "{0:N0} bytes" -f $listedSize } else { "size not listed" }
 		if ([int]$record.status -eq 4) {
-			$text = "live - {0}  {1:N0} bytes  file id {2}" -f $record.fileName, $record.fileLength, $record.id
+			$text = "live - {0}  {1}  file id {2}" -f $record.fileName, $sizeText, $record.id
 		} else {
 			$text = "pending - {0} is on the site but approval status is {1}, so it is not public yet" -f $record.fileName, $record.status
 		}
@@ -116,7 +122,8 @@ if ($VerifyId) {
 	$record = $checked.Record
 	if (-not $record -or -not $record.fileName) {
 		"archive:      not checked - the site has no public record for this id"
-		exit 0
+		"verdict:      UNVERIFIED - no bytes were hashed, so this is not a pass. Re-run once the file is public."
+		exit 2
 	}
 
 	# The CDN path is mechanical: the id split at its last three digits, then the name
@@ -224,7 +231,14 @@ if ($token) {
 				ForEach-Object { "$($_.name) (id $($_.id), type $($_.gameVersionTypeID))" })
 			throw "No game version named '$GameVersion'. Closest: $($near -join '; ')"
 		}
-		$gameVersionId = $hit.id
+		$gameVersionId = 0
+		$parsedVersionId = 0
+		# A record with no usable id would otherwise drop gameVersions from the
+		# metadata silently, and the file would upload with no client tag at all.
+		if (-not [int]::TryParse([string]$hit.id, [ref]$parsedVersionId) -or $parsedVersionId -le 0) {
+			throw "The game version '$GameVersion' has no usable id in the API response (id '$($hit.id)'), so the file cannot be tagged with the client it was built for."
+		}
+		$gameVersionId = $parsedVersionId
 		"game version: {0}  id {1}  type {2}" -f $hit.name, $hit.id, $hit.gameVersionTypeID
 	} finally { $client.Dispose() }
 } else {
@@ -342,6 +356,12 @@ if ($DryRun) {
 	"--- metadata (dry run, nothing uploaded) ---"
 	$json
 	exit 0
+}
+
+# An untagged file is not a smaller upload, it is one the client may hide as
+# incompatible, so a version id that never resolved stops the upload here.
+if (-not $gameVersionId) {
+	throw "No game version id was resolved, so this file would upload with no client tag. Check the token and the -GameVersion/-GameVersionTypeId pair."
 }
 
 # ---- upload --------------------------------------------------------------

@@ -72,8 +72,11 @@ if ($addon -match '\d') {
 
 # ---- changelog -----------------------------------------------------------
 # Same section release.ps1 extracts; checked here so a missing section stops the
-# run before the version is bumped.
-if ($Version) {
+# run before the version is bumped. An unknown version must fail this check, not
+# skip it: a check that does not run reads exactly like a check that passed.
+if (-not $Version) {
+	Fail "the version is unknown, so the '## <version>' changelog section cannot be checked"
+} else {
 	$notes = Join-Path $root "media-kit\release-notes.md"
 	if (-not (Test-Path $notes)) {
 		Fail "media-kit/release-notes.md is missing"

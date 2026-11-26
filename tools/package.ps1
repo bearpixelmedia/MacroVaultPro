@@ -61,13 +61,14 @@ if (-not $hasToc)   { throw "Archive is missing $addon/$addon.toc" }
 
 # The .toc names the addon-list icon; a path that does not resolve ships a
 # blank icon in the client.
+# A .toc without the line is not "nothing to check": the archive would ship with
+# no icon and the check would never say so.
 $iconLine = Select-String -Path $toc -Pattern '^##\s*IconTexture:\s*(.+?)\s*$' | Select-Object -First 1
-if ($iconLine) {
-	$iconPath = $iconLine.Matches[0].Groups[1].Value
-	$relative = $iconPath -replace '^Interface[\\/]AddOns[\\/]', ''
-	$relative = $relative.Replace([string][char]92, "/")
-	if ($names -notcontains $relative) { throw "The .toc icon is not in the archive: $relative" }
-}
+if (-not $iconLine) { throw "No '## IconTexture:' line in $toc, so the archive's icon cannot be checked" }
+$iconPath = $iconLine.Matches[0].Groups[1].Value
+$relative = $iconPath -replace '^Interface[\\/]AddOns[\\/]', ''
+$relative = $relative.Replace([string][char]92, "/")
+if ($names -notcontains $relative) { throw "The .toc icon is not in the archive: $relative" }
 
 # ---- report --------------------------------------------------------------
 $names | ForEach-Object { "{0,-38}" -f $_ }
