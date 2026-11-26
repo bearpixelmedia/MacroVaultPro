@@ -32,7 +32,9 @@ $version = $match.Matches[0].Groups[1].Value
 
 $zip = Join-Path $dist "$addon-$version.zip"
 New-Item -ItemType Directory -Path $dist -Force | Out-Null
-Get-ChildItem $dist -Filter "$addon-*.zip" -ErrorAction SilentlyContinue | Remove-Item -Force
+# Older archives stay: each one is named after its version, and the published one
+# is the only thing upload-curseforge.ps1 -VerifyId can hash a live file against,
+# so deleting it after the next build would throw away that proof.
 
 $fs = [System.IO.File]::Create($zip)
 $archive = New-Object System.IO.Compression.ZipArchive($fs, [System.IO.Compression.ZipArchiveMode]::Create)

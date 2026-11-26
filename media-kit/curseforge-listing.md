@@ -54,10 +54,10 @@ one-line description for the Images tab.
 | Field | Value |
 | --- | --- |
 | Release type | Release |
-| Display name | `MacroVaultPro 1.0.1` |
+| Display name | `MacroVaultPro 1.0.2` |
 | Game version | Forever 1.60.1 |
 | Changelog | `release-notes.md`, section for the version being uploaded |
-| File name | `MacroVaultPro-1.0.1.zip` |
+| File name | `MacroVaultPro-1.0.2.zip` |
 
 Zip the `MacroVaultPro` folder itself, so the archive contains
 `MacroVaultPro/MacroVaultPro.toc`, `Core.lua`, `Library.lua`, `UI.lua` and

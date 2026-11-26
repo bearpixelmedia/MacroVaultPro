@@ -4,7 +4,11 @@
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1 -DryRun
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1
-#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1 -Version 1.1.0 -NoUpload
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/release.ps1 -Version 1.1.0 -NoUpload -NoInstall
+#
+# MV.VERSION is bumped with the .toc: the addon prints that value on login and in
+# /mvpro selftest, so a release that only renamed the archive left the addon
+# reporting an older version than the file it came from.
 #
 # This exists because the version, the build stamp and the changelog were three
 # things somebody had to remember, and forgetting them is invisible: the archive
@@ -24,6 +28,7 @@ param(
 	[string]$Notes,
 	[int]$ProjectId = 1827533,
 	[switch]$NoUpload,
+	[switch]$NoInstall,
 	[switch]$Force,
 	[switch]$DryRun
 )
@@ -50,6 +55,12 @@ if (-not $current) { throw "Could not read a version number from '$($tocMatch.Va
 $stampMatch = [regex]::Match($coreText, 'MV\.BUILD\s*=\s*"([^"]*)"')
 if (-not $stampMatch.Success) { throw "No MV.BUILD line in $core" }
 $oldStamp = $stampMatch.Groups[1].Value
+
+# The version the addon prints; it has to move with the .toc, or the login line
+# names a build nobody can find.
+$versionMatch = [regex]::Match($coreText, 'MV\.VERSION\s*=\s*"([^"]*)"')
+if (-not $versionMatch.Success) { throw "No MV.VERSION line in $core" }
+$oldCoreVersion = $versionMatch.Groups[1].Value
 
 # ---- next version --------------------------------------------------------
 if (-not $Version) {
@@ -154,6 +165,7 @@ $changelogText = ($lines -join "`n") + "`n"
 
 # ---- report --------------------------------------------------------------
 "version:   {0} -> {1}" -f $current, $Version
+"addon:     MV.VERSION {0} -> {1}" -f $oldCoreVersion, $Version
 "build:     {0} -> {1}" -f $oldStamp, $stamp
 "changelog: {0}  ({1} entries from {2})" -f $changelogPath, $entryCount, $notesSource
 
@@ -182,7 +194,10 @@ $utf8 = New-Object System.Text.UTF8Encoding($false)
 $newToc = $tocText.Substring(0, $tocMatch.Index) + "## Version: $Version" + $tocText.Substring($tocMatch.Index + $tocMatch.Length)
 [System.IO.File]::WriteAllText($toc, $newToc, $utf8)
 
-$newCore = $coreText.Substring(0, $stampMatch.Index) + ('MV.BUILD         = "' + $stamp + '"') + $coreText.Substring($stampMatch.Index + $stampMatch.Length)
+# Only the quoted value is replaced, so the column alignment of both lines stays
+# as it is in the file.
+$newCore = [regex]::Replace($coreText, '(MV\.VERSION\s*=\s*)"[^"]*"', ('$1"' + $Version + '"'))
+$newCore = [regex]::Replace($newCore, '(MV\.BUILD\s*=\s*)"[^"]*"', ('$1"' + $stamp + '"'))
 [System.IO.File]::WriteAllText($core, $newCore, $utf8)
 
 New-Item -ItemType Directory -Path (Split-Path -Parent $changelogPath) -Force | Out-Null
@@ -195,8 +210,12 @@ New-Item -ItemType Directory -Path (Split-Path -Parent $changelogPath) -Force | 
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "package.ps1")
 if ($LASTEXITCODE -ne 0) { throw "package.ps1 failed" }
 
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "install.ps1")
-if ($LASTEXITCODE -ne 0) { throw "install.ps1 failed" }
+if ($NoInstall) {
+	"install:   skipped (-NoInstall)"
+} else {
+	& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "install.ps1")
+	if ($LASTEXITCODE -ne 0) { throw "install.ps1 failed" }
+}
 
 if ($NoUpload) {
 	"upload:    skipped (-NoUpload)"

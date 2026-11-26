@@ -207,4 +207,4 @@ they are taken.
 
 ## Version
 
-1.0.1 — see the changelog on the Files tab.
+1.0.2 — see the changelog on the Files tab.

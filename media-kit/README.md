@@ -29,7 +29,7 @@ Everything the CurseForge project page needs, in the sizes CurseForge asks for.
    anywhere that takes Markdown.
 5. **Images tab** — upload the four gallery panels in order with the captions from
    `curseforge-listing.md`, and enable the carousel.
-6. **Game version** — Forever (interface 16001); file version `1.0.1`, release type
+6. **Game version** — Forever (interface 16001); file version `1.0.2`, release type
    `Release`, changelog from the version's section in `release-notes.md`.
 7. Add the banner at the top of the description if you want a header image.
 
