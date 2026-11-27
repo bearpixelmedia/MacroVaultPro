@@ -17,6 +17,12 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.19
+
+- **A long load message stays above the box.** The line under the share box
+  names at most three macros it could not find and counts the rest, so loading
+  a sequence full of missing macros no longer grows the text over the box.
+
 ## 1.0.3.18
 
 - **The log header says how often it fired.** Folding repeats into one line

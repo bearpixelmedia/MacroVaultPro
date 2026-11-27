@@ -3180,8 +3180,13 @@ function UI:LoadMakerShare()
 
 	local message = ("Loaded %d steps."):format(loaded)
 	if #missing > 0 then
-		message = message .. (" %d macro steps need a macro this character does not have: %s."):format(
-			#missing, table.concat(missing, ", "))
+		-- The strip under the box holds two lines, so name a few and count the
+		-- rest: twelve missing macros must not grow the text over the box.
+		local named = {}
+		for i = 1, math.min(#missing, 3) do named[i] = missing[i] end
+		local rest = #missing - #named
+		message = message .. (" %d macro steps need a macro this character does not have: %s%s."):format(
+			#missing, table.concat(named, ", "), rest > 0 and (" and %d more"):format(rest) or "")
 	end
 
 	self.makerShareStatus:SetText(message)

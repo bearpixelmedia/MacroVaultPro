@@ -198,6 +198,41 @@ if builtPanel and card then
   check("the status line spans the box and stays inside the card",
     status.width == share.width - 24 and statusPoint.x + status.width <= share.width - 12,
     status.width .. " in " .. share.width)
+
+  -- Whatever LoadMakerShare writes has to fit the strip between the box and the
+  -- buttons, including the message that lists macros the character does not
+  -- have: a twelve-step paste with sixteen-character names is the widest text
+  -- that path can produce.
+  local crafted = { "MVPSEQ1", "N", "priority", "none" }
+  for i = 1, MV.MAKER_MAX_STEPS do
+    crafted[#crafted + 1] = "m:" .. string.rep("M", MV.MAX_NAME - 2) .. ("%02d"):format(i)
+  end
+  crafted = table.concat(crafted, "|")
+
+  local function statusReport()
+    local text = UI.makerShareStatus.text or ""
+    local width = status.width > 0 and status.width or 1
+    return math.max(1, math.ceil(status:GetStringWidth() / width)), text
+  end
+
+  UI.makerShareBox:SetText("MVPSEQ1|nope")
+  UI:LoadMakerShare()
+  local refusalLines = statusReport()
+
+  MV:ClearMakerSteps()
+  UI.makerShareBox:SetText(crafted)
+  UI:LoadMakerShare()
+  local loadedLines, loadedText = statusReport()
+
+  -- Same string again, now that the maker holds steps: the Replace? question.
+  UI:LoadMakerShare()
+  local replaceLines = statusReport()
+
+  local worstLines = math.max(refusalLines, loadedLines, replaceLines)
+  check("the longest share status fits between the box and the buttons",
+    statusPoint.y + worstLines * status:GetStringHeight() <= boxBottom,
+    worstLines .. " lines, needs " .. (worstLines * status:GetStringHeight())
+      .. " of " .. (boxBottom - statusPoint.y) .. ": " .. loadedText)
 end
 
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
