@@ -1,8 +1,9 @@
 # MacroVaultPro — project facts
 
-**Goal and workstream state live in the `bmp-goal` skill.** Read it first; it is
-the single source. Nothing about state belongs in this file — when a row moves,
-update the skill, not a table here.
+**Goal and workstream state live in `GOAL.md` at the root of the BPM repo** — the
+`bmp-goal` skill sends every chat there. Read it first; it is the only copy.
+Nothing about state belongs in this file, and nothing about it belongs in the
+skill: when a MacroVaultPro row moves, edit its row in `GOAL.md`.
 
 ## Local to this project
 
