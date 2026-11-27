@@ -21,6 +21,12 @@ say in your final message if the skill's copy now disagrees.
 - Never claim in-game behaviour that was not seen in game; describe the mechanism
   and say it is unseen.
 - Every change is committed and pushed to `main`, no AI attribution footer.
+- **Every build the owner is asked to check in game gets its own version number**
+  — 1.0.3.1, 1.0.3.2, … — so they can tell the new build from the old one. Bump
+  `## Version:` in the `.toc` and `MV.VERSION` in `Core.lua`, add a matching
+  `## <version>` section to `media-kit/release-notes.md` (preflight requires it),
+  then package, install, and name that version in the message. A UI-check request
+  without a new number is a bug.
 - Maker checks live in the repo: `bun install` once, then `bun run test:maker`.
   `tests/maker/check.js` loads `Core.lua` and `UI.lua` against stubs — it never
   touches the client, and a failure there is not a substitute for the in-game check.

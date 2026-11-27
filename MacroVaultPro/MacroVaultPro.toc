@@ -2,7 +2,7 @@
 ## Title: MacroVaultPro
 ## Notes: Browse every macro you own, inject them onto your bars, and run the client's own tools like /fstack.
 ## Author: Bear Pixel Media
-## Version: 1.0.3
+## Version: 1.0.3.1
 ## SavedVariables: MacroVaultProDB
 ## IconTexture: Interface\AddOns\MacroVaultPro\Media\icon.tga
 

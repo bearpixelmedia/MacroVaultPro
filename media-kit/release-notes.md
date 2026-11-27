@@ -17,6 +17,19 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.1
+
+- **The Maker tab no longer treats a click as an error.** Clicking in the sequence
+  area with nothing on the cursor leaves the status line alone, and clicking the
+  drop bar says what to do instead of turning red.
+- **With no macros yet, the Maker tab offers a Make a macro button** that opens the
+  Editor tab on an empty macro, instead of pointing at a tab with nothing to press.
+- **The sequence row says what a step can do:** `x` removes it, dragging a row moves
+  it, and the Build button's tooltip explains that rebuilding updates the same
+  macro, so a bar button already there keeps working.
+- **An empty sequence reads 0 / 255**, not the 12 characters of the `#showtooltip`
+  header, and the panel's overlapping hint text is gone.
+
 ## 1.0.3
 
 - **A new Maker tab builds one macro out of a list.** Drop a spell from your
