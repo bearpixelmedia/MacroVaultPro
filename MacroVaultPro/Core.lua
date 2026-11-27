@@ -14,7 +14,7 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.3"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27g"
+MV.BUILD         = "2026-11-27h"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -983,6 +983,10 @@ end
 -- What is on the cursor, in the two shapes this maker accepts. A spell dragged
 -- out of the spellbook is not delivered to any frame - it sits on the cursor,
 -- so that is where it has to be read from.
+--
+-- Returns kind, value, icon on success, and nil, nil, nil, why on failure: the
+-- reason has to be the fourth value, or a caller reading `kind, value, icon, why`
+-- gets the reason in `value` and falls back to a message of its own.
 -- Counters for /mvpro diag. The last cursor read is kept as it came back, raw
 -- arguments included: a spellbook drag delivers the spell to the cursor rather
 -- than to a frame, so a drop that does nothing is usually one of these answers.
@@ -1000,14 +1004,14 @@ function MV:CursorStep()
 	if type(GetCursorInfo) ~= "function" then
 		stats.misses = stats.misses + 1
 		stats.last = { kind = "no_GetCursorInfo" }
-		return nil, "This client does not report what is on the cursor."
+		return nil, nil, nil, "This client does not report what is on the cursor."
 	end
 
 	local ok, kind, first, second = pcall(GetCursorInfo)
 	stats.last = { kind = kind or "nil", first = first, second = second, pcalled = ok }
 	if not ok or not kind then
 		stats.misses = stats.misses + 1
-		return nil, "Nothing is on the cursor - drag a spell from your spellbook, or use the list on the left."
+		return nil, nil, nil, "Nothing is on the cursor - drag a spell from your spellbook, or use the list on the left."
 	end
 
 	if kind == "spell" then
@@ -1034,14 +1038,14 @@ function MV:CursorStep()
 		end
 		stats.misses = stats.misses + 1
 		stats.last.spellInfo = false
-		return nil, "Could not read that spell's name from the cursor."
+		return nil, nil, nil, "Could not read that spell's name from the cursor."
 	end
 
 	if kind == "macro" then
 		local macro = self:GetMacro(first)
 		if not macro then
 			stats.misses = stats.misses + 1
-			return nil, "That macro no longer exists."
+			return nil, nil, nil, "That macro no longer exists."
 		end
 		stats.macros = stats.macros + 1
 		stats.last.macroIndex, stats.last.macroName = first, macro.name
@@ -1049,7 +1053,7 @@ function MV:CursorStep()
 	end
 
 	stats.misses = stats.misses + 1
-	return nil, ("The cursor holds a %s, which this maker cannot use."):format(tostring(kind))
+	return nil, nil, nil, ("The cursor holds a %s, which this maker cannot use."):format(tostring(kind))
 end
 
 -------------------------------------------------------------------------------

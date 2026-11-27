@@ -2103,6 +2103,14 @@ function UI:BuildMakerPanel(panel)
 	counter:SetPoint("TOPRIGHT", -12, -120)
 	counter:SetText("0 / " .. MV.MAX_BODY)
 	self.makerCounter = counter
+
+	-- On the count's row, so the two things a step row can do are visible without
+	-- hovering it first.
+	local rowHint = Text(pane, 10, MUTED, "RIGHT")
+	rowHint:SetPoint("RIGHT", counter, "LEFT", -12, 0)
+	rowHint:SetWidth(230)
+	rowHint:SetText("x removes a step  -  drag a row to move it")
+	self.makerRowHint = rowHint
 	counter:SetScript("OnEnter", function(self)
 		local problems = ui.makerProblems
 		if not problems or #problems == 0 then return end
@@ -2267,6 +2275,7 @@ function UI:RefreshMaker()
 	end
 	showIf(self.makerEmpty, #steps == 0)
 	showIf(self.makerMakeButton, #steps == 0 and #MV:GetMacros() == 0)
+	showIf(self.makerRowHint, #steps > 0)
 
 	if self.makerSeqLabel then
 		self.makerSeqLabel:SetText(("SEQUENCE  %d/%d"):format(#steps, MV.MAKER_MAX_STEPS))
@@ -2434,7 +2443,7 @@ function UI:CreateMakerRow(index)
 			for _, line in ipairs(lines) do
 				GameTooltip:AddLine(line, 0.72, 0.70, 0.80, true)
 			end
-			GameTooltip:AddLine("Drag to reorder it - x removes it.", 0.55, 0.55, 0.63)
+			GameTooltip:AddLine("Drag this row to move the step - x removes it.", 0.55, 0.55, 0.63)
 		else
 			GameTooltip:AddLine(why or "Unavailable.", 1, 0.5, 0.45, true)
 		end

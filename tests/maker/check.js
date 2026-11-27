@@ -176,6 +176,17 @@ check("saved variables hold the sequence",
   type(saved) == "table" and #saved.steps == 2 and saved.steps[2].value == "Frostbolt", type(saved))
 check("saved steps carry icons", saved.steps[2].icon == 116, saved.steps[2].icon)
 
+-- CursorStep must put its reason in the fourth slot: a caller reading
+-- kind, value, icon, why otherwise gets the reason in value and prints a fallback.
+local ck, cv, ci, cwhy = MV:CursorStep()
+check("cursor miss reports its reason in the fourth slot",
+  ck == nil and cwhy ~= nil and tostring(cwhy):find("does not report") ~= nil, tostring(cwhy))
+
+GetCursorInfo = function() return nil end
+local ek, ev, ei, ewhy = MV:CursorStep()
+check("empty cursor explains itself in the fourth slot",
+  ek == nil and ewhy ~= nil and tostring(ewhy):find("Nothing is on the cursor") ~= nil, tostring(ewhy))
+
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
 `;
 
