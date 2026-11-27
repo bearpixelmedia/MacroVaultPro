@@ -17,6 +17,20 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.15
+
+- **Load asks before it replaces anything.** When the maker already holds steps,
+  the first press turns `Load` into `Replace?` and the line under the box says
+  how many of your steps would go. Press it again to load, or `Close` to keep
+  what you have. Editing the box abandons the question, and a string that does
+  not read cleanly is reported straight away without one.
+- **Two more targets in the same bracket:** `@cursor` and `@none`, on a second
+  line under the first four. They travel inside share strings like any other
+  target - `s:Rain of Fire@cursor`.
+- Clicking the lit target again still clears it. `@none` is a choice of its own
+  now, so it is no longer how a target is removed.
+- The target and conditions card is taller to fit the second target line.
+
 ## 1.0.3.14
 
 - **A sequence travels as one line.** `Share` opens a box holding the whole maker

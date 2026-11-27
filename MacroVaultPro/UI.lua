@@ -2278,7 +2278,7 @@ function UI:BuildMakerPanel(panel)
 	-- The condition card a row's cond button opens: eight toggles in two rows, kept
 	-- in a floating frame so the step list keeps its 26px rows.
 	local conds = CreateFrame("Frame", "MacroVaultProCondsFrame", UIParent)
-	conds:SetSize(330, 160)
+	conds:SetSize(330, 192)
 	conds:SetFrameStrata("DIALOG")
 	conds:SetClampedToScreen(true)
 	conds:EnableMouse(true)
@@ -2301,17 +2301,22 @@ function UI:BuildMakerPanel(panel)
 	targetLabel:SetText("TARGET")
 
 	self.makerTargetButtons = {}
-	local targetWidths = { target = 52, mouseover = 76, focus = 48, player = 54 }
-	local previousTarget
+	local targetWidths = {
+		target = 52, mouseover = 76, focus = 48, player = 54, cursor = 60, none = 48,
+	}
+	-- Six targets no longer fit on one 330-wide line, so they wrap instead of
+	-- shrinking: four on the first line, @cursor and @none on the second.
+	local targetX, targetY = 10, -58
 	for _, entry in ipairs(MV.MAKER_TARGETS) do
-		local button = ui:MakeButton(conds, entry.token, targetWidths[entry.token] or 60, function()
+		local width = targetWidths[entry.token] or 60
+		if targetX + width > 300 then
+			targetX, targetY = 10, targetY - 26
+		end
+		local button = ui:MakeButton(conds, entry.token, width, function()
 			ui:MakerRun("target", ui.SetMakerTarget, entry.token)
 		end)
-		if previousTarget then
-			button:SetPoint("TOPLEFT", previousTarget, "TOPRIGHT", 4, 0)
-		else
-			button:SetPoint("TOPLEFT", 10, -58)
-		end
+		button:SetPoint("TOPLEFT", targetX, targetY)
+		targetX = targetX + width + 4
 		button:SetScript("OnEnter", function(self)
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 			GameTooltip:SetText("@" .. entry.token, 1, 1, 1)
@@ -2322,11 +2327,12 @@ function UI:BuildMakerPanel(panel)
 		end)
 		button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		self.makerTargetButtons[entry.token] = button
-		previousTarget = button
 	end
 
+	-- The condition rows follow the target rows, so a wrapped target row pushes
+	-- them down instead of sitting on top of them.
 	local condLabel = Text(conds, 10, MUTED)
-	condLabel:SetPoint("TOPLEFT", 10, -88)
+	condLabel:SetPoint("TOPLEFT", 10, targetY - 34)
 	condLabel:SetText("CONDITIONS")
 
 	self.makerCondButtons = {}
@@ -2336,7 +2342,7 @@ function UI:BuildMakerPanel(panel)
 		local button = ui:MakeButton(conds, "[" .. entry.token .. "]", 62, function()
 			ui:MakerRun("condition", ui.ToggleMakerCondition, entry.token)
 		end)
-		button:SetPoint("TOPLEFT", 10 + column * 64, -102 - line * 28)
+		button:SetPoint("TOPLEFT", condLabel, "TOPLEFT", column * 64, -14 - line * 28)
 		button.condLabel = entry.label
 		button:SetScript("OnEnter", function(self)
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -2938,7 +2944,7 @@ function UI:SetMakerTarget(token)
 	if not index then return end
 
 	local step = MV:GetMaker().steps[index]
-	local wanted = (step and step.target == token) and "none" or token
+	local wanted = (step and step.target == token) and "clear" or token
 
 	local ok, why = MV:SetMakerStepTarget(index, wanted)
 	if not ok then
@@ -3069,7 +3075,7 @@ function UI:BuildMakerShare()
 
 	local box = CreateFrame("EditBox", nil, frame)
 	box:SetPoint("TOPLEFT", 12, -56)
-	box:SetPoint("BOTTOMRIGHT", -12, 54)
+	box:SetPoint("BOTTOMRIGHT", -12, 70)
 	box:SetMultiLine(true)
 	box:SetAutoFocus(false)
 	box:SetFont(FONT, 11, "")
@@ -3079,9 +3085,12 @@ function UI:BuildMakerShare()
 	Paint(box, 0.09, 0.09, 0.12, 1)
 	Border(box, 0.22, 0.20, 0.30, 1)
 	box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	-- Editing the box abandons a pending question: the next Load reads the text
+	-- that is there now, and asks again if it would still replace something.
+	box:SetScript("OnTextChanged", function() self:ResetMakerShareLoad() end)
 
 	local status = Text(frame, 10, MUTED)
-	status:SetPoint("BOTTOMLEFT", 12, 36)
+	status:SetPoint("BOTTOMLEFT", 12, 40)
 	status:SetWidth(406)
 	status:SetText("")
 
@@ -3090,6 +3099,7 @@ function UI:BuildMakerShare()
 
 	local load = self:MakeButton(frame, "Load", 78, function() self:LoadMakerShare() end)
 	load:SetPoint("LEFT", copy, "RIGHT", 8, 0)
+	self.makerShareLoad = load
 
 	local close = self:MakeButton(frame, "Close", 78, function() frame:Hide() end)
 	close:SetPoint("BOTTOMRIGHT", -12, 8)
@@ -3102,6 +3112,7 @@ end
 
 function UI:ShareMaker()
 	local frame = self:BuildMakerShare()
+	self:ResetMakerShareLoad()
 	local maker = MV:GetMaker()
 	local text = MV:ExportMakerString(maker)
 
@@ -3120,6 +3131,7 @@ function UI:CopyMakerShare()
 	local box = self.makerShareBox
 	if not box then return end
 
+	self:ResetMakerShareLoad()
 	local text = MV:ExportMakerString()
 	box:SetText(text)
 	box:SetFocus()
@@ -3128,22 +3140,46 @@ function UI:CopyMakerShare()
 	self.makerShareStatus:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
 end
 
+-- Load replaces the whole sequence, so it asks first. Reading the string before
+-- the question means a paste that does not read cleanly is reported straight
+-- away; copying, editing the box or a failed read puts the button back to Load,
+-- so the question can only be answered by pressing it again.
+function UI:ResetMakerShareLoad()
+	self.makerSharePending = nil
+	if self.makerShareLoad then self.makerShareLoad:SetLabel("Load") end
+end
+
 function UI:LoadMakerShare()
 	local box = self.makerShareBox
 	if not box then return end
 
-	local ok, result, missing = MV:ImportMakerString(box:GetText())
-	if not ok then
-		self.makerShareStatus:SetText(tostring(result))
+	local text = box:GetText()
+	local spec, why = MV:ReadMakerString(text)
+	if not spec then
+		self:ResetMakerShareLoad()
+		self.makerShareStatus:SetText(tostring(why))
 		self.makerShareStatus:SetTextColor(1, 0.5, 0.45)
 		return
 	end
 
+	local maker = MV:GetMaker()
+	if #maker.steps > 0 and self.makerSharePending ~= text then
+		self.makerSharePending = text
+		if self.makerShareLoad then self.makerShareLoad:SetLabel("Replace?") end
+		self.makerShareStatus:SetText(("This replaces your %d steps. Press Replace? to go ahead, or Close to keep them."):format(
+			#maker.steps))
+		self.makerShareStatus:SetTextColor(ACCENT[1], ACCENT[2], ACCENT[3])
+		return
+	end
+
+	self:ResetMakerShareLoad()
 	box:ClearFocus()
+
+	local loaded, missing = MV:ApplyMakerString(spec)
 	self:RefreshMaker()
 
-	local message = ("Loaded %d steps."):format(result)
-	if missing and #missing > 0 then
+	local message = ("Loaded %d steps."):format(loaded)
+	if #missing > 0 then
 		message = message .. (" %d macro steps need a macro this character does not have: %s."):format(
 			#missing, table.concat(missing, ", "))
 	end

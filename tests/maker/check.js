@@ -362,7 +362,15 @@ check("the target rides on the castsequence entry",
 MV:SetMakerMode("priority")
 check("targets are saved with the step",
   MacroVaultProDB.maker.steps[1].target == "mouseover", MacroVaultProDB.maker.steps[1].target)
+MV:SetMakerStepTarget(1, "cursor")
+check("@cursor goes into the same bracket",
+  MV:ComposeMaker():find("/cast %[@cursor,harm%] Frostbolt") ~= nil, MV:ComposeMaker())
 MV:SetMakerStepTarget(1, "none")
+check("@none is a target of its own, not a clear",
+  MV:ComposeMaker():find("/cast %[@none,harm%] Frostbolt") ~= nil, MV:ComposeMaker())
+check("@none is saved with the step",
+  MacroVaultProDB.maker.steps[1].target == "none", MacroVaultProDB.maker.steps[1].target)
+MV:SetMakerStepTarget(1, "clear")
 check("clearing the target keeps the conditions",
   MV:ComposeMaker():find("/cast %[harm%] Frostbolt") ~= nil, MV:ComposeMaker())
 check("an unknown target is refused", MV:SetMakerStepTarget(1, "pet") == false)
@@ -440,6 +448,26 @@ check("a refused import changes nothing",
   MV:GetMaker().name == "Heals" and #MV:GetMaker().steps == 2,
   MV:GetMaker().name .. " " .. #MV:GetMaker().steps)
 
+-- the card validates a paste before it asks to replace anything, so reading a
+-- string has to leave the maker exactly as it was
+local beforeRead = MV:ExportMakerString()
+local readSpec = MV:ReadMakerString("MVPSEQ1|Other|sequence|target+5|s:Frostbolt@cursor")
+check("reading a string writes nothing",
+  type(readSpec) == "table" and MV:ExportMakerString() == beforeRead
+    and MV:GetMaker().name == "Heals" and #MV:GetMaker().steps == 2,
+  MV:GetMaker().name .. " " .. #MV:GetMaker().steps)
+check("the spec carries what the string said",
+  readSpec and readSpec.name == "Other" and readSpec.mode == "sequence"
+    and readSpec.resets.target == true and readSpec.resets.seconds == true
+    and readSpec.seconds == 5 and readSpec.steps[1].target == "cursor",
+  readSpec and readSpec.steps[1].target)
+check("a bad string reads as nil and a reason",
+  (function()
+    local spec, why = MV:ReadMakerString("MVPSEQ1|N|priority|target|s:Frostbolt@pet")
+    return spec == nil and type(why) == "string" and why:find("asks for @pet") ~= nil
+      and why:find("@cursor") ~= nil and why:find("@none") ~= nil
+  end)())
+
 -- reserved characters survive the trip, so a name with a delimiter is not mangled
 MV:ClearMakerSteps()
 MV:GetMaker().name = "A|B"
@@ -455,6 +483,23 @@ check("an escaped name survives the round trip",
 local okGone, _, goneMissing = MV:ImportMakerString("MVPSEQ1|N|priority|none|m:Gone")
 check("import names the macro steps it cannot find",
   okGone == true and goneMissing and goneMissing[1] == "Gone", goneMissing and goneMissing[1])
+
+-- @cursor and @none travel like any other target
+MV:ClearMakerSteps()
+MV:GetMaker().name = "Ground"
+MV:AddMakerStep("spell", "Rain of Fire", 1)
+MV:SetMakerStepTarget(1, "cursor")
+local groundText = MV:ExportMakerString()
+check("export writes @cursor", groundText:find("s:Rain of Fire@cursor") ~= nil, groundText)
+local okGround = MV:ImportMakerString(groundText)
+check("@cursor survives the round trip",
+  okGround == true and MV:GetMaker().steps[1].target == "cursor", tostring(okGround))
+MV:SetMakerStepTarget(1, "none")
+local noneText = MV:ExportMakerString()
+check("@none is not read back as no target",
+  noneText:find("s:Rain of Fire@none") ~= nil
+    and MV:ImportMakerString(noneText) == true and MV:GetMaker().steps[1].target == "none",
+  noneText)
 check("none writes no reset clause",
   MV:ResetClause() == "" and next(MV:GetMaker().resets) == nil, MV:ResetClause())
 

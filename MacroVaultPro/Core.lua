@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.14"
+MV.VERSION = "1.0.3.15"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27v"
+MV.BUILD = "2026-11-27w"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -759,6 +759,8 @@ MV.MAKER_TARGETS = {
 	{ token = "mouseover", label = "mouseover" },
 	{ token = "focus",     label = "focus" },
 	{ token = "player",    label = "yourself" },
+	{ token = "cursor",    label = "where your cursor points - for ground spells" },
+	{ token = "none",      label = "no unit at all - the line never has anyone to land on" },
 }
 MV.MAKER_TARGET_SET = {}
 for _, entry in ipairs(MV.MAKER_TARGETS) do
@@ -1081,7 +1083,9 @@ function MV:MakerConditionClause(step)
 	return "[" .. table.concat(parts, ",") .. "]"
 end
 
--- One target per step; "none" clears it back to the client's default.
+-- One target per step. "clear" (or nothing) removes it so the step goes back to
+-- the client's default; "none" is a real target of its own, so it is no longer
+-- the way to clear one.
 function MV:SetMakerStepTarget(position, token)
 	local maker = self:GetMaker()
 	local step = maker.steps[position]
@@ -1090,7 +1094,7 @@ function MV:SetMakerStepTarget(position, token)
 		return false, "only spell steps carry a target - a macro step's body applies its own"
 	end
 
-	if token == nil or token == "none" then
+	if token == nil or token == "clear" then
 		step.target = nil
 	elseif self.MAKER_TARGET_SET[token] then
 		step.target = token
@@ -1520,8 +1524,10 @@ function MV:ReadMakerShareStep(piece, position)
 				return nil, ("step %d asks for two targets"):format(position)
 			end
 			if not self.MAKER_TARGET_SET[inner] then
-				return nil, ("step %d asks for @%s - the maker writes @target, @mouseover, @focus or @player"):format(
-					position, inner)
+				local names = {}
+				for _, entry in ipairs(self.MAKER_TARGETS) do names[#names + 1] = "@" .. entry.token end
+				return nil, ("step %d asks for @%s - the maker writes %s"):format(
+					position, inner, table.concat(names, ", "))
 			end
 			step.target = inner
 		elseif mark == "*" then
@@ -1563,75 +1569,96 @@ function MV:ReadMakerShareStep(piece, position)
 	return step
 end
 
--- Takes a shared string in, or says exactly what is wrong with it. Nothing is
--- written until every step has been read: one bad step must not leave half of
--- someone else's sequence behind in the maker.
+-- Reads a shared string into the sequence it describes, or says exactly what is
+-- wrong with it. Nothing is written here: every step is read first, so a bad step
+-- in the middle refuses the whole line, and the share card can validate a paste
+-- before it asks to replace what the maker already holds.
 --
--- Returns true, stepCount, missingMacros on success, or false, why.
-function MV:ImportMakerString(text)
+-- Returns the spec, or nil and why.
+function MV:ReadMakerString(text)
 	if type(text) ~= "string" then
-		return false, "the box is empty - paste a sequence string first"
+		return nil, "the box is empty - paste a sequence string first"
 	end
 	text = trim(text)
 	if text == "" then
-		return false, "the box is empty - paste a sequence string first"
+		return nil, "the box is empty - paste a sequence string first"
 	end
 	if #text > self.MAKER_SHARE_MAX then
-		return false, ("that is %d characters - a sequence string is under %d"):format(
+		return nil, ("that is %d characters - a sequence string is under %d"):format(
 			#text, self.MAKER_SHARE_MAX)
 	end
 
 	local fields = makerSplitEscaped(text, "|")
 	if fields[1] ~= self.MAKER_SHARE_PREFIX then
-		return false, ("this is not a MacroVaultPro sequence - it should start with %s"):format(
+		return nil, ("this is not a MacroVaultPro sequence - it should start with %s"):format(
 			self.MAKER_SHARE_PREFIX)
 	end
 
 	local name, nameWhy = makerUnescape(fields[2] or "")
-	if not name then return false, "the name is damaged - " .. nameWhy end
+	if not name then return nil, "the name is damaged - " .. nameWhy end
 	name = trim(name)
 	if name == "" then name = self.MAKER_DEFAULT_NAME end
 	if #name > self.MAX_NAME then name = name:sub(1, self.MAX_NAME) end
 
 	local mode = fields[3]
 	if not self.MAKER_MODES[mode] then
-		return false, ("'%s' is not a mode - expected priority or sequence"):format(tostring(mode))
+		return nil, ("'%s' is not a mode - expected priority or sequence"):format(tostring(mode))
 	end
 
 	local resets, seconds, resetWhy = self:ReadMakerResetSpec(fields[4])
-	if not resets then return false, resetWhy end
+	if not resets then return nil, resetWhy end
 
 	if #fields - 4 > self.MAKER_MAX_STEPS then
-		return false, ("the string holds %d steps - the maker holds %d"):format(
+		return nil, ("the string holds %d steps - the maker holds %d"):format(
 			#fields - 4, self.MAKER_MAX_STEPS)
 	end
 
 	local steps = {}
 	for at = 5, #fields do
 		local step, stepWhy = self:ReadMakerShareStep(fields[at], at - 4)
-		if not step then return false, stepWhy end
+		if not step then return nil, stepWhy end
 		steps[#steps + 1] = step
 	end
 
+	return { name = name, mode = mode, resets = resets, seconds = seconds, steps = steps }
+end
+
+-- Writes the sequence ReadMakerString returned and reports what it needs. A
+-- sequence can name macros its new owner does not have: that is not a reason to
+-- refuse it, because the steps stay and the maker already reports the missing
+-- macro when it composes the body.
+--
+-- Returns stepCount, missingMacros.
+function MV:ApplyMakerString(spec)
 	local maker = self:GetMaker()
-	maker.name = name
-	maker.mode = mode
-	maker.resets = resets
-	maker.resetSeconds = seconds
-	maker.steps = steps
+	maker.name = spec.name
+	maker.mode = spec.mode
+	maker.resets = spec.resets
+	maker.resetSeconds = spec.seconds
+	maker.steps = spec.steps
 	self:SaveMaker()
 
-	-- A sequence can name macros its new owner does not have. That is not a reason
-	-- to refuse the import: the steps stay, and the maker already reports the
-	-- missing macro when it composes the body.
 	local missing = {}
-	for _, step in ipairs(steps) do
+	for _, step in ipairs(spec.steps) do
 		if step.kind == "macro" and not self:MakerFindMacro(step.value, step.scope) then
 			missing[#missing + 1] = step.value
 		end
 	end
 
-	return true, #steps, missing
+	return #spec.steps, missing
+end
+
+-- Takes a shared string in, or says exactly what is wrong with it. The maker is
+-- only written once the whole string has been read, so a refusal leaves nothing
+-- half-imported behind.
+--
+-- Returns true, stepCount, missingMacros on success, or false, why.
+function MV:ImportMakerString(text)
+	local spec, why = self:ReadMakerString(text)
+	if not spec then return false, why end
+
+	local count, missing = self:ApplyMakerString(spec)
+	return true, count, missing
 end
 
 -- Creates the real macro, or updates the one this sequence made last time.
