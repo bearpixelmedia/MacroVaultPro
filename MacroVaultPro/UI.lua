@@ -8,7 +8,7 @@ MV.UI = UI
 local WIDTH, HEIGHT = 820, 552
 
 local FONT   = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-local ACCENT = { 0.63, 0.50, 0.98 }
+local ACCENT = { 1, 0.82, 0 }   -- the gold the client uses on its own window trim
 local TEXT   = { 0.88, 0.88, 0.92 }
 local MUTED  = { 0.55, 0.55, 0.63 }
 
@@ -109,34 +109,23 @@ end
 -------------------------------------------------------------------------------
 
 function UI:MakeButton(parent, label, width, onClick)
-	local button = CreateFrame("Button", nil, parent)
-	button:SetSize(width or 100, 24)
-	button.bg = Paint(button, 0.15, 0.14, 0.20, 1)
-
-	local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-	highlight:SetAllPoints(button)
-	highlight:SetColorTexture(1, 1, 1, 0.07)
-
-	button.label = Text(button, 12, TEXT, "CENTER")
-	button.label:SetPoint("CENTER", 0, 0)
-	button.label:SetText(label)
-
-	button.SetActive = function(self, active)
-		if active then
-			self.bg:SetColorTexture(0.33, 0.25, 0.55, 1)
-			self.label:SetTextColor(1, 1, 1)
-		else
-			self.bg:SetColorTexture(0.15, 0.14, 0.20, 1)
-			self.label:SetTextColor(TEXT[1], TEXT[2], TEXT[3])
-		end
-	end
+	-- The client's own panel button, so this window matches the rest of the UI the
+	-- way Lueur's does. SetLabel and SetActive keep every call site unchanged.
+	local button = MV.Skin.Button(parent, label, width, onClick)
 
 	button.SetLabel = function(self, text)
-		self.label:SetText(text)
+		if self.SetText then self:SetText(text) end
+		if self.label then self.label:SetText(text) end
 	end
 
-	if onClick then
-		button:SetScript("OnClick", onClick)
+	button.SetActive = function(self, active)
+		local font = self.label or (self.GetFontString and self:GetFontString())
+		if not font then return end
+		if active then
+			font:SetTextColor(ACCENT[1], ACCENT[2], ACCENT[3])
+		else
+			font:SetTextColor(TEXT[1], TEXT[2], TEXT[3])
+		end
 	end
 
 	button:SetActive(false)
@@ -365,84 +354,34 @@ function UI:Build()
 		self.editorScope = (MacroVaultProDB and MacroVaultProDB.perCharacter) and "char" or "account"
 	end
 
-	local frame = CreateFrame("Frame", "MacroVaultProFrame", UIParent)
+	-- The same shell as Lueur: the client's portrait frame with its own title bar
+	-- and close button, rather than a hand-drawn frame and a text "X".
+	local frame = MV.Skin.Window("MacroVaultProFrame", WIDTH, HEIGHT, "MacroVaultPro")
 	self.frame = frame
-	frame:SetSize(WIDTH, HEIGHT)
-	frame:SetFrameStrata("DIALOG")
-	frame:SetToplevel(true)
-	frame:SetClampedToScreen(true)
-	frame:SetMovable(true)
-	frame:EnableMouse(true)
-	frame:RegisterForDrag("LeftButton")
-	frame:SetScript("OnDragStart", frame.StartMoving)
 	frame:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
 		MV:SavePosition()
 	end)
-	frame:Hide()
-
-	Paint(frame, 0.045, 0.045, 0.06, 0.97)
-	Border(frame, 0.30, 0.25, 0.45, 1)
 
 	tinsert(UISpecialFrames, "MacroVaultProFrame")
 	self:ApplyPosition()
 
-	local title = Text(frame, 19, ACCENT)
-	title:SetPoint("TOPLEFT", 16, -12)
-	title:SetText("MacroVaultPro")
-
-	local subtitle = Text(frame, 11, MUTED)
-	subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 1, -2)
-	subtitle:SetText("every macro you own, plus the client's own tools")
-
-	local close = CreateFrame("Button", nil, frame)
-	close:SetSize(24, 24)
-	close:SetPoint("TOPRIGHT", -8, -8)
-	local closeText = Text(close, 15, MUTED, "CENTER")
-	closeText:SetPoint("CENTER", 0, 0)
-	closeText:SetText("X")
-	close:SetScript("OnEnter", function() closeText:SetTextColor(1, 1, 1) end)
-	close:SetScript("OnLeave", function() closeText:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end)
-	close:SetScript("OnClick", function() frame:Hide() end)
-
+	-- Icon tabs down the right edge, the way the client's own windows do it: each
+	-- one pushes in when chosen and carries its page name as a tooltip.
 	self.tabs = {}
 	local tabs = {
-		{ id = "macros",  label = "My macros" },
-		{ id = "maker",   label = "Maker" },
-		{ id = "tools",   label = "Tools" },
-		{ id = "library", label = "Library" },
-		{ id = "editor",  label = "Editor" },
-		{ id = "sheet",   label = "Sheet" },
+		{ id = "macros",  icon = "Interface\\Icons\\INV_Misc_Note_01",  tip = "My macros" },
+		{ id = "maker",   icon = "Interface\\Icons\\Trade_Engineering", tip = "Maker" },
+		{ id = "tools",   icon = "Interface\\Icons\\INV_Misc_Gear_01",  tip = "Tools" },
+		{ id = "library", icon = "Interface\\Icons\\INV_Misc_Book_09",  tip = "Library" },
+		{ id = "editor",  icon = "Interface\\Icons\\INV_Misc_Note_02",  tip = "Editor" },
+		{ id = "sheet",   icon = "Interface\\Icons\\INV_Misc_Key_01",   tip = "Sheet" },
 	}
-	local x = 14
+	local previous
 	for _, tab in ipairs(tabs) do
-		local button = CreateFrame("Button", nil, frame)
-		button:SetSize(88, 24)
-		button:SetPoint("TOPLEFT", x, -50)
-
-		local label = Text(button, 13, MUTED, "CENTER")
-		label:SetPoint("CENTER", 0, 1)
-		label:SetText(tab.label)
-
-		local line = button:CreateTexture(nil, "ARTWORK")
-		line:SetHeight(2)
-		line:SetPoint("BOTTOMLEFT", 6, 0)
-		line:SetPoint("BOTTOMRIGHT", -6, 0)
-		line:SetColorTexture(ACCENT[1], ACCENT[2], ACCENT[3], 1)
-		line:Hide()
-
-		button.label = label
-		button.line = line
-		button:SetScript("OnClick", function() self:SwitchTab(tab.id) end)
-		button:SetScript("OnEnter", function()
-			if self.activeTab ~= tab.id then label:SetTextColor(0.8, 0.8, 0.86) end
-		end)
-		button:SetScript("OnLeave", function()
-			if self.activeTab ~= tab.id then label:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end
-		end)
-
+		local button = MV.Skin.SideTab(frame, previous, tab.icon, function() self:SwitchTab(tab.id) end, tab.tip)
 		self.tabs[tab.id] = button
-		x = x + 92
+		previous = button
 	end
 
 	local search = self:MakeEditBox(frame, 220, 24)
@@ -640,12 +579,13 @@ function UI:SwitchTab(id)
 
 	for key, tab in pairs(self.tabs) do
 		local active = key == id
-		if active then
-			tab.label:SetTextColor(ACCENT[1], ACCENT[2], ACCENT[3])
-		else
-			tab.label:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+		if tab.SetChecked then
+			tab:SetChecked(active)
+		elseif tab.label then
+			tab.label:SetTextColor(active and ACCENT[1] or MUTED[1],
+				active and ACCENT[2] or MUTED[2], active and ACCENT[3] or MUTED[3])
 		end
-		showIf(tab.line, active)
+		if tab.line then showIf(tab.line, active) end
 	end
 
 	showIf(self.search, id == "macros" or id == "library")

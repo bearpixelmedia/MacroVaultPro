@@ -8,9 +8,10 @@ const { lua, lauxlib, lualib, to_luastring, to_jsstring } = require("fengari");
 const root = path.resolve(__dirname, "..", "..");
 const corePath = path.join(root, "MacroVaultPro", "Core.lua");
 const uiPath = path.join(root, "MacroVaultPro", "UI.lua");
+const skinPath = path.join(root, "MacroVaultPro", "Skin.lua");
 let failed = false;
 
-for (const file of [corePath, uiPath]) {
+for (const file of [corePath, uiPath, skinPath]) {
   const name = path.basename(file);
   try {
     luaparse.parse(fs.readFileSync(file, "utf8"), { luaVersion: "5.1" });

@@ -17,6 +17,15 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.2
+
+- **The window now looks like the client's own windows.** It uses the game's
+  portrait frame and title bar, with the addon's icon as the portrait, and the
+  buttons carry the same gold trim and pressed art as the rest of the interface.
+- **Pages are chosen from icon tabs down the right edge**, each with its name in a
+  tooltip, instead of a row of text tabs above the content. The accent colour is
+  the client's gold rather than purple.
+
 ## 1.0.3.1
 
 - **The Maker tab no longer treats a click as an error.** Clicking in the sequence
