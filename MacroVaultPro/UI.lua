@@ -408,6 +408,7 @@ function UI:Build()
 	self.tabs = {}
 	local tabs = {
 		{ id = "macros",  label = "My macros" },
+		{ id = "maker",   label = "Maker" },
 		{ id = "tools",   label = "Tools" },
 		{ id = "library", label = "Library" },
 		{ id = "editor",  label = "Editor" },
@@ -416,7 +417,7 @@ function UI:Build()
 	local x = 14
 	for _, tab in ipairs(tabs) do
 		local button = CreateFrame("Button", nil, frame)
-		button:SetSize(92, 24)
+		button:SetSize(88, 24)
 		button:SetPoint("TOPLEFT", x, -50)
 
 		local label = Text(button, 13, MUTED, "CENTER")
@@ -441,7 +442,7 @@ function UI:Build()
 		end)
 
 		self.tabs[tab.id] = button
-		x = x + 96
+		x = x + 92
 	end
 
 	local search = self:MakeEditBox(frame, 220, 24)
@@ -456,7 +457,7 @@ function UI:Build()
 	self.search = search
 
 	self.panels = {}
-	for _, id in ipairs({ "macros", "tools", "library", "editor", "sheet" }) do
+	for _, id in ipairs({ "macros", "maker", "tools", "library", "editor", "sheet" }) do
 		local panel = CreateFrame("Frame", nil, frame)
 		panel:SetPoint("TOPLEFT", 12, -82)
 		panel:SetPoint("BOTTOMRIGHT", -12, 34)
@@ -465,6 +466,7 @@ function UI:Build()
 	end
 
 	self:BuildMacrosPanel(self.panels.macros)
+	self:BuildMakerPanel(self.panels.maker)
 	self:BuildToolsPanel(self.panels.tools)
 	self:BuildLibraryPanel(self.panels.library)
 	self:BuildEditorPanel(self.panels.editor)
@@ -660,6 +662,8 @@ function UI:Refresh()
 
 	if self.activeTab == "macros" then
 		self:RefreshMacros()
+	elseif self.activeTab == "maker" then
+		self:RefreshMaker()
 	elseif self.activeTab == "library" then
 		self:RefreshLibrary()
 	elseif self.activeTab == "sheet" then
@@ -1740,6 +1744,13 @@ function UI:DropDrag()
 	self.drag = nil
 	if not drag then return end
 
+	-- The maker's own payloads: a macro being added to the sequence, or a step
+	-- being moved inside it. They are dropped on the sequence, not on the sheet.
+	if drag.makerAdd or drag.makerStep then
+		self:MakerDrop(drag)
+		return
+	end
+
 	local target = self:SlotAtCursor()
 	if not target then
 		local focus = GetMouseFocus and GetMouseFocus()
@@ -1954,4 +1965,566 @@ function UI:BuildSheetPanel(panel)
 		GameTooltip:Hide()
 	end)
 	ui.undoButton = undo
+end
+
+-------------------------------------------------------------------------------
+-- Maker: spells and macros dropped into one ordered sequence
+--
+-- The sequence is not a new kind of macro - the client cannot run one macro from
+-- inside another. It is copied into a single body in order, which is why the tab
+-- shows the exact text and the character count while it is being built, and why
+-- "Drag to bar" hands over the macro it just wrote.
+-------------------------------------------------------------------------------
+
+local MAKER_ROW_HEIGHT = 26
+local MAKER_ICON_SIZE  = 24
+
+local function makerStepLabel(step)
+	if step.kind == "spell" then
+		return ("Cast %s"):format(step.value)
+	end
+	return ("Macro  %s"):format(step.value)
+end
+
+function UI:BuildMakerPanel(panel)
+	local ui = self
+
+	-- Left: the macros that can be nested into the sequence.
+	local listPane = CreateFrame("Frame", nil, panel)
+	listPane:SetPoint("TOPLEFT")
+	listPane:SetPoint("BOTTOMLEFT")
+	listPane:SetWidth(300)
+	Paint(listPane, 0.055, 0.055, 0.075, 0.9)
+
+	local listHeader = Text(listPane, 10, MUTED)
+	listHeader:SetPoint("TOPLEFT", 10, -9)
+	listHeader:SetText("YOUR MACROS")
+	self.makerListHeader = listHeader
+
+	local listHint = Text(listPane, 10, MUTED)
+	listHint:SetPoint("TOPLEFT", 10, -24)
+	listHint:SetWidth(276)
+	listHint:SetText("Click one to add it, or drag it into the sequence on the right.")
+	self.makerListHint = listHint
+
+	local inner = CreateFrame("Frame", nil, listPane)
+	inner:SetPoint("TOPLEFT", 4, -56)
+	inner:SetPoint("BOTTOMRIGHT", -4, 4)
+
+	self.makerList = self:CreateList(inner)
+	self.makerList:SetEmptyText("No macros yet - the Editor tab makes them.")
+
+	local pane = CreateFrame("Frame", nil, panel)
+	pane:SetPoint("TOPLEFT", listPane, "TOPRIGHT", 12, 0)
+	pane:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
+	Paint(pane, 0.055, 0.055, 0.075, 0.9)
+
+	local title = Text(pane, 10, MUTED)
+	title:SetPoint("TOPLEFT", 12, -9)
+	title:SetText("MACRO MAKER  -  the steps run in the order below")
+	self.makerTitle = title
+
+	-- A spell dragged out of the spellbook is never delivered to a frame, so the
+	-- release is read from the cursor here.
+	local drop = CreateFrame("Frame", nil, pane)
+	drop:SetPoint("TOPLEFT", 12, -24)
+	drop:SetPoint("TOPRIGHT", -12, -24)
+	drop:SetHeight(28)
+	drop:EnableMouse(true)
+	Paint(drop, 0.09, 0.085, 0.12, 1)
+	Border(drop, 0.24, 0.21, 0.34, 1)
+
+	local dropText = Text(drop, 10, MUTED, "CENTER")
+	dropText:SetPoint("CENTER", 0, 0)
+	dropText:SetWidth(420)
+	dropText:SetText("Drop a spell from your spellbook here")
+
+	drop:SetScript("OnMouseUp", function() ui:MakerTakeCursor() end)
+	drop:SetScript("OnEnter", function() SetBorderColor(drop, ACCENT[1], ACCENT[2], ACCENT[3], 1) end)
+	drop:SetScript("OnLeave", function() SetBorderColor(drop, 0.24, 0.21, 0.34, 1) end)
+	self.makerDrop = drop
+
+	local nameLabel = Text(pane, 10, MUTED)
+	nameLabel:SetPoint("TOPLEFT", 12, -62)
+	nameLabel:SetText("NAME")
+
+	local name = ui:MakeEditBox(pane, 150, 24)
+	name:SetPoint("TOPLEFT", 52, -58)
+	name:SetMaxLetters(MV.MAX_NAME)
+	name:SetScript("OnTextChanged", function(self)
+		if ui.makerSettingName then return end
+		local maker = MV:GetMaker()
+		maker.name = self:GetText() or ""
+		MV:SaveMaker()
+	end)
+	self.makerName = name
+
+	local scope = ui:MakeButton(pane, "Create on: account", 156, function() ui:ToggleMakerScope() end)
+	scope:SetPoint("LEFT", name, "RIGHT", 8, 0)
+	self.makerScopeButton = scope
+
+	local iconLabel = Text(pane, 10, MUTED)
+	iconLabel:SetPoint("TOPLEFT", 12, -94)
+	iconLabel:SetText("ICON")
+
+	local iconRow = CreateFrame("Frame", nil, pane)
+	iconRow:SetPoint("TOPLEFT", 52, -88)
+	iconRow:SetSize(420, MAKER_ICON_SIZE)
+	self.makerIconRow = iconRow
+	self.makerIconButtons = {}
+
+	local seqLabel = Text(pane, 10, MUTED)
+	seqLabel:SetPoint("TOPLEFT", 12, -120)
+	seqLabel:SetText("SEQUENCE")
+	self.makerSeqLabel = seqLabel
+
+	local counter = Text(pane, 10, MUTED, "RIGHT")
+	counter:SetPoint("TOPRIGHT", -12, -120)
+	counter:SetText("0 / " .. MV.MAX_BODY)
+	self.makerCounter = counter
+	counter:SetScript("OnEnter", function(self)
+		local problems = ui.makerProblems
+		if not problems or #problems == 0 then return end
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("This sequence needs attention", 1, 0.6, 0.5)
+		for _, line in ipairs(problems) do
+			GameTooltip:AddLine(line, 0.82, 0.82, 0.88, true)
+		end
+		GameTooltip:Show()
+	end)
+	counter:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+	local scroll = CreateFrame("ScrollFrame", nil, pane)
+	scroll:SetPoint("TOPLEFT", 12, -136)
+	scroll:SetPoint("BOTTOMRIGHT", -12, 128)
+	scroll:EnableMouseWheel(true)
+
+	local child = CreateFrame("Frame", nil, scroll)
+	child:SetSize(10, 10)
+	scroll:SetScrollChild(child)
+	child:EnableMouseWheel(true)
+	self.makerStepScroll, self.makerStepChild = scroll, child
+
+	local function scrollBy(_, delta)
+		local maxScroll = math.max(0, (child:GetHeight() or 0) - (scroll:GetHeight() or 0))
+		local value = scroll:GetVerticalScroll() - (delta or 0) * MAKER_ROW_HEIGHT
+		scroll:SetVerticalScroll(math.max(0, math.min(maxScroll, value)))
+	end
+	scroll:SetScript("OnMouseWheel", scrollBy)
+	child:SetScript("OnMouseWheel", scrollBy)
+	scroll:SetScript("OnSizeChanged", function(_, width)
+		child:SetWidth(math.max(width or 10, 10))
+	end)
+
+	-- A spell released anywhere over the sequence works too, not only on the bar.
+	scroll:EnableMouse(true)
+	scroll:SetScript("OnMouseUp", function() ui:MakerTakeCursor() end)
+	child:SetScript("OnMouseUp", function() ui:MakerTakeCursor() end)
+
+	local empty = Text(pane, 11, MUTED, "CENTER")
+	empty:SetPoint("TOP", scroll, "TOP", 0, -40)
+	empty:SetWidth(360)
+	empty:SetText("Empty sequence - drop a spell above, or click a macro on the left.")
+	self.makerEmpty = empty
+
+	local previewLabel = Text(pane, 10, MUTED)
+	previewLabel:SetPoint("BOTTOMLEFT", 12, 112)
+	previewLabel:SetText("MACRO TEXT")
+	self.makerPreviewLabel = previewLabel
+
+	local previewBox = CreateFrame("Frame", nil, pane)
+	previewBox:SetPoint("BOTTOMLEFT", 12, 44)
+	previewBox:SetPoint("BOTTOMRIGHT", -12, 44)
+	previewBox:SetHeight(64)
+	Paint(previewBox, 0.02, 0.02, 0.03, 0.9)
+	Border(previewBox, 0.16, 0.15, 0.22, 1)
+	self.makerBodySet = select(3, CreateBodyView(previewBox))
+
+	local build = ui:MakeButton(pane, "Build macro", 106, function() ui:BuildMaker() end)
+	build:SetPoint("BOTTOMLEFT", 12, 12)
+
+	local pickup = ui:MakeButton(pane, "Drag to bar", 100, function() ui:PickupMaker() end)
+	pickup:SetPoint("LEFT", build, "RIGHT", 8, 0)
+
+	local clear = ui:MakeButton(pane, "Clear steps", 92, function() ui:ClearMaker() end)
+	clear:SetPoint("LEFT", pickup, "RIGHT", 8, 0)
+
+	local hint = Text(pane, 10, MUTED, "RIGHT")
+	hint:SetPoint("RIGHT", -12, 20)
+	hint:SetWidth(140)
+	hint:SetText("Build updates the same macro, so the bar button keeps working")
+	self.makerHint = hint
+end
+
+function UI:RefreshMaker()
+	if not self.makerStepChild then return end
+
+	local maker = MV:GetMaker()
+
+	if self.makerList then
+		local items = MV:GetMacros()
+		table.sort(items, function(a, b) return a.name:lower() < b.name:lower() end)
+
+		self.makerList:SetItems(
+			items,
+			function(row, item) self:RenderMacroRow(row, item) end,
+			function(item)
+				local ok, err = MV:AddMakerStep("macro", item.name, item.icon)
+				if not ok then
+					self:SetStatus(err or "Could not add that macro.", true)
+					return
+				end
+				self:RefreshMaker()
+				self:SetStatus(("Added %s to the end of the sequence."):format(item.name))
+			end,
+			function(item) self:PressDrag({ macro = item, makerAdd = true }) end,
+			function(item) self:BeginDrag({ macro = item, makerAdd = true }, "client") end
+		)
+
+		if self.makerListHeader then
+			self.makerListHeader:SetText(("YOUR MACROS  %d"):format(#items))
+		end
+	end
+
+	local steps = maker.steps
+	self.makerRows = self.makerRows or {}
+	for index = 1, MV.MAKER_MAX_STEPS do
+		local row = self.makerRows[index] or self:CreateMakerRow(index)
+		local step = steps[index]
+		if row then
+			if step then
+				row.stepIndex = index
+				row.stepIcon = step.icon
+				row.number:SetText(tostring(index))
+				row.icon:SetTexture(step.icon or 134400)
+				row.text:SetText(makerStepLabel(step))
+				if step.kind == "macro" and not MV:MakerFindMacro(step.value) then
+					row.text:SetTextColor(1, 0.5, 0.45)
+				else
+					row.text:SetTextColor(TEXT[1], TEXT[2], TEXT[3])
+				end
+				row:Show()
+			else
+				row.stepIndex = nil
+				row:Hide()
+			end
+		end
+	end
+
+	self.makerStepChild:SetHeight(math.max(#steps * MAKER_ROW_HEIGHT + 2, 1))
+	showIf(self.makerEmpty, #steps == 0)
+
+	if self.makerSeqLabel then
+		self.makerSeqLabel:SetText(("SEQUENCE  %d/%d"):format(#steps, MV.MAKER_MAX_STEPS))
+	end
+
+	if self.makerName then
+		self.makerSettingName = true
+		self.makerName:SetText(maker.name or "")
+		self.makerSettingName = false
+	end
+	if self.makerScopeButton then
+		self.makerScopeButton:SetLabel(("Create on: %s"):format(
+			maker.scope == "char" and "this character" or "account"
+		))
+	end
+
+	self:RefreshMakerIcons()
+
+	local body, length, problems = MV:ComposeMaker(maker)
+	self.makerProblems = problems
+	if self.makerBodySet then self.makerBodySet(body) end
+	if self.makerCounter then
+		self.makerCounter:SetText(("%d / %d"):format(length, MV.MAX_BODY))
+		if length > MV.MAX_BODY or #problems > 0 then
+			self.makerCounter:SetTextColor(1, 0.5, 0.45)
+		else
+			self.makerCounter:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+		end
+	end
+end
+
+-- The icon choices are the ones the sequence already carries, plus the default
+-- question mark: no invented palette, and any spell you drag in brings its own.
+function UI:RefreshMakerIcons()
+	local row = self.makerIconRow
+	if not row then return end
+
+	local maker = MV:GetMaker()
+	local icons, seen = {}, {}
+	local function add(value)
+		if value == nil then return end
+		local key = tostring(value)
+		if seen[key] then return end
+		seen[key] = true
+		icons[#icons + 1] = value
+	end
+	for _, step in ipairs(maker.steps) do add(step.icon) end
+	add(maker.icon)
+	add(134400)
+
+	self.makerIconButtons = self.makerIconButtons or {}
+	for index = 1, 15 do
+		local button = self.makerIconButtons[index]
+		if not button then
+			button = CreateFrame("Button", nil, row)
+			button:SetSize(MAKER_ICON_SIZE, MAKER_ICON_SIZE)
+			button:SetPoint("TOPLEFT", (index - 1) * (MAKER_ICON_SIZE + 4), 0)
+			button.icon = button:CreateTexture(nil, "ARTWORK")
+			button.icon:SetAllPoints(button)
+			button.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+			Border(button, 0.20, 0.18, 0.28, 1)
+			button:SetScript("OnClick", function(self)
+				local current = MV:GetMaker()
+				current.icon = self.iconValue
+				MV:SaveMaker()
+				UI:RefreshMaker()
+				UI:SetStatus("Icon chosen - Build macro applies it.")
+			end)
+			button:SetScript("OnEnter", function(self)
+				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+				GameTooltip:SetText("Use this icon for the macro", 1, 1, 1)
+				GameTooltip:AddLine("The sequence's own icons, plus the default question mark.",
+					0.72, 0.70, 0.80, true)
+				GameTooltip:Show()
+			end)
+			button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+			self.makerIconButtons[index] = button
+		end
+
+		local icon = icons[index]
+		if icon then
+			button.iconValue = icon
+			button.icon:SetTexture(icon)
+			button:Show()
+			local selected = maker.icon == icon or (maker.icon == nil and index == 1)
+			if selected then
+				SetBorderColor(button, ACCENT[1], ACCENT[2], ACCENT[3], 1)
+			else
+				SetBorderColor(button, 0.20, 0.18, 0.28, 1)
+			end
+		else
+			button.iconValue = nil
+			button:Hide()
+		end
+	end
+end
+
+function UI:CreateMakerRow(index)
+	local ui = self
+	local child = self.makerStepChild
+	if not child then return nil end
+
+	local row = CreateFrame("Button", nil, child)
+	row:SetHeight(MAKER_ROW_HEIGHT)
+	row:SetPoint("TOPLEFT", 0, -((index - 1) * MAKER_ROW_HEIGHT))
+	row:SetPoint("TOPRIGHT", 0, -((index - 1) * MAKER_ROW_HEIGHT))
+
+	row.bg = Paint(row, 0.075, 0.07, 0.10, 0.9)
+	local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+	highlight:SetAllPoints(row)
+	highlight:SetColorTexture(1, 1, 1, 0.06)
+
+	row.number = Text(row, 10, MUTED, "RIGHT")
+	row.number:SetPoint("LEFT", 2, 0)
+	row.number:SetWidth(16)
+
+	row.icon = row:CreateTexture(nil, "ARTWORK")
+	row.icon:SetSize(18, 18)
+	row.icon:SetPoint("LEFT", 24, 0)
+	row.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+	row.text = Text(row, 12, TEXT)
+	row.text:SetPoint("LEFT", 48, 0)
+	row.text:SetWidth(320)
+	if row.text.SetWordWrap then row.text:SetWordWrap(false) end
+
+	local remove = CreateFrame("Button", nil, row)
+	remove:SetSize(22, 22)
+	remove:SetPoint("RIGHT", -2, 0)
+	local removeText = Text(remove, 13, MUTED, "CENTER")
+	removeText:SetPoint("CENTER", 0, 0)
+	removeText:SetText("x")
+	remove:SetScript("OnEnter", function() removeText:SetTextColor(1, 0.5, 0.45) end)
+	remove:SetScript("OnLeave", function() removeText:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end)
+	remove:SetScript("OnClick", function()
+		local position = row.stepIndex
+		if position and MV:RemoveMakerStep(position) then
+			ui:RefreshMaker()
+			ui:SetStatus(("Removed step %d."):format(position))
+		end
+	end)
+
+	-- Reordering uses the same press tracker as the sheet, so it works on a client
+	-- that does not raise a drag event for a plain button.
+	row:SetScript("OnMouseDown", function(self, button)
+		if button ~= "LeftButton" or not self.stepIndex then return end
+		ui:PressDrag({ macro = { icon = self.stepIcon or 134400, name = "step" }, makerStep = self.stepIndex })
+	end)
+	row:RegisterForDrag("LeftButton")
+	row:SetScript("OnDragStart", function(self)
+		if not self.stepIndex then return end
+		ui:BeginDrag({ macro = { icon = self.stepIcon or 134400, name = "step" }, makerStep = self.stepIndex }, "client")
+	end)
+	row:SetScript("OnDragStop", function() ui:DropDrag() end)
+	row:SetScript("OnMouseUp", function(self, button)
+		if button ~= "LeftButton" then return end
+		-- A release that ended one of this window's drags is not a spell drop.
+		if ui.drag or ui.pressDrag then return end
+		ui:MakerTakeCursor(self.stepIndex)
+	end)
+	row:SetScript("OnEnter", function(self)
+		local step = self.stepIndex and MV:GetMaker().steps[self.stepIndex]
+		if not step then return end
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(makerStepLabel(step), 1, 1, 1)
+		local lines, why = MV:MakerStepLines(step)
+		if lines then
+			for _, line in ipairs(lines) do
+				GameTooltip:AddLine(line, 0.72, 0.70, 0.80, true)
+			end
+			GameTooltip:AddLine("Drag to reorder it - x removes it.", 0.55, 0.55, 0.63)
+		else
+			GameTooltip:AddLine(why or "Unavailable.", 1, 0.5, 0.45, true)
+		end
+		GameTooltip:Show()
+	end)
+	row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
+	self.makerRows[index] = row
+	return row
+end
+
+-- Where a dropped step or macro belongs: the row under the cursor, or the end
+-- of the sequence when the cursor is over the list but not over a row.
+function UI:MakerInsertAt()
+	local scroll = self.makerStepScroll
+	if not scroll then return nil end
+
+	local scale = UIParent and UIParent:GetEffectiveScale() or 1
+	if not scale or scale == 0 then return nil end
+	local x, y = GetCursorPosition()
+	if not x or not y then return nil end
+	x, y = x / scale, y / scale
+
+	local left, bottom = scroll:GetLeft(), scroll:GetBottom()
+	local right, top = scroll:GetRight(), scroll:GetTop()
+	if not (left and bottom and right and top) then return nil end
+	if x < left or x > right or y < bottom or y > top then return nil end
+
+	for index, row in ipairs(self.makerRows or {}) do
+		if row:IsShown() then
+			local rowLeft, rowBottom = row:GetLeft(), row:GetBottom()
+			local rowRight, rowTop = row:GetRight(), row:GetTop()
+			if rowLeft and rowBottom and rowRight and rowTop
+				and x >= rowLeft and x <= rowRight and y >= rowBottom and y <= rowTop then
+				return index
+			end
+		end
+	end
+
+	return #MV:GetMaker().steps + 1
+end
+
+function UI:MakerDrop(drag)
+	local position = self:MakerInsertAt()
+	if not position then
+		self:RefreshMaker()
+		return
+	end
+
+	MV:CountDrag("drops")
+
+	if drag.makerStep then
+		local from = drag.makerStep
+		local to = position
+		-- Taking the step out first shifts everything after it down one place.
+		if to > from then to = to - 1 end
+		if to ~= from then
+			MV:MoveMakerStep(from, to)
+			self:SetStatus(("Step %d moved to %d."):format(from, to))
+		end
+	elseif drag.makerAdd and drag.macro then
+		local ok, err = MV:AddMakerStep("macro", drag.macro.name, drag.macro.icon, position)
+		if not ok then
+			self:SetStatus(err or "Could not add that macro.", true)
+		else
+			self:SetStatus(("Added %s at step %d."):format(drag.macro.name, position))
+		end
+	end
+
+	self:RefreshMaker()
+end
+
+function UI:MakerTakeCursor(position)
+	local kind, value, icon, why = MV:CursorStep()
+	if not kind then
+		self:SetStatus(why or "Nothing usable on the cursor.", true)
+		return
+	end
+
+	local ok, err = MV:AddMakerStep(kind, value, icon, position)
+	if not ok then
+		self:SetStatus(err, true)
+		return
+	end
+
+	-- The spell is still held on the cursor; releasing it here stops the next
+	-- click from dropping it somewhere else as well.
+	if type(ClearCursor) == "function" then pcall(ClearCursor) end
+
+	self:RefreshMaker()
+	if kind == "spell" then
+		self:SetStatus(("/cast %s added."):format(value))
+	else
+		self:SetStatus(("Macro %s added."):format(value))
+	end
+end
+
+function UI:ToggleMakerScope()
+	local maker = MV:GetMaker()
+	maker.scope = maker.scope == "char" and "account" or "char"
+	MV:SaveMaker()
+	self:RefreshMaker()
+	self:SetStatus(maker.scope == "char"
+		and "The built macro goes to this character."
+		or "The built macro is account-wide.")
+end
+
+function UI:BuildMaker()
+	local index, err, body = MV:BuildMakerMacro()
+	if not index then
+		self:SetStatus(err or "Could not build the macro.", true)
+		return
+	end
+
+	local macro = MV:GetMacro(index)
+	self.selectedMacroIndex = index
+	self:RefreshMaker()
+	self:RefreshMacros()
+	self:SetStatus(("Built '%s' in slot %d - %d characters. Drag to bar when the order is right."):format(
+		macro and macro.name or "macro", index, #(body or "")))
+end
+
+function UI:PickupMaker()
+	local index, err = MV:BuildMakerMacro()
+	if not index then
+		self:SetStatus(err or "Could not build the macro.", true)
+		return
+	end
+
+	local ok, pickupError = MV:Pickup(index)
+	if not ok then
+		self:SetStatus(pickupError or "Built the macro, but could not pick it up.", true)
+		return
+	end
+
+	self:SetStatus("Macro on your cursor - drop it on an action bar.")
+	self.frame:Hide()
+end
+
+function UI:ClearMaker()
+	MV:ClearMakerSteps()
+	self:RefreshMaker()
+	self:SetStatus("Sequence cleared - the macro it built stays where it is.")
 end

@@ -706,6 +706,280 @@ function MV:SavePosition()
 end
 
 -------------------------------------------------------------------------------
+-- Macro maker: spells and macros as one ordered macro
+--
+-- The client cannot run one macro from inside another, so "do these in order"
+-- is composition: every step is copied into a single body, top to bottom, and
+-- the client runs the lines in that order. Two things follow from that, and both
+-- are visible in the window: the body is capped at 255 characters, and it is
+-- shown and counted while the sequence is built, because a truncated macro would
+-- silently lose whichever step came last.
+--
+-- A macro step is remembered by name, never by slot index: the client renumbers
+-- slots when a macro is deleted, so an index would point at a different macro a
+-- week later.
+-------------------------------------------------------------------------------
+
+MV.MAKER_MAX_STEPS    = 12
+MV.MAKER_DEFAULT_NAME = "MV Combo"
+
+local MAKER_KINDS = { spell = true, macro = true }
+
+function MV:GetMaker()
+	if self.maker then return self.maker end
+
+	local maker = { name = self.MAKER_DEFAULT_NAME, scope = "account", steps = {} }
+	local saved = (type(MacroVaultProDB) == "table") and MacroVaultProDB.maker or nil
+
+	if type(saved) == "table" then
+		if type(saved.name) == "string" and trim(saved.name) ~= "" then
+			maker.name = saved.name
+		end
+		maker.scope = saved.scope == "char" and "char" or "account"
+		if type(saved.icon) == "number" or type(saved.icon) == "string" then
+			maker.icon = saved.icon
+		end
+		if type(saved.macroIndex) == "number" then
+			maker.macroIndex = saved.macroIndex
+		end
+
+		for _, step in ipairs(type(saved.steps) == "table" and saved.steps or {}) do
+			if type(step) == "table" and MAKER_KINDS[step.kind]
+				and type(step.value) == "string" and trim(step.value) ~= "" then
+				maker.steps[#maker.steps + 1] = {
+					kind  = step.kind,
+					value = trim(step.value),
+					icon  = step.icon,
+				}
+			end
+		end
+	end
+
+	self.maker = maker
+	return maker
+end
+
+function MV:SaveMaker()
+	MacroVaultProDB = MacroVaultProDB or {}
+	local maker = self:GetMaker()
+
+	local steps = {}
+	for index, step in ipairs(maker.steps) do
+		steps[index] = { kind = step.kind, value = step.value, icon = step.icon }
+	end
+
+	MacroVaultProDB.maker = {
+		name       = maker.name,
+		scope      = maker.scope,
+		icon       = maker.icon,
+		macroIndex = maker.macroIndex,
+		steps      = steps,
+	}
+end
+
+-- The macro with this name, or nil. A saved sequence can only rely on names.
+function MV:MakerFindMacro(name)
+	if type(name) ~= "string" or name == "" then return nil end
+	for _, macro in ipairs(self:GetMacros()) do
+		if macro.name == name then return macro end
+	end
+	return nil
+end
+
+-- What one step adds to the body: its lines, or nil and why it cannot be used.
+function MV:MakerStepLines(step)
+	if type(step) ~= "table" then return nil, "not a step" end
+
+	if step.kind == "spell" then
+		return { "/cast " .. step.value }
+	end
+
+	if step.kind == "macro" then
+		local macro = self:MakerFindMacro(step.value)
+		if not macro then
+			return nil, ("the macro '%s' has been renamed or deleted"):format(tostring(step.value))
+		end
+
+		local lines = {}
+		for line in (normalizeBody(macro.body) .. "\n"):gmatch("([^\n]*)\n") do
+			local trimmed = trim(line)
+			-- Another macro's #showtooltip / #show lines are display directives for
+			-- that macro; in the middle of this one they would do nothing and spend
+			-- part of the 255 characters.
+			if trimmed ~= "" and trimmed:sub(1, 1) ~= "#" then
+				lines[#lines + 1] = trimmed
+			end
+		end
+		return lines
+	end
+
+	return nil, "unknown step"
+end
+
+-- The exact macro text, its length, and anything that could not go in.
+function MV:ComposeMaker(maker)
+	maker = maker or self:GetMaker()
+
+	local parts = { "#showtooltip" }
+	local problems = {}
+
+	for index, step in ipairs(maker.steps) do
+		local lines, why = self:MakerStepLines(step)
+		if not lines then
+			problems[#problems + 1] = ("step %d: %s"):format(index, why or "cannot be used")
+		else
+			for _, line in ipairs(lines) do
+				parts[#parts + 1] = line
+			end
+		end
+	end
+
+	local body = table.concat(parts, "\n")
+	return body, #body, problems
+end
+
+function MV:AddMakerStep(kind, value, icon, position)
+	local maker = self:GetMaker()
+	if not MAKER_KINDS[kind] then
+		return false, "This maker takes spells and macros."
+	end
+	if type(value) ~= "string" or trim(value) == "" then
+		return false, "That step has no name."
+	end
+	if #maker.steps >= self.MAKER_MAX_STEPS then
+		return false, ("The sequence holds %d steps - remove one to add another."):format(self.MAKER_MAX_STEPS)
+	end
+
+	local step = { kind = kind, value = trim(value), icon = icon }
+	if type(position) == "number" and position >= 1 and position <= #maker.steps then
+		table.insert(maker.steps, position, step)
+	else
+		maker.steps[#maker.steps + 1] = step
+	end
+
+	self:SaveMaker()
+	return true
+end
+
+-- Moves one step to another place in the list. The target is the index the step
+-- should end up at after it has been taken out.
+function MV:MoveMakerStep(from, to)
+	local maker = self:GetMaker()
+	if type(from) ~= "number" or type(to) ~= "number" then return false end
+	if not maker.steps[from] then return false end
+	if to < 1 then to = 1 end
+	if to > #maker.steps then to = #maker.steps end
+
+	local step = table.remove(maker.steps, from)
+	table.insert(maker.steps, to, step)
+	self:SaveMaker()
+	return true
+end
+
+function MV:RemoveMakerStep(position)
+	local maker = self:GetMaker()
+	if not maker.steps[position] then return false end
+	table.remove(maker.steps, position)
+	self:SaveMaker()
+	return true
+end
+
+function MV:ClearMakerSteps()
+	local maker = self:GetMaker()
+	maker.steps = {}
+	self:SaveMaker()
+end
+
+-- Creates the real macro, or updates the one this sequence made last time.
+-- Updating is what keeps a hotbar button working: an action button points at a
+-- macro slot, so a second macro would leave the old button running the old
+-- sequence.
+function MV:BuildMakerMacro()
+	local blocked = self:EditBlocked()
+	if blocked then return nil, blocked end
+
+	local maker = self:GetMaker()
+	if #maker.steps == 0 then
+		return nil, "Add at least one spell or macro to the sequence first."
+	end
+
+	local body, length, problems = self:ComposeMaker(maker)
+	if #problems > 0 then
+		return nil, "The sequence cannot be built yet - " .. table.concat(problems, "; ") .. "."
+	end
+	if length > self.MAX_BODY then
+		return nil, ("The sequence is %d characters; the client allows %d. Remove a step, or shorten one of its macros."):format(length, self.MAX_BODY)
+	end
+
+	local name = trim(maker.name)
+	if name == "" then name = self.MAKER_DEFAULT_NAME end
+	if #name > self.MAX_NAME then name = name:sub(1, self.MAX_NAME) end
+	maker.name = name
+
+	local icon = maker.icon or (maker.steps[1] and maker.steps[1].icon) or 134400
+
+	local existing = maker.macroIndex and self:GetMacro(maker.macroIndex)
+	if existing and existing.name ~= name then existing = nil end
+
+	local index, err
+	if existing then
+		index, err = self:UpdateMacro(existing.index, name, body, icon)
+	else
+		index, err = self:CreateMacro(name, body, icon, maker.scope == "char")
+	end
+	if not index then return nil, err end
+
+	maker.macroIndex = index
+	self:SaveMaker()
+	return index, nil, body
+end
+
+-- What is on the cursor, in the two shapes this maker accepts. A spell dragged
+-- out of the spellbook is not delivered to any frame - it sits on the cursor,
+-- so that is where it has to be read from.
+function MV:CursorStep()
+	if type(GetCursorInfo) ~= "function" then
+		return nil, "This client does not report what is on the cursor."
+	end
+
+	local ok, kind, first, second = pcall(GetCursorInfo)
+	if not ok or not kind then
+		return nil, "Nothing is on the cursor - drag a spell from your spellbook, or use the list on the left."
+	end
+
+	if kind == "spell" then
+		-- Which argument carries the spell id has moved between clients, so both
+		-- are tried instead of trusting one of them.
+		for _, candidate in ipairs({ first, second }) do
+			if type(candidate) == "number" and candidate > 0 and type(GetSpellInfo) == "function" then
+				local got, spellName, third, fourth = pcall(GetSpellInfo, candidate)
+				if got and spellName then
+					-- name, rank, icon on this client family; a client that drops the
+					-- rank puts the icon in the next slot along.
+					local icon = third
+					if type(icon) ~= "number" and not (type(icon) == "string" and icon:find("\\", 1, true)) then
+						icon = fourth
+					end
+					if type(icon) ~= "number" and not (type(icon) == "string" and icon:find("\\", 1, true)) then
+						icon = 134400
+					end
+					return "spell", spellName, icon
+				end
+			end
+		end
+		return nil, "Could not read that spell's name from the cursor."
+	end
+
+	if kind == "macro" then
+		local macro = self:GetMacro(first)
+		if not macro then return nil, "That macro no longer exists." end
+		return "macro", macro.name, macro.icon
+	end
+
+	return nil, ("The cursor holds a %s, which this maker cannot use."):format(tostring(kind))
+end
+
+-------------------------------------------------------------------------------
 -- Window entry points
 -------------------------------------------------------------------------------
 
@@ -1115,7 +1389,7 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 	msg = trim(msg):lower()
 	if msg == "" then
 		MV:Toggle()
-	elseif msg == "macros" or msg == "tools" or msg == "library" or msg == "editor" or msg == "sheet" then
+	elseif msg == "macros" or msg == "maker" or msg == "tools" or msg == "library" or msg == "editor" or msg == "sheet" then
 		MV:Open(msg)
 	elseif msg == "selftest" or msg == "test" then
 		MV:Selftest()
@@ -1140,6 +1414,6 @@ SlashCmdList["MACROVAULTPRO"] = function(msg)
 			MV:Print("Window position reset.")
 		end
 	else
-		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro sheet  |  /mvpro undo  |  /mvpro minimap  |  /mvpro selftest  |  /mvpro diag  |  /mvpro errors  |  /mvpro reset")
+		MV:Print("Usage: /mvpro  |  /mvpro macros  |  /mvpro maker  |  /mvpro tools  |  /mvpro library  |  /mvpro editor  |  /mvpro sheet  |  /mvpro undo  |  /mvpro minimap  |  /mvpro selftest  |  /mvpro diag  |  /mvpro errors  |  /mvpro reset")
 	end
 end
