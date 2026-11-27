@@ -17,6 +17,16 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.9
+
+- **Modifier conditions that contradict each other are caught.** `nomod` and any
+  `mod:` cannot both hold, so the card dims the toggle that would clash and a
+  click explains that the client would never pick that step. Either direction is
+  refused: adding a modifier beside `nomod`, or `nomod` beside a modifier.
+- A step saved with the pair from an earlier build is not written into the macro:
+  the count's red tooltip names it as a contradiction, and in sequence mode the
+  step is left out of the `castsequence` rather than sitting there dead.
+
 ## 1.0.3.8
 
 - **A step can carry conditions.** Each row has a `cond` button that opens a card

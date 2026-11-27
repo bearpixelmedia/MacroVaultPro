@@ -2275,7 +2275,7 @@ function UI:BuildMakerPanel(panel)
 
 	local condHint = Text(conds, 10, MUTED)
 	condHint:SetPoint("TOPLEFT", self.makerCondHeader, "BOTTOMLEFT", 0, -2)
-	condHint:SetText("Click to switch one on or off. Spells only.")
+	condHint:SetText("Click to switch on or off. nomod rules out any modifier.")
 
 	self.makerCondButtons = {}
 	for index, entry in ipairs(MV.MAKER_CONDITIONS) do
@@ -2821,8 +2821,12 @@ function UI:RefreshMakerConditions()
 		self.makerCondHeader:SetText(("Conditions - step %d: %s"):format(index, step.value))
 	end
 	for token, button in pairs(self.makerCondButtons or {}) do
-		button:SetActive(MV:MakerStepHasCondition(step, token))
-		button:SetAlpha(step.kind == "spell" and 1 or 0.4)
+		local on = MV:MakerStepHasCondition(step, token)
+		button:SetActive(on)
+		-- Toggles that would contradict what is already on the step are dimmed: the
+		-- combination never fires, so offering it evenly would invite a dead step.
+		local blocked = not on and MV:MakerConditionConflicts(step.conditions, token)
+		button:SetAlpha(step.kind == "spell" and (blocked and 0.4 or 1) or 0.4)
 	end
 end
 

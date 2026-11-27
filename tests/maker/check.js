@@ -283,6 +283,34 @@ check("toggling a condition onto a macro step is refused",
 check("an unknown condition is refused", MV:ToggleMakerStepCondition(1, "flying") == false)
 MV:ClearMakerSteps()
 
+-- contradictory modifiers: nomod with any mod: never fires
+MV:AddMakerStep("spell", "Frostbolt", 116)
+MV:ToggleMakerStepCondition(1, "nomod")
+check("nomod on its own is written",
+  MV:ComposeMaker():find("/cast %[nomod%] Frostbolt") ~= nil, MV:ComposeMaker())
+local okConf, whyConf = MV:ToggleMakerStepCondition(1, "mod:shift")
+check("mod:shift is refused beside nomod",
+  okConf == false and tostring(whyConf):find("never pick") ~= nil, tostring(whyConf))
+check("the refused toggle changes nothing",
+  MV:MakerStepConditionText(MV:GetMaker().steps[1]) == "nomod", MV:MakerStepConditionText(MV:GetMaker().steps[1]))
+MV:ToggleMakerStepCondition(1, "nomod")
+check("a modifier is accepted once nomod is off", MV:ToggleMakerStepCondition(1, "mod:shift") == true)
+local okConf2, whyConf2 = MV:ToggleMakerStepCondition(1, "nomod")
+check("nomod is refused beside a modifier",
+  okConf2 == false and tostring(whyConf2):find("mod:shift") ~= nil, tostring(whyConf2))
+
+-- a step saved with the pair is flagged, not silently written
+table.insert(MV:GetMaker().steps, { kind = "spell", value = "Fireball", icon = 133, conditions = { "nomod", "mod:shift" } })
+local _, badProblems = MV:ComposeMaker()
+check("a contradictory saved step is reported",
+  #badProblems == 1 and badProblems[1]:find("contradict") ~= nil, badProblems[1])
+MV:SetMakerMode("sequence")
+local badSeq = MV:ComposeMaker()
+check("a contradictory step is left out of the castsequence",
+  badSeq:find("Fireball") == nil, badSeq)
+MV:SetMakerMode("priority")
+MV:ClearMakerSteps()
+
 -- diag must say which window-skin pieces drew the window, and must still say
 -- something when Skin.lua never loaded.
 check("diag has a skin report", type(MV.SkinReport) == "function")

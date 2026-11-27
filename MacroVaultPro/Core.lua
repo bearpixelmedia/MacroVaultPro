@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.8"
+MV.VERSION       = "1.0.3.9"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27p"
+MV.BUILD         = "2026-11-27q"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -942,6 +942,9 @@ function MV:MakerStepLines(step)
 	if type(step) ~= "table" then return nil, "not a step" end
 
 	if step.kind == "spell" then
+		local conflict = self:MakerConditionConflict(step.conditions)
+		if conflict then return nil, conflict end
+
 		local clause = self:MakerConditionClause(step)
 		return { "/cast " .. (clause and (clause .. " ") or "") .. step.value }
 	end
@@ -1018,6 +1021,39 @@ function MV:MakerConditionClause(step)
 	return text and ("[" .. text .. "]") or nil
 end
 
+-- Conditions that can never both hold. [nomod] with any [mod:x] is the one that
+-- bites in practice: it looks reasonable on the card and produces a line that
+-- never fires.
+function MV:MakerConditionConflict(list)
+	if type(list) ~= "table" then return nil end
+
+	local modifier, nomod
+	for _, token in ipairs(list) do
+		if token == "nomod" then
+			nomod = true
+		elseif type(token) == "string" and token:sub(1, 4) == "mod:" then
+			modifier = token
+		end
+	end
+
+	if nomod and modifier then
+		return ("[nomod] and [%s] contradict - the step would never run"):format(modifier)
+	end
+	return nil
+end
+
+-- Whether switching this token on would contradict what the step already has.
+function MV:MakerConditionConflicts(list, token)
+	if not self.MAKER_CONDITION_SET[token] then return false end
+	if type(list) ~= "table" then return false end
+
+	for _, value in ipairs(list) do
+		if value == "nomod" and token:sub(1, 4) == "mod:" then return true end
+		if token == "nomod" and type(value) == "string" and value:sub(1, 4) == "mod:" then return true end
+	end
+	return false
+end
+
 function MV:ToggleMakerStepCondition(position, token)
 	if not self.MAKER_CONDITION_SET[token] then return false, "unknown condition" end
 
@@ -1026,6 +1062,12 @@ function MV:ToggleMakerStepCondition(position, token)
 	if not step then return false, "that step is gone" end
 	if step.kind ~= "spell" then
 		return false, "only spell steps carry conditions - a macro step's body applies its own"
+	end
+
+	if not self:MakerStepHasCondition(step, token) and self:MakerConditionConflicts(step.conditions, token) then
+		return false, ("[%s] cannot sit beside %s"):format(token, table.concat(
+			self:MakerConditionsThatConflict(step.conditions, token), ", "))
+			.. " - the client would never pick that step"
 	end
 
 	local has = {}
@@ -1042,6 +1084,21 @@ function MV:ToggleMakerStepCondition(position, token)
 	return true
 end
 
+-- The tokens already on the step that block this one, for the refusal message.
+function MV:MakerConditionsThatConflict(list, token)
+	local blocking = {}
+	if type(list) ~= "table" then return blocking end
+
+	for _, value in ipairs(list) do
+		if value == "nomod" and type(token) == "string" and token:sub(1, 4) == "mod:" then
+			blocking[#blocking + 1] = "[nomod]"
+		elseif token == "nomod" and type(value) == "string" and value:sub(1, 4) == "mod:" then
+			blocking[#blocking + 1] = ("[%s]"):format(value)
+		end
+	end
+	return blocking
+end
+
 -- The same steps as one /castsequence, which the client advances one spell per
 -- press. Only spells fit: a macro step is a list of lines, not a place in a
 -- rotation, so it is reported rather than silently dropped.
@@ -1052,10 +1109,17 @@ function MV:ComposeMakerSequence(maker)
 
 	for index, step in ipairs(maker.steps) do
 		if step.kind == "spell" then
-			-- A castsequence entry takes its own condition bracket, so one list can
-			-- branch on a modifier instead of only cycling.
-			local clause = self:MakerConditionClause(step)
-			names[#names + 1] = (clause and (clause .. step.value) or step.value)
+			local conflict = self:MakerConditionConflict(step.conditions)
+			if conflict then
+				-- A contradictory step is left out rather than written as an entry the
+				-- client can never pick; the problem line says which step it was.
+				problems[#problems + 1] = ("step %d: %s"):format(index, conflict)
+			else
+				-- A castsequence entry takes its own condition bracket, so one list can
+				-- branch on a modifier instead of only cycling.
+				local clause = self:MakerConditionClause(step)
+				names[#names + 1] = (clause and (clause .. step.value) or step.value)
+			end
 		else
 			problems[#problems + 1] = ("step %d: '%s' is a macro - sequence mode takes spells only"):format(
 				index, tostring(step.value))
