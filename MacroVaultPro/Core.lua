@@ -14,7 +14,7 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.3"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27c"
+MV.BUILD         = "2026-11-27d"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -798,6 +798,14 @@ function MV:MakerStepLines(step)
 		local macro = self:MakerFindMacro(step.value)
 		if not macro then
 			return nil, ("the macro '%s' has been renamed or deleted"):format(tostring(step.value))
+		end
+
+		-- The maker's own output sits in the same macro list as everything else,
+		-- so it can be added to its own sequence. Composing that would copy the
+		-- previous body into the next one and double it on every build.
+		local maker = self:GetMaker()
+		if maker.macroIndex and macro.index == maker.macroIndex then
+			return nil, ("'%s' is the macro this sequence builds - it cannot include itself"):format(macro.name)
 		end
 
 		local lines = {}
