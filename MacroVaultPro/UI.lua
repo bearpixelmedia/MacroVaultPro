@@ -2059,7 +2059,7 @@ function UI:BuildMakerPanel(panel)
 	local dropText = Text(drop, 10, MUTED, "CENTER")
 	dropText:SetPoint("CENTER", 0, 0)
 	dropText:SetWidth(420)
-	dropText:SetText("Drop a spell from your spellbook here")
+	dropText:SetText("Drop a spell from your spellbook here, or click a macro on the left")
 
 	drop:SetScript("OnMouseUp", function() ui:MakerRun("add from cursor", ui.MakerTakeCursor) end)
 	drop:SetScript("OnEnter", function() SetBorderColor(drop, ACCENT[1], ACCENT[2], ACCENT[3], 1) end)
@@ -2138,9 +2138,15 @@ function UI:BuildMakerPanel(panel)
 	end)
 
 	-- A spell released anywhere over the sequence works too, not only on the bar.
+	-- A plain click here is not an add attempt, though: with an empty cursor it is
+	-- just a click, and it must not report an error.
 	scroll:EnableMouse(true)
-	scroll:SetScript("OnMouseUp", function() ui:MakerRun("add from cursor", ui.MakerTakeCursor) end)
-	child:SetScript("OnMouseUp", function() ui:MakerRun("add from cursor", ui.MakerTakeCursor) end)
+	scroll:SetScript("OnMouseUp", function()
+		if ui:CursorHoldsSomething() then ui:MakerRun("add from cursor", ui.MakerTakeCursor) end
+	end)
+	child:SetScript("OnMouseUp", function()
+		if ui:CursorHoldsSomething() then ui:MakerRun("add from cursor", ui.MakerTakeCursor) end
+	end)
 
 	local empty = Text(pane, 11, MUTED, "CENTER")
 	empty:SetPoint("TOP", scroll, "TOP", 0, -40)
@@ -2162,6 +2168,14 @@ function UI:BuildMakerPanel(panel)
 
 	local build = ui:MakeButton(pane, "Build macro", 106, function() ui:MakerRun("build", ui.BuildMaker) end)
 	build:SetPoint("BOTTOMLEFT", 12, 12)
+	build:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Builds the macro from these steps", 1, 1, 1)
+		GameTooltip:AddLine("It updates the same macro every time, so a bar button you already have keeps working.",
+			0.72, 0.70, 0.80, true)
+		GameTooltip:Show()
+	end)
+	build:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 	local pickup = ui:MakeButton(pane, "Drag to bar", 100, function() ui:MakerRun("pickup", ui.PickupMaker) end)
 	pickup:SetPoint("LEFT", build, "RIGHT", 8, 0)
@@ -2169,10 +2183,6 @@ function UI:BuildMakerPanel(panel)
 	local clear = ui:MakeButton(pane, "Clear steps", 92, function() ui:MakerRun("clear", ui.ClearMaker) end)
 	clear:SetPoint("LEFT", pickup, "RIGHT", 8, 0)
 
-	local hint = Text(pane, 10, MUTED, "RIGHT")
-	hint:SetPoint("RIGHT", -12, 20)
-	hint:SetWidth(140)
-	hint:SetText("Build updates the same macro, so the bar button keeps working")
 end
 
 function UI:RefreshMaker()
@@ -2239,6 +2249,15 @@ function UI:RefreshMaker()
 	end
 
 	self.makerStepChild:SetHeight(math.max(#steps * MAKER_ROW_HEIGHT + 2, 1))
+	if self.makerEmpty then
+		-- With no macros at all, "click a macro on the left" points at an empty
+		-- pane; say where one comes from instead.
+		if #MV:GetMacros() == 0 then
+			self.makerEmpty:SetText("Nothing to add yet - drop a spell from your spellbook above, or make a macro on the Editor tab.")
+		else
+			self.makerEmpty:SetText("Empty sequence - drop a spell above, or click a macro on the left.")
+		end
+	end
 	showIf(self.makerEmpty, #steps == 0)
 
 	if self.makerSeqLabel then
@@ -2260,9 +2279,12 @@ function UI:RefreshMaker()
 
 	local body, problems = MV:ComposeMaker(maker)
 	self.makerProblems = problems
-	if self.makerBodySet then self.makerBodySet(body) end
+	-- With no steps the body is only the #showtooltip header, and "12 / 255" on an
+	-- empty sequence reads as though something had already been added.
+	local shown = #steps > 0 and body or ""
+	if self.makerBodySet then self.makerBodySet(shown) end
 	if self.makerCounter then
-		self.makerCounter:SetText(("%d / %d"):format(#body, MV.MAX_BODY))
+		self.makerCounter:SetText(("%d / %d"):format(#shown, MV.MAX_BODY))
 		if #body > MV.MAX_BODY or #problems > 0 then
 			self.makerCounter:SetTextColor(1, 0.5, 0.45)
 		else
@@ -2479,10 +2501,19 @@ function UI:MakerDrop(drag)
 	self:RefreshMaker()
 end
 
+-- Whether the cursor carries something an add-from-cursor path should look at.
+function UI:CursorHoldsSomething()
+	if type(GetCursorInfo) ~= "function" then return false end
+	local ok, kind = pcall(GetCursorInfo)
+	return ok and kind ~= nil
+end
+
 function UI:MakerTakeCursor(position)
 	local kind, value, icon, why = MV:CursorStep()
 	if not kind then
-		self:SetStatus(why or "Nothing usable on the cursor.", true)
+		-- An empty cursor is not a mistake: the line says what to do instead of
+		-- going red, and clicking the sequence area stays silent (see the guards).
+		self:SetStatus(why or "Nothing on the cursor - drag a spell out of your spellbook, or click a macro on the left.", false)
 		return
 	end
 
@@ -2543,7 +2574,8 @@ end
 function UI:BuildMaker()
 	local index, err = MV:BuildMakerMacro()
 	if not index then
-		self:SetStatus(err or "Could not build the macro.", true)
+		-- An empty sequence is a normal stage, not a failure.
+		self:SetStatus(err or "Could not build the macro.", #MV:GetMaker().steps > 0)
 		return
 	end
 
@@ -2558,7 +2590,7 @@ end
 function UI:PickupMaker()
 	local index, err = MV:BuildMakerMacro()
 	if not index then
-		self:SetStatus(err or "Could not build the macro.", true)
+		self:SetStatus(err or "Could not build the macro.", #MV:GetMaker().steps > 0)
 		return
 	end
 
