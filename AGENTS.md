@@ -21,6 +21,9 @@ say in your final message if the skill's copy now disagrees.
 - Never claim in-game behaviour that was not seen in game; describe the mechanism
   and say it is unseen.
 - Every change is committed and pushed to `main`, no AI attribution footer.
+- Maker checks live in the repo: `bun install` once, then `bun run test:maker`.
+  `tests/maker/check.js` loads `Core.lua` and `UI.lua` against stubs — it never
+  touches the client, and a failure there is not a substitute for the in-game check.
 - Machine limits: no WoW client, Lua, Node or Python — Bun with fengari/luaparse
   for the test harnesses.
 

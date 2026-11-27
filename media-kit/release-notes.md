@@ -33,6 +33,13 @@ in game stays out until it has been.
   your macro list, so it could be added to its own sequence; that is now refused
   with the reason on the row, instead of building a macro that doubles in size
   every time.
+- **Renaming the maker renames its macro.** Changing the name and building again
+  used to make a second macro and leave the first one behind, with the old bar
+  button still pointing at it; the same macro is renamed now, so one button and
+  one macro stay in step.
+- **A name shared by an account and a character macro is no longer guessed at.**
+  Each step remembers which of the two you added, and if the maker cannot tell
+  them apart it says so instead of quietly composing the other macro's lines.
 
 ## 1.0.2
 

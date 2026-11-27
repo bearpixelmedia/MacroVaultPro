@@ -3,3 +3,6 @@
 
 # CurseForge author API token - never commit
 .curseforge-token
+
+# Test harness dependencies (bun install)
+node_modules/

@@ -1,0 +1,13 @@
+{
+  "name": "macrovaultpro",
+  "version": "1.0.3",
+  "private": true,
+  "description": "Maker checks for the MacroVaultPro addon. The addon ships from MacroVaultPro/; this file exists only to run tests/maker.",
+  "scripts": {
+    "test:maker": "bun tests/maker/check.js"
+  },
+  "devDependencies": {
+    "fengari": "^0.1.5",
+    "luaparse": "^0.3.1"
+  }
+}
