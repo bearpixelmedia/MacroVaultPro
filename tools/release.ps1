@@ -236,7 +236,7 @@ $uploadScript = Join-Path $PSScriptRoot "upload-curseforge.ps1"
 # uploader writes the id; reading it either succeeds or it does not.
 $idFile = [System.IO.Path]::GetTempFileName()
 try {
-	& powershell -NoProfile -ExecutionPolicy Bypass -File $uploadScript -ProjectId $ProjectId -IdFile $idFile
+	& powershell -NoProfile -ExecutionPolicy Bypass -File $uploadScript -ProjectId $ProjectId -IdFile $idFile -Upload
 	if ($LASTEXITCODE -ne 0) { throw "upload failed - the archive and changelog are written, so this can be retried" }
 	# An empty temp file reads as $null, which used to fail on .Trim() instead of
 	# on the missing id; the check below is the one that should say so.

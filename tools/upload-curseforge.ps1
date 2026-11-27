@@ -1,8 +1,13 @@
 # Uploads the built archive to the CurseForge project with the author Upload API.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/upload-curseforge.ps1 -DryRun
-#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/upload-curseforge.ps1
+#   powershell -NoProfile -ExecutionPolicy Bypass -File tools/upload-curseforge.ps1 -Upload
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools/upload-curseforge.ps1 -VerifyId 9810929
+#
+# Publishing is opt-in here too: a run without -Upload resolves the archive and
+# changelog, runs the duplicate check and stops, so nothing reaches CurseForge
+# because a flag was forgotten. -Upload sends it; -DryRun also prints the
+# metadata. -VerifyId is unaffected - it never uploads anything.
 #
 # Needs an author API token: the project page has an "API Tokens" page, where a
 # token can be generated. Put it in .curseforge-token at the repository root
@@ -23,7 +28,9 @@
 # API has no endpoint for them.
 #
 # -DryRun resolves the game version and prints the metadata without uploading,
-# so a release can be checked before it becomes public.
+# so a release can be checked before it becomes public. The upload itself needs
+# -Upload; without it the script stops after the checks, and does not even need
+# a token, because it is not going to authenticate to anything.
 
 param(
 	[int]$ProjectId = 1827533,
@@ -45,6 +52,8 @@ param(
 	[string]$IdFile,
 	# Check one file id and exit, without uploading anything: -VerifyId 9810929
 	[int]$VerifyId,
+	# The only way to publish. A bare run checks and stops.
+	[switch]$Upload,
 	[switch]$DryRun
 )
 
@@ -200,7 +209,8 @@ if (-not $token -and (Test-Path $TokenFile)) {
 	$token = [System.IO.File]::ReadAllText($TokenFile).Trim()
 }
 if ($token) { $token = $token.Trim() }
-if (-not $token -and -not $DryRun) {
+# Only a publish run needs to authenticate, so only a publish run demands a token.
+if (-not $token -and -not $DryRun -and $Upload) {
 	throw "No API token. Generate one at the project's API Tokens page and save it to $TokenFile (gitignored), or set CURSEFORGE_TOKEN."
 }
 
@@ -355,6 +365,14 @@ if ($candidates.Count -eq 0) {
 if ($DryRun) {
 	"--- metadata (dry run, nothing uploaded) ---"
 	$json
+	exit 0
+}
+
+# Publishing is opt-in. This script used to upload on every run that did not pass
+# -DryRun, which made "check the archive" and "publish it" the same command with
+# one word between them; a release went up by accident that way.
+if (-not $Upload) {
+	"upload:       skipped - nothing was sent to CurseForge. Re-run with -Upload to publish this archive."
 	exit 0
 }
 
