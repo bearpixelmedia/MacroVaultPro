@@ -2275,7 +2275,7 @@ function UI:BuildMakerPanel(panel)
 
 	local condHint = Text(conds, 10, MUTED)
 	condHint:SetPoint("TOPLEFT", self.makerCondHeader, "BOTTOMLEFT", 0, -2)
-	condHint:SetText("Click to switch on or off. nomod rules out any modifier.")
+	condHint:SetText("Click to switch on or off. Pairs that cannot both hold are dimmed.")
 
 	self.makerCondButtons = {}
 	for index, entry in ipairs(MV.MAKER_CONDITIONS) do

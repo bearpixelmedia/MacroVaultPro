@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.9"
+MV.VERSION       = "1.0.3.10"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27q"
+MV.BUILD         = "2026-11-27r"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -1024,20 +1024,28 @@ end
 -- Conditions that can never both hold. [nomod] with any [mod:x] is the one that
 -- bites in practice: it looks reasonable on the card and produces a line that
 -- never fires.
+-- Two conditions that can never both hold. Kept in one place so the card, the
+-- toggle and the composer all answer the same question the same way.
+local function makerConditionsClash(a, b)
+	if type(a) ~= "string" or type(b) ~= "string" then return false end
+
+	local function isModifier(token) return token:sub(1, 4) == "mod:" end
+	if a == "nomod" then return isModifier(b) end
+	if b == "nomod" then return isModifier(a) end
+	if (a == "harm" and b == "help") or (a == "help" and b == "harm") then return true end
+	return false
+end
+
+-- The first contradictory pair in a step's conditions, as a sentence, or nil.
 function MV:MakerConditionConflict(list)
 	if type(list) ~= "table" then return nil end
 
-	local modifier, nomod
-	for _, token in ipairs(list) do
-		if token == "nomod" then
-			nomod = true
-		elseif type(token) == "string" and token:sub(1, 4) == "mod:" then
-			modifier = token
+	for first = 1, #list do
+		for second = first + 1, #list do
+			if makerConditionsClash(list[first], list[second]) then
+				return ("[%s] and [%s] contradict - the step would never run"):format(list[first], list[second])
+			end
 		end
-	end
-
-	if nomod and modifier then
-		return ("[nomod] and [%s] contradict - the step would never run"):format(modifier)
 	end
 	return nil
 end
@@ -1048,8 +1056,7 @@ function MV:MakerConditionConflicts(list, token)
 	if type(list) ~= "table" then return false end
 
 	for _, value in ipairs(list) do
-		if value == "nomod" and token:sub(1, 4) == "mod:" then return true end
-		if token == "nomod" and type(value) == "string" and value:sub(1, 4) == "mod:" then return true end
+		if makerConditionsClash(value, token) then return true end
 	end
 	return false
 end
@@ -1090,9 +1097,7 @@ function MV:MakerConditionsThatConflict(list, token)
 	if type(list) ~= "table" then return blocking end
 
 	for _, value in ipairs(list) do
-		if value == "nomod" and type(token) == "string" and token:sub(1, 4) == "mod:" then
-			blocking[#blocking + 1] = "[nomod]"
-		elseif token == "nomod" and type(value) == "string" and value:sub(1, 4) == "mod:" then
+		if makerConditionsClash(value, token) then
 			blocking[#blocking + 1] = ("[%s]"):format(value)
 		end
 	end

@@ -17,6 +17,14 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.10
+
+- **`harm` and `help` are now caught as a contradiction too.** They cannot both
+  hold, so the card dims whichever one would clash, a click is refused with the
+  pair named, and a step saved with both is reported and left out of the macro.
+- The rule lives in one place now, so any impossible pair added later is covered by
+  the card, the toggle and the composer at once.
+
 ## 1.0.3.9
 
 - **Modifier conditions that contradict each other are caught.** `nomod` and any

@@ -311,6 +311,29 @@ check("a contradictory step is left out of the castsequence",
 MV:SetMakerMode("priority")
 MV:ClearMakerSteps()
 
+-- harm and help can never both hold either
+MV:ClearMakerSteps()
+MV:AddMakerStep("spell", "Frostbolt", 116)
+MV:ToggleMakerStepCondition(1, "harm")
+local okHH, whyHH = MV:ToggleMakerStepCondition(1, "help")
+check("help is refused beside harm",
+  okHH == false and tostring(whyHH):find("help") ~= nil and tostring(whyHH):find("harm") ~= nil,
+  tostring(whyHH))
+MV:ToggleMakerStepCondition(1, "harm")
+check("help is accepted once harm is off", MV:ToggleMakerStepCondition(1, "help") == true)
+check("harm and help together are reported",
+  (function()
+    table.insert(MV:GetMaker().steps, { kind = "spell", value = "Fireball", icon = 133,
+      conditions = { "harm", "help" } })
+    local _, problems = MV:ComposeMaker()
+    return #problems == 1 and problems[1]:find("contradict") ~= nil
+  end)())
+MV:SetMakerMode("sequence")
+check("the harm/help step is left out of the castsequence",
+  MV:ComposeMaker():find("Fireball") == nil, MV:ComposeMaker())
+MV:SetMakerMode("priority")
+MV:ClearMakerSteps()
+
 -- diag must say which window-skin pieces drew the window, and must still say
 -- something when Skin.lua never loaded.
 check("diag has a skin report", type(MV.SkinReport) == "function")
