@@ -3180,13 +3180,14 @@ function UI:LoadMakerShare()
 
 	local message = ("Loaded %d steps."):format(loaded)
 	if #missing > 0 then
-		-- The strip under the box holds two lines. Naming one macro and counting
-		-- the rest keeps even twelve missing sixteen-character names to 103
-		-- characters, two lines at the conservative wrap the harness measures.
+		-- The strip under the box holds two lines. "12 macros missing:" is short
+		-- enough to name two of them and count the rest: even twelve missing
+		-- sixteen-character names stay at 83 characters, two lines at the
+		-- conservative wrap the harness measures.
 		local named = {}
-		for i = 1, math.min(#missing, 1) do named[i] = missing[i] end
+		for i = 1, math.min(#missing, 2) do named[i] = missing[i] end
 		local rest = #missing - #named
-		message = message .. (" %d macro steps need a macro this character does not have: %s%s."):format(
+		message = message .. (" %d macros missing: %s%s."):format(
 			#missing, table.concat(named, ", "), rest > 0 and (" and %d more"):format(rest) or "")
 	end
 

@@ -17,6 +17,12 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.21
+
+- **Two missing macros are named again.** The sentence before the list now reads
+  "12 macros missing:", which leaves room for two names and a count inside the
+  same two lines.
+
 ## 1.0.3.20
 
 - **The load message is measured against a wide glyph.** The layout check counts
