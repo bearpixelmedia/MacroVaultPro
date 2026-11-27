@@ -1,9 +1,11 @@
 # MacroVaultPro — project facts
 
 **Goal and workstream state live in `GOAL.md`, at the root of this repo** — the
-`bmp-goal` skill sends every chat there. Read it first; it is the only copy.
-Nothing about state belongs in this file: when a MacroVaultPro row moves, edit its
-row in `GOAL.md` in that same turn.
+`bmp-goal` skill sends every chat there and still lists the same four rows itself, so
+there are two copies and they can disagree; when they do, `GOAL.md` wins and the
+skill's copy is the stale one. Read it first. Nothing about state belongs in this
+file: when a MacroVaultPro row moves, edit its row in `GOAL.md` in that same turn, and
+say in your final message if the skill's copy now disagrees.
 
 ## Local to this project
 
