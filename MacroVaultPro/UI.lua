@@ -2384,11 +2384,13 @@ function UI:CreateMakerRow(index)
 	-- that does not raise a drag event for a plain button.
 	row:SetScript("OnMouseDown", function(self, button)
 		if button ~= "LeftButton" or not self.stepIndex then return end
+		MV:CountDrag("makerPress")
 		ui:PressDrag({ icon = self.stepIcon, makerStep = self.stepIndex })
 	end)
 	row:RegisterForDrag("LeftButton")
 	row:SetScript("OnDragStart", function(self)
 		if not self.stepIndex then return end
+		MV:CountDrag("makerClient")
 		ui:BeginDrag({ icon = self.stepIcon, makerStep = self.stepIndex }, "client")
 	end)
 	row:SetScript("OnDragStop", function() ui:DropDrag() end)
@@ -2467,6 +2469,7 @@ function UI:MakerDrop(drag)
 		if to > from then to = to - 1 end
 		if to ~= from then
 			MV:MoveMakerStep(from, to)
+			MV:CountDrag("makerDrops")
 			self:SetStatus(("Step %d moved to %d."):format(from, to))
 		end
 	elseif drag.makerAdd then
@@ -2474,6 +2477,7 @@ function UI:MakerDrop(drag)
 		if not ok then
 			self:SetStatus(err or "Could not add that macro.", true)
 		else
+			MV:CountDrag("makerDrops")
 			self:SetStatus(("Added %s at step %d."):format(drag.makerAdd.name, position))
 		end
 	end

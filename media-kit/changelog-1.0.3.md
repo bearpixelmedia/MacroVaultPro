@@ -1,6 +1,6 @@
 # MacroVaultPro 1.0.3
 
-For World of Warcraft: Forever (interface 16001), build 2026-11-27a.
+For World of Warcraft: Forever (interface 16001), build 2026-11-27b.
 
 - **A new Maker tab builds one macro out of a list.** Drop a spell from your
   spellbook onto it, or add one of your own macros, and put the steps in the

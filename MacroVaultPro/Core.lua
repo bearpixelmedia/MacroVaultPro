@@ -14,7 +14,7 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.3"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27a"
+MV.BUILD         = "2026-11-27b"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -936,13 +936,30 @@ end
 -- What is on the cursor, in the two shapes this maker accepts. A spell dragged
 -- out of the spellbook is not delivered to any frame - it sits on the cursor,
 -- so that is where it has to be read from.
+-- Counters for /mvpro diag. The last cursor read is kept as it came back, raw
+-- arguments included: a spellbook drag delivers the spell to the cursor rather
+-- than to a frame, so a drop that does nothing is usually one of these answers.
+function MV:CursorStats()
+	if not self.cursorStats then
+		self.cursorStats = { tries = 0, spells = 0, macros = 0, misses = 0, last = nil }
+	end
+	return self.cursorStats
+end
+
 function MV:CursorStep()
+	local stats = self:CursorStats()
+	stats.tries = stats.tries + 1
+
 	if type(GetCursorInfo) ~= "function" then
+		stats.misses = stats.misses + 1
+		stats.last = { kind = "no_GetCursorInfo" }
 		return nil, "This client does not report what is on the cursor."
 	end
 
 	local ok, kind, first, second = pcall(GetCursorInfo)
+	stats.last = { kind = kind or "nil", first = first, second = second, pcalled = ok }
 	if not ok or not kind then
+		stats.misses = stats.misses + 1
 		return nil, "Nothing is on the cursor - drag a spell from your spellbook, or use the list on the left."
 	end
 
@@ -962,19 +979,29 @@ function MV:CursorStep()
 					if type(icon) ~= "number" and not (type(icon) == "string" and icon:find("\\", 1, true)) then
 						icon = 134400
 					end
+					stats.spells = stats.spells + 1
+					stats.last.spellId, stats.last.spellName, stats.last.spellInfo = candidate, spellName, true
 					return "spell", spellName, icon
 				end
 			end
 		end
+		stats.misses = stats.misses + 1
+		stats.last.spellInfo = false
 		return nil, "Could not read that spell's name from the cursor."
 	end
 
 	if kind == "macro" then
 		local macro = self:GetMacro(first)
-		if not macro then return nil, "That macro no longer exists." end
+		if not macro then
+			stats.misses = stats.misses + 1
+			return nil, "That macro no longer exists."
+		end
+		stats.macros = stats.macros + 1
+		stats.last.macroIndex, stats.last.macroName = first, macro.name
 		return "macro", macro.name, macro.icon
 	end
 
+	stats.misses = stats.misses + 1
 	return nil, ("The cursor holds a %s, which this maker cannot use."):format(tostring(kind))
 end
 
@@ -1297,6 +1324,14 @@ local function angleText(angle)
 	return ("%.2f rad"):format(angle)
 end
 
+-- One raw cursor argument, short enough for a chat line.
+local function argText(value)
+	if value == nil then return "nil" end
+	local text = tostring(value)
+	if #text > 40 then text = text:sub(1, 40) .. "..." end
+	return text
+end
+
 function MV:Diag()
 	local layout = self:GetLayout(true)
 	local stats  = self.dragStats or {}
@@ -1345,6 +1380,49 @@ function MV:Diag()
 		button and "built" or "missing",
 		yesNo(self:MinimapShown()),
 		angleText(button and button.angle)))
+	-- Maker: what the tab is holding, and what the two APIs a spellbook drop needs
+	-- answered. A drop that does nothing is usually one of these answers, so the
+	-- raw arguments are printed instead of a guess about them.
+	local maker = self:GetMaker()
+	local body, problems = self:ComposeMaker(maker)
+	local built = maker.macroIndex and self:GetMacro(maker.macroIndex)
+	local savedSteps = 0
+	if type(MacroVaultProDB) == "table" and type(MacroVaultProDB.maker) == "table"
+		and type(MacroVaultProDB.maker.steps) == "table" then
+		savedSteps = #MacroVaultProDB.maker.steps
+	end
+
+	self:PrintRaw(("maker %d/%d steps (%d saved)  name %s  icon %s  scope %s  macro %s  %d chars  %d problems"):format(
+		#maker.steps, self.MAKER_MAX_STEPS, savedSteps,
+		tostring(maker.name or "?"),
+		maker.icon and tostring(maker.icon) or "first step",
+		tostring(maker.scope),
+		built and ("slot " .. tostring(built.index)) or "not built",
+		#body, #problems))
+
+	local stepText = {}
+	for index, step in ipairs(maker.steps) do
+		stepText[#stepText + 1] = ("%d %s %s"):format(index, tostring(step.kind), tostring(step.value))
+	end
+	self:PrintRaw("maker steps: " .. (#stepText > 0 and table.concat(stepText, "  ") or "none"))
+
+	local cursor = self:CursorStats()
+	self:PrintRaw(("maker cursor  GetCursorInfo=%s  GetSpellInfo=%s  tries=%d  spells=%d  macros=%d  misses=%d"):format(
+		yesNo(type(GetCursorInfo) == "function"),
+		yesNo(type(GetSpellInfo) == "function"),
+		cursor.tries, cursor.spells, cursor.macros, cursor.misses))
+	if cursor.last then
+		local last = cursor.last
+		self:PrintRaw(("maker cursor last  kind %s  arg1 %s  arg2 %s  GetSpellInfo -> %s"):format(
+			tostring(last.kind),
+			argText(last.first),
+			argText(last.second),
+			last.spellInfo and tostring(last.spellName or "answered")
+				or (last.kind == "spell" and "no name" or "-")))
+	end
+
+	self:PrintRaw(("maker drags since load  press=%d  client=%d  drops=%d"):format(
+		stats.makerPress or 0, stats.makerClient or 0, stats.makerDrops or 0))
 	self:PrintRaw("paths: press = button tracker, client = OnDragStart/OnDragStop")
 	self:Print("--- end MacroVaultPro diag ---")
 end
