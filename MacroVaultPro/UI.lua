@@ -2140,19 +2140,26 @@ function UI:BuildMakerPanel(panel)
 	-- A spell released anywhere over the sequence works too, not only on the bar.
 	-- A plain click here is not an add attempt, though: with an empty cursor it is
 	-- just a click, and it must not report an error.
+	local function addFromCursor()
+		if ui:CursorHoldsSomething() then
+			ui:MakerRun("add from cursor", ui.MakerTakeCursor)
+		end
+	end
 	scroll:EnableMouse(true)
-	scroll:SetScript("OnMouseUp", function()
-		if ui:CursorHoldsSomething() then ui:MakerRun("add from cursor", ui.MakerTakeCursor) end
-	end)
-	child:SetScript("OnMouseUp", function()
-		if ui:CursorHoldsSomething() then ui:MakerRun("add from cursor", ui.MakerTakeCursor) end
-	end)
+	scroll:SetScript("OnMouseUp", addFromCursor)
+	child:SetScript("OnMouseUp", addFromCursor)
 
 	local empty = Text(pane, 11, MUTED, "CENTER")
 	empty:SetPoint("TOP", scroll, "TOP", 0, -40)
 	empty:SetWidth(360)
 	empty:SetText("Empty sequence - drop a spell above, or click a macro on the left.")
 	self.makerEmpty = empty
+
+	-- With no macros at all the pane on the left is empty, so the empty state
+	-- carries the one button that gets out of it.
+	local makeOne = ui:MakeButton(pane, "Make a macro", 120, function() ui:MakerRun("new macro", ui.NewEditor) end)
+	makeOne:SetPoint("TOP", scroll, "TOP", 0, -88)
+	self.makerMakeButton = makeOne
 
 	local previewLabel = Text(pane, 10, MUTED)
 	previewLabel:SetPoint("BOTTOMLEFT", 12, 112)
@@ -2253,12 +2260,13 @@ function UI:RefreshMaker()
 		-- With no macros at all, "click a macro on the left" points at an empty
 		-- pane; say where one comes from instead.
 		if #MV:GetMacros() == 0 then
-			self.makerEmpty:SetText("Nothing to add yet - drop a spell from your spellbook above, or make a macro on the Editor tab.")
+			self.makerEmpty:SetText("Nothing to add yet - drop a spell from your spellbook above, or make a macro below.")
 		else
 			self.makerEmpty:SetText("Empty sequence - drop a spell above, or click a macro on the left.")
 		end
 	end
 	showIf(self.makerEmpty, #steps == 0)
+	showIf(self.makerMakeButton, #steps == 0 and #MV:GetMacros() == 0)
 
 	if self.makerSeqLabel then
 		self.makerSeqLabel:SetText(("SEQUENCE  %d/%d"):format(#steps, MV.MAKER_MAX_STEPS))
