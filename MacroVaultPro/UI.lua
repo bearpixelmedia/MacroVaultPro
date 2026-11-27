@@ -83,6 +83,85 @@ local function showIf(region, condition)
 	end
 end
 
+-------------------------------------------------------------------------------
+-- The window skin, with a fallback for every piece
+--
+-- Skin.lua draws the window the way Lueur does, from the client's own templates.
+-- A client missing one of those templates gets Skin's own fallback; and if
+-- Skin.lua itself failed to load there is no Skin at all, so the window still has
+-- to open: every piece below then falls back to the plain drawing this addon used
+-- before, and none of it is allowed to raise.
+-------------------------------------------------------------------------------
+
+local Skin = MV.Skin
+
+-- The window: portrait frame with its own title bar and close button.
+local function WindowShell(name, width, height, titleText)
+	if Skin and Skin.Window then return Skin.Window(name, width, height, titleText) end
+
+	local frame = CreateFrame("Frame", name, UIParent)
+	frame:SetSize(width, height)
+	frame:SetFrameStrata("DIALOG")
+	frame:SetToplevel(true)
+	frame:SetClampedToScreen(true)
+	frame:SetMovable(true)
+	frame:EnableMouse(true)
+	frame:RegisterForDrag("LeftButton")
+	frame:SetScript("OnDragStart", frame.StartMoving)
+	frame:Hide()
+	Paint(frame, 0.05, 0.04, 0.03, 0.96)
+	Border(frame, 0.62, 0.56, 0.46, 0.9)
+
+	frame.title = Text(frame, 17, ACCENT)
+	frame.title:SetPoint("TOPLEFT", 16, -12)
+	frame.title:SetText(titleText or "")
+
+	frame.close = CreateFrame("Button", nil, frame)
+	frame.close:SetSize(24, 24)
+	frame.close:SetPoint("TOPRIGHT", -8, -8)
+	local cross = Text(frame.close, 15, MUTED, "CENTER")
+	cross:SetPoint("CENTER", 0, 0)
+	cross:SetText("X")
+	frame.close:SetScript("OnClick", function() frame:Hide() end)
+	return frame
+end
+
+-- A tab: icon tab on the right edge when the skin can, text tabs in a row when
+-- it cannot. SwitchTab drives both, because the text tab carries .label/.line and
+-- the icon tab carries SetChecked.
+local function SideTabButton(window, previous, icon, onClick, tooltipText, label)
+	if Skin and Skin.SideTab then
+		return Skin.SideTab(window, previous, icon, onClick, tooltipText)
+	end
+
+	local tab = CreateFrame("Button", nil, window)
+	tab:SetSize(88, 22)
+	if previous then
+		tab:SetPoint("TOPLEFT", previous, "TOPRIGHT", 4, 0)
+	else
+		tab:SetPoint("TOPLEFT", 14, -40)
+	end
+	tab.label = Text(tab, 12, MUTED, "CENTER")
+	tab.label:SetPoint("CENTER", 0, 0)
+	tab.label:SetText(label or tooltipText or "")
+	tab.line = tab:CreateTexture(nil, "ARTWORK")
+	tab.line:SetHeight(2)
+	tab.line:SetPoint("BOTTOMLEFT", 6, 0)
+	tab.line:SetPoint("BOTTOMRIGHT", -6, 0)
+	tab.line:SetColorTexture(ACCENT[1], ACCENT[2], ACCENT[3], 1)
+	tab.line:Hide()
+	tab:SetScript("OnClick", onClick)
+	return tab
+end
+
+-- A page or a pane inside one: the same card styling as the window frame.
+local function StylePane(frame)
+	if Skin and Skin.Panel and Skin.Panel(frame) then return frame end
+	Paint(frame, 0.03, 0.03, 0.03, 0.72)
+	Border(frame, 0.62, 0.56, 0.46, 0.9)
+	return frame
+end
+
 local function matches(haystack, needle)
 	if not needle or needle == "" then return true end
 	return (haystack or ""):lower():find(needle, 1, true) ~= nil
@@ -111,7 +190,18 @@ end
 function UI:MakeButton(parent, label, width, onClick)
 	-- The client's own panel button, so this window matches the rest of the UI the
 	-- way Lueur's does. SetLabel and SetActive keep every call site unchanged.
-	local button = MV.Skin.Button(parent, label, width, onClick)
+	local button
+	if Skin and Skin.Button then
+		button = Skin.Button(parent, label, width, onClick)
+	else
+		button = CreateFrame("Button", nil, parent)
+		button:SetSize(width or 100, 24)
+		button.bg = Paint(button, 0.16, 0.14, 0.10, 1)
+		button.label = Text(button, 12, TEXT, "CENTER")
+		button.label:SetPoint("CENTER", 0, 0)
+		button.label:SetText(label or "")
+		if onClick then button:SetScript("OnClick", onClick) end
+	end
 
 	button.SetLabel = function(self, text)
 		if self.SetText then self:SetText(text) end
@@ -356,7 +446,7 @@ function UI:Build()
 
 	-- The same shell as Lueur: the client's portrait frame with its own title bar
 	-- and close button, rather than a hand-drawn frame and a text "X".
-	local frame = MV.Skin.Window("MacroVaultProFrame", WIDTH, HEIGHT, "MacroVaultPro")
+	local frame = WindowShell("MacroVaultProFrame", WIDTH, HEIGHT, "MacroVaultPro")
 	self.frame = frame
 	frame:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
@@ -379,7 +469,7 @@ function UI:Build()
 	}
 	local previous
 	for _, tab in ipairs(tabs) do
-		local button = MV.Skin.SideTab(frame, previous, tab.icon, function() self:SwitchTab(tab.id) end, tab.tip)
+		local button = SideTabButton(frame, previous, tab.icon, function() self:SwitchTab(tab.id) end, tab.tip, tab.tip)
 		self.tabs[tab.id] = button
 		previous = button
 	end
@@ -400,6 +490,7 @@ function UI:Build()
 		local panel = CreateFrame("Frame", nil, frame)
 		panel:SetPoint("TOPLEFT", 12, -82)
 		panel:SetPoint("BOTTOMRIGHT", -12, 34)
+		StylePane(panel)
 		panel:Hide()
 		self.panels[id] = panel
 	end
@@ -626,7 +717,7 @@ function UI:BuildMacrosPanel(panel)
 	listPane:SetPoint("TOPLEFT")
 	listPane:SetPoint("BOTTOMLEFT")
 	listPane:SetWidth(344)
-	Paint(listPane, 0.055, 0.055, 0.075, 0.9)
+	StylePane(listPane)
 
 	local header = Text(listPane, 10, MUTED)
 	header:SetPoint("TOPLEFT", 10, -9)
@@ -644,7 +735,7 @@ function UI:BuildMacrosPanel(panel)
 	local detail = CreateFrame("Frame", nil, panel)
 	detail:SetPoint("TOPLEFT", listPane, "TOPRIGHT", 12, 0)
 	detail:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
-	Paint(detail, 0.055, 0.055, 0.075, 0.9)
+	StylePane(detail)
 
 	self:BuildMacroDetail(detail)
 end
@@ -916,7 +1007,7 @@ function UI:BuildLibraryPanel(panel)
 	listPane:SetPoint("TOPLEFT")
 	listPane:SetPoint("BOTTOMLEFT")
 	listPane:SetWidth(344)
-	Paint(listPane, 0.055, 0.055, 0.075, 0.9)
+	StylePane(listPane)
 
 	local header = Text(listPane, 10, MUTED)
 	header:SetPoint("TOPLEFT", 10, -9)
@@ -933,7 +1024,7 @@ function UI:BuildLibraryPanel(panel)
 	local detail = CreateFrame("Frame", nil, panel)
 	detail:SetPoint("TOPLEFT", listPane, "TOPRIGHT", 12, 0)
 	detail:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
-	Paint(detail, 0.055, 0.055, 0.075, 0.9)
+	StylePane(detail)
 
 	self:BuildLibraryDetail(detail)
 end
@@ -1762,7 +1853,7 @@ function UI:BuildSheetPanel(panel)
 	listPane:SetPoint("TOPLEFT")
 	listPane:SetPoint("BOTTOMLEFT")
 	listPane:SetWidth(344)
-	Paint(listPane, 0.055, 0.055, 0.075, 0.9)
+	StylePane(listPane)
 
 	local listHeader = Text(listPane, 10, MUTED)
 	listHeader:SetPoint("TOPLEFT", 10, -9)
@@ -1779,7 +1870,7 @@ function UI:BuildSheetPanel(panel)
 	local sheetPane = CreateFrame("Frame", nil, panel)
 	sheetPane:SetPoint("TOPLEFT", listPane, "TOPRIGHT", 12, 0)
 	sheetPane:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
-	Paint(sheetPane, 0.055, 0.055, 0.075, 0.9)
+	StylePane(sheetPane)
 
 	local header = Text(sheetPane, 10, MUTED)
 	header:SetPoint("TOPLEFT", 12, -9)
@@ -1958,7 +2049,7 @@ function UI:BuildMakerPanel(panel)
 	listPane:SetPoint("TOPLEFT")
 	listPane:SetPoint("BOTTOMLEFT")
 	listPane:SetWidth(300)
-	Paint(listPane, 0.055, 0.055, 0.075, 0.9)
+	StylePane(listPane)
 
 	local listHeader = Text(listPane, 10, MUTED)
 	listHeader:SetPoint("TOPLEFT", 10, -9)
@@ -1980,7 +2071,7 @@ function UI:BuildMakerPanel(panel)
 	local pane = CreateFrame("Frame", nil, panel)
 	pane:SetPoint("TOPLEFT", listPane, "TOPRIGHT", 12, 0)
 	pane:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", 0, 0)
-	Paint(pane, 0.055, 0.055, 0.075, 0.9)
+	StylePane(pane)
 
 	local title = Text(pane, 10, MUTED)
 	title:SetPoint("TOPLEFT", 12, -9)

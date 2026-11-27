@@ -108,6 +108,18 @@ function Skin.Card(parent, width, height)
 	return card
 end
 
+-- Card: applies the same panel styling to a frame that already exists, so the
+-- panes inside a page read as cards too. Returns false when the frame cannot take
+-- a backdrop, and the caller draws the plain version instead.
+function Skin.Panel(frame)
+	if not frame or not frame.SetBackdrop then return false end
+	local ok = pcall(frame.SetBackdrop, frame, CARD)
+	if not ok then return false end
+	pcall(frame.SetBackdropColor, frame, 0.03, 0.03, 0.03, 0.72)
+	pcall(frame.SetBackdropBorderColor, frame, 0.62, 0.56, 0.46, 0.9)
+	return true
+end
+
 local function tabTooltip(tab, text)
 	if not text then return end
 	tab.tooltipText = text

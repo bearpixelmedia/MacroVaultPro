@@ -17,6 +17,12 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.3
+
+- **Every page and pane now uses the window's panel styling**, so the list, the
+  macro text, the Maker's sequence and the Sheet's slots all sit on the same dark
+  cards with the gold trim instead of flat grey boxes.
+
 ## 1.0.3.2
 
 - **The window now looks like the client's own windows.** It uses the game's
