@@ -466,7 +466,13 @@ function UI:Build()
 	end
 
 	self:BuildMacrosPanel(self.panels.macros)
-	self:BuildMakerPanel(self.panels.maker)
+	-- Guarded like the tab's own work: a mistake building one panel must not leave
+	-- the window half-built, because Build() never runs a second time.
+	local madeMaker, makerError = pcall(self.BuildMakerPanel, self, self.panels.maker)
+	if not madeMaker then
+		self.makerBroken = tostring(makerError)
+		MV:LogError("maker panel: " .. tostring(makerError))
+	end
 	self:BuildToolsPanel(self.panels.tools)
 	self:BuildLibraryPanel(self.panels.library)
 	self:BuildEditorPanel(self.panels.editor)
@@ -663,7 +669,7 @@ function UI:Refresh()
 	if self.activeTab == "macros" then
 		self:RefreshMacros()
 	elseif self.activeTab == "maker" then
-		self:RefreshMaker()
+		self:MakerRun("refresh", self.RefreshMaker)
 	elseif self.activeTab == "library" then
 		self:RefreshLibrary()
 	elseif self.activeTab == "sheet" then
@@ -1623,7 +1629,8 @@ end
 -- watch the pointer, and drop on release. This starts on the first pixel of
 -- movement and does not rely on the client raising a drag event for the frame.
 function UI:PressDrag(payload)
-	if not payload or not payload.macro then return end
+	-- A list row drags a macro, a maker row drags its own icon and position.
+	if type(payload) ~= "table" then return end
 
 	local x, y = GetCursorPosition()
 	self.pressDrag = { payload = payload, x = x or 0, y = y or 0 }
@@ -1686,15 +1693,17 @@ function UI:MoveDragGhost()
 	ghost:SetPoint("CENTER", root, "BOTTOMLEFT", x / scale, y / scale)
 end
 
--- Starts a drag. Payload is { macro = <macro> } from a list row, optionally
--- with slot = <position> when the drag started on the sheet itself.
+-- Starts a drag. The payload is { macro = <macro> } from a list row, with
+-- slot = <position> when the drag started on the sheet, or { icon = ...,
+-- makerAdd/makerStep = ... } from the maker, which carries its icon rather than
+-- a stand-in macro.
 function UI:BeginDrag(payload, source)
-	if not payload or not payload.macro then return end
+	if type(payload) ~= "table" then return end
 	if self.drag then return end
 	if source then MV:CountDrag(source) end
 
 	local ghost = self.dragGhost or self:BuildDragGhost()
-	ghost.icon:SetTexture(payload.macro.icon or 134400)
+	ghost.icon:SetTexture(payload.icon or (payload.macro and payload.macro.icon) or 134400)
 	ghost:Show()
 
 	self.pressDrag = nil
@@ -1744,10 +1753,10 @@ function UI:DropDrag()
 	self.drag = nil
 	if not drag then return end
 
-	-- The maker's own payloads: a macro being added to the sequence, or a step
-	-- being moved inside it. They are dropped on the sequence, not on the sheet.
+	-- The maker's own payloads - a macro being added to the sequence, or a step
+	-- being moved inside it - belong to the sequence, never to the sheet.
 	if drag.makerAdd or drag.makerStep then
-		self:MakerDrop(drag)
+		self:MakerRun("drop", self.MakerDrop, drag)
 		return
 	end
 
@@ -1756,13 +1765,13 @@ function UI:DropDrag()
 		local focus = GetMouseFocus and GetMouseFocus()
 		target = focus and focus.sheetSlot
 	end
-
-	if target then
-		MV:CountDrag("drops")
-		self:DropOnSlot(target, drag)
-	else
+	if not target then
 		self:RefreshSheet()
+		return
 	end
+
+	MV:CountDrag("drops")
+	self:DropOnSlot(target, drag)
 end
 
 function UI:DropOnSlot(target, drag)
@@ -1979,6 +1988,21 @@ end
 local MAKER_ROW_HEIGHT = 26
 local MAKER_ICON_SIZE  = 24
 
+-- The maker is the most mechanical tab here: it reads a client API's answer and
+-- rebuilds frames under the cursor. Everything the rest of the window shares with
+-- it - opening the window, switching to the tab, finishing a drag, pressing a
+-- button - goes through this, so a mistake in this tab becomes a status line and
+-- an entry in /mvpro errors instead of an error that keeps the window from
+-- opening or a drop from finishing.
+function UI:MakerRun(what, fn, ...)
+	local ok, err = pcall(fn, self, ...)
+	if not ok then
+		self:SetStatus(("Maker %s failed - %s"):format(what, tostring(err)), true)
+		MV:LogError(("maker %s: %s"):format(what, tostring(err)))
+	end
+	return ok
+end
+
 local function makerStepLabel(step)
 	if step.kind == "spell" then
 		return ("Cast %s"):format(step.value)
@@ -2005,7 +2029,6 @@ function UI:BuildMakerPanel(panel)
 	listHint:SetPoint("TOPLEFT", 10, -24)
 	listHint:SetWidth(276)
 	listHint:SetText("Click one to add it, or drag it into the sequence on the right.")
-	self.makerListHint = listHint
 
 	local inner = CreateFrame("Frame", nil, listPane)
 	inner:SetPoint("TOPLEFT", 4, -56)
@@ -2022,7 +2045,6 @@ function UI:BuildMakerPanel(panel)
 	local title = Text(pane, 10, MUTED)
 	title:SetPoint("TOPLEFT", 12, -9)
 	title:SetText("MACRO MAKER  -  the steps run in the order below")
-	self.makerTitle = title
 
 	-- A spell dragged out of the spellbook is never delivered to a frame, so the
 	-- release is read from the cursor here.
@@ -2039,10 +2061,9 @@ function UI:BuildMakerPanel(panel)
 	dropText:SetWidth(420)
 	dropText:SetText("Drop a spell from your spellbook here")
 
-	drop:SetScript("OnMouseUp", function() ui:MakerTakeCursor() end)
+	drop:SetScript("OnMouseUp", function() ui:MakerRun("add from cursor", ui.MakerTakeCursor) end)
 	drop:SetScript("OnEnter", function() SetBorderColor(drop, ACCENT[1], ACCENT[2], ACCENT[3], 1) end)
 	drop:SetScript("OnLeave", function() SetBorderColor(drop, 0.24, 0.21, 0.34, 1) end)
-	self.makerDrop = drop
 
 	local nameLabel = Text(pane, 10, MUTED)
 	nameLabel:SetPoint("TOPLEFT", 12, -62)
@@ -2059,7 +2080,7 @@ function UI:BuildMakerPanel(panel)
 	end)
 	self.makerName = name
 
-	local scope = ui:MakeButton(pane, "Create on: account", 156, function() ui:ToggleMakerScope() end)
+	local scope = ui:MakeButton(pane, "Create on: account", 156, function() ui:MakerRun("scope", ui.ToggleMakerScope) end)
 	scope:SetPoint("LEFT", name, "RIGHT", 8, 0)
 	self.makerScopeButton = scope
 
@@ -2118,8 +2139,8 @@ function UI:BuildMakerPanel(panel)
 
 	-- A spell released anywhere over the sequence works too, not only on the bar.
 	scroll:EnableMouse(true)
-	scroll:SetScript("OnMouseUp", function() ui:MakerTakeCursor() end)
-	child:SetScript("OnMouseUp", function() ui:MakerTakeCursor() end)
+	scroll:SetScript("OnMouseUp", function() ui:MakerRun("add from cursor", ui.MakerTakeCursor) end)
+	child:SetScript("OnMouseUp", function() ui:MakerRun("add from cursor", ui.MakerTakeCursor) end)
 
 	local empty = Text(pane, 11, MUTED, "CENTER")
 	empty:SetPoint("TOP", scroll, "TOP", 0, -40)
@@ -2130,7 +2151,6 @@ function UI:BuildMakerPanel(panel)
 	local previewLabel = Text(pane, 10, MUTED)
 	previewLabel:SetPoint("BOTTOMLEFT", 12, 112)
 	previewLabel:SetText("MACRO TEXT")
-	self.makerPreviewLabel = previewLabel
 
 	local previewBox = CreateFrame("Frame", nil, pane)
 	previewBox:SetPoint("BOTTOMLEFT", 12, 44)
@@ -2140,24 +2160,29 @@ function UI:BuildMakerPanel(panel)
 	Border(previewBox, 0.16, 0.15, 0.22, 1)
 	self.makerBodySet = select(3, CreateBodyView(previewBox))
 
-	local build = ui:MakeButton(pane, "Build macro", 106, function() ui:BuildMaker() end)
+	local build = ui:MakeButton(pane, "Build macro", 106, function() ui:MakerRun("build", ui.BuildMaker) end)
 	build:SetPoint("BOTTOMLEFT", 12, 12)
 
-	local pickup = ui:MakeButton(pane, "Drag to bar", 100, function() ui:PickupMaker() end)
+	local pickup = ui:MakeButton(pane, "Drag to bar", 100, function() ui:MakerRun("pickup", ui.PickupMaker) end)
 	pickup:SetPoint("LEFT", build, "RIGHT", 8, 0)
 
-	local clear = ui:MakeButton(pane, "Clear steps", 92, function() ui:ClearMaker() end)
+	local clear = ui:MakeButton(pane, "Clear steps", 92, function() ui:MakerRun("clear", ui.ClearMaker) end)
 	clear:SetPoint("LEFT", pickup, "RIGHT", 8, 0)
 
 	local hint = Text(pane, 10, MUTED, "RIGHT")
 	hint:SetPoint("RIGHT", -12, 20)
 	hint:SetWidth(140)
 	hint:SetText("Build updates the same macro, so the bar button keeps working")
-	self.makerHint = hint
 end
 
 function UI:RefreshMaker()
-	if not self.makerStepChild then return end
+	if not self.makerStepChild then
+		-- The panel failed to build; say so instead of showing a blank tab.
+		if self.makerBroken then
+			self:SetStatus(("Maker tab unavailable - %s"):format(self.makerBroken), true)
+		end
+		return
+	end
 
 	local maker = MV:GetMaker()
 
@@ -2177,8 +2202,8 @@ function UI:RefreshMaker()
 				self:RefreshMaker()
 				self:SetStatus(("Added %s to the end of the sequence."):format(item.name))
 			end,
-			function(item) self:PressDrag({ macro = item, makerAdd = true }) end,
-			function(item) self:BeginDrag({ macro = item, makerAdd = true }, "client") end
+			function(item) self:PressDrag({ icon = item.icon, makerAdd = item }) end,
+			function(item) self:BeginDrag({ icon = item.icon, makerAdd = item }, "client") end
 		)
 
 		if self.makerListHeader then
@@ -2231,12 +2256,12 @@ function UI:RefreshMaker()
 
 	self:RefreshMakerIcons()
 
-	local body, length, problems = MV:ComposeMaker(maker)
+	local body, problems = MV:ComposeMaker(maker)
 	self.makerProblems = problems
 	if self.makerBodySet then self.makerBodySet(body) end
 	if self.makerCounter then
-		self.makerCounter:SetText(("%d / %d"):format(length, MV.MAX_BODY))
-		if length > MV.MAX_BODY or #problems > 0 then
+		self.makerCounter:SetText(("%d / %d"):format(#body, MV.MAX_BODY))
+		if #body > MV.MAX_BODY or #problems > 0 then
 			self.makerCounter:SetTextColor(1, 0.5, 0.45)
 		else
 			self.makerCounter:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
@@ -2359,19 +2384,19 @@ function UI:CreateMakerRow(index)
 	-- that does not raise a drag event for a plain button.
 	row:SetScript("OnMouseDown", function(self, button)
 		if button ~= "LeftButton" or not self.stepIndex then return end
-		ui:PressDrag({ macro = { icon = self.stepIcon or 134400, name = "step" }, makerStep = self.stepIndex })
+		ui:PressDrag({ icon = self.stepIcon, makerStep = self.stepIndex })
 	end)
 	row:RegisterForDrag("LeftButton")
 	row:SetScript("OnDragStart", function(self)
 		if not self.stepIndex then return end
-		ui:BeginDrag({ macro = { icon = self.stepIcon or 134400, name = "step" }, makerStep = self.stepIndex }, "client")
+		ui:BeginDrag({ icon = self.stepIcon, makerStep = self.stepIndex }, "client")
 	end)
 	row:SetScript("OnDragStop", function() ui:DropDrag() end)
 	row:SetScript("OnMouseUp", function(self, button)
 		if button ~= "LeftButton" then return end
 		-- A release that ended one of this window's drags is not a spell drop.
 		if ui.drag or ui.pressDrag then return end
-		ui:MakerTakeCursor(self.stepIndex)
+		ui:MakerRun("add from cursor", ui.MakerTakeCursor, self.stepIndex)
 	end)
 	row:SetScript("OnEnter", function(self)
 		local step = self.stepIndex and MV:GetMaker().steps[self.stepIndex]
@@ -2444,12 +2469,12 @@ function UI:MakerDrop(drag)
 			MV:MoveMakerStep(from, to)
 			self:SetStatus(("Step %d moved to %d."):format(from, to))
 		end
-	elseif drag.makerAdd and drag.macro then
-		local ok, err = MV:AddMakerStep("macro", drag.macro.name, drag.macro.icon, position)
+	elseif drag.makerAdd then
+		local ok, err = MV:AddMakerStep("macro", drag.makerAdd.name, drag.makerAdd.icon, position)
 		if not ok then
 			self:SetStatus(err or "Could not add that macro.", true)
 		else
-			self:SetStatus(("Added %s at step %d."):format(drag.macro.name, position))
+			self:SetStatus(("Added %s at step %d."):format(drag.makerAdd.name, position))
 		end
 	end
 
@@ -2492,7 +2517,7 @@ function UI:ToggleMakerScope()
 end
 
 function UI:BuildMaker()
-	local index, err, body = MV:BuildMakerMacro()
+	local index, err = MV:BuildMakerMacro()
 	if not index then
 		self:SetStatus(err or "Could not build the macro.", true)
 		return
@@ -2503,7 +2528,7 @@ function UI:BuildMaker()
 	self:RefreshMaker()
 	self:RefreshMacros()
 	self:SetStatus(("Built '%s' in slot %d - %d characters. Drag to bar when the order is right."):format(
-		macro and macro.name or "macro", index, #(body or "")))
+		macro and macro.name or "macro", index, #((macro and macro.body) or "")))
 end
 
 function UI:PickupMaker()

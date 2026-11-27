@@ -816,7 +816,7 @@ function MV:MakerStepLines(step)
 	return nil, "unknown step"
 end
 
--- The exact macro text, its length, and anything that could not go in.
+-- The exact macro text, and anything that could not go in.
 function MV:ComposeMaker(maker)
 	maker = maker or self:GetMaker()
 
@@ -834,8 +834,7 @@ function MV:ComposeMaker(maker)
 		end
 	end
 
-	local body = table.concat(parts, "\n")
-	return body, #body, problems
+	return table.concat(parts, "\n"), problems
 end
 
 function MV:AddMakerStep(kind, value, icon, position)
@@ -903,12 +902,12 @@ function MV:BuildMakerMacro()
 		return nil, "Add at least one spell or macro to the sequence first."
 	end
 
-	local body, length, problems = self:ComposeMaker(maker)
+	local body, problems = self:ComposeMaker(maker)
 	if #problems > 0 then
 		return nil, "The sequence cannot be built yet - " .. table.concat(problems, "; ") .. "."
 	end
-	if length > self.MAX_BODY then
-		return nil, ("The sequence is %d characters; the client allows %d. Remove a step, or shorten one of its macros."):format(length, self.MAX_BODY)
+	if #body > self.MAX_BODY then
+		return nil, ("The sequence is %d characters; the client allows %d. Remove a step, or shorten one of its macros."):format(#body, self.MAX_BODY)
 	end
 
 	local name = trim(maker.name)
@@ -931,7 +930,7 @@ function MV:BuildMakerMacro()
 
 	maker.macroIndex = index
 	self:SaveMaker()
-	return index, nil, body
+	return index
 end
 
 -- What is on the cursor, in the two shapes this maker accepts. A spell dragged
