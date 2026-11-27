@@ -17,6 +17,14 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.17
+
+- **Repeats of one error take one slot.** The log no longer fills up with the
+  same failure over and over: the entry counts how many times it happened and
+  keeps when it was last seen, so repeated mistakes still fit beside new ones.
+- Duplicates already saved by an older build fold into a single entry when the
+  log loads.
+
 ## 1.0.3.16
 
 - **The error log names the addon that actually broke.** Errors raised by

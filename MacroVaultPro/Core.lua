@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION = "1.0.3.16"
+MV.VERSION = "1.0.3.17"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD = "2026-11-27x"
+MV.BUILD = "2026-11-27y"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -96,7 +96,22 @@ function MV:LogError(message, stack, unattributed)
 	local list  = unattributed and otherStore() or ownStore()
 	local limit = unattributed and MAX_OTHER_ERRORS or MAX_OWN_ERRORS
 	local stamp = (type(date) == "function" and date("%Y-%m-%d %H:%M:%S")) or "?"
-	table.insert(list, 1, { when = stamp, text = text, unattributed = unattributed and true or nil })
+	-- The same failure seen again is one entry with a count, not another slot.
+	local entry
+	for i = 1, #list do
+		if tostring(list[i].text or "") == text then
+			entry = table.remove(list, i)
+			break
+		end
+	end
+	if entry then
+		entry.count = (tonumber(entry.count) or 1) + 1
+		entry.last = stamp
+		entry.unattributed = unattributed and true or nil
+	else
+		entry = { when = stamp, last = stamp, count = 1, text = text, unattributed = unattributed and true or nil }
+	end
+	table.insert(list, 1, entry)
 	while #list > limit do
 		table.remove(list)
 	end
@@ -106,6 +121,34 @@ function MV:LogError(message, stack, unattributed)
 	if now - (self.errorNotice or 0) > 3 then
 		self.errorNotice = now
 		notice("|cffff8080error logged|r - /mvpro errors to copy it")
+	end
+end
+
+-- Two sightings of the same error are one problem: the entry keeps the first
+-- time, counts the repeats and remembers when it was last seen. A log saved by
+-- an older build is folded the same way once it loads.
+function MV:FoldRepeats()
+	for _, store in ipairs({ ownStore(), otherStore() }) do
+		local kept, byText = {}, {}
+		for i = 1, #store do
+			local entry = store[i]
+			if type(entry) == "table" then
+				local key = tostring(entry.text or "")
+				entry.count = tonumber(entry.count) or 1
+				entry.last = entry.last or entry.when
+				local first = byText[key]
+				if first then
+					first.count = first.count + entry.count
+					if entry.last and (not first.last or entry.last > first.last) then first.last = entry.last end
+					if entry.when and (not first.when or entry.when < first.when) then first.when = entry.when end
+				else
+					byText[key] = entry
+					kept[#kept + 1] = entry
+				end
+			end
+		end
+		for i = #store, 1, -1 do store[i] = nil end
+		for i = 1, #kept do store[i] = kept[i] end
 	end
 end
 
@@ -122,6 +165,7 @@ function MV:FoldPendingErrors()
 	MV.pendingErrors, MV.pendingOtherErrors = {}, {}
 	while #own > MAX_OWN_ERRORS do table.remove(own) end
 	while #other > MAX_OTHER_ERRORS do table.remove(other) end
+	MV:FoldRepeats()
 end
 
 -- Routes the client's error handler through the log. The original handler still
@@ -184,7 +228,13 @@ MV:InstallErrorLog()
 
 local function appendEntry(lines, entry)
 	local tag = entry.unattributed and "  (not this addon)" or ""
-	lines[#lines + 1] = ("[%s]%s"):format(tostring(entry.when or "?"), tag)
+	local count = tonumber(entry.count) or 1
+	if count > 1 then
+		lines[#lines + 1] = ("[%s]%s  x%d  last seen %s"):format(
+			tostring(entry.when or "?"), tag, count, tostring(entry.last or entry.when or "?"))
+	else
+		lines[#lines + 1] = ("[%s]%s"):format(tostring(entry.when or "?"), tag)
+	end
 	for line in tostring(entry.text or ""):gmatch("[^\n]+") do
 		lines[#lines + 1] = line
 	end

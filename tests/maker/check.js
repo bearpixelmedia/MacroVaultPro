@@ -503,6 +503,32 @@ check("@none is not read back as no target",
 check("none writes no reset clause",
   MV:ResetClause() == "" and next(MV:GetMaker().resets) == nil, MV:ResetClause())
 
+-- a repeated error folds into one entry with a count and a last-seen time
+MacroVaultProDB.errors, MacroVaultProDB.otherErrors = {}, {}
+MV:LogError("Interface/AddOns/Other/Core.lua:7: boom", "", true)
+MV:LogError("Interface/AddOns/Other/Core.lua:7: boom", "", true)
+MV:LogError("Interface/AddOns/Other/Core.lua:7: boom", "", true)
+MV:LogError("Interface/AddOns/Other/Core.lua:9: different", "", true)
+local otherLog = MacroVaultProDB.otherErrors
+check("a repeated error keeps one entry", #otherLog == 2, #otherLog)
+check("the repeat carries its count", otherLog[2].count == 3 and otherLog[1].count == 1,
+  tostring(otherLog[1].count) .. "/" .. tostring(otherLog[2].count))
+check("the repeat records when it was last seen", type(otherLog[2].last) == "string",
+  tostring(otherLog[2].last))
+check("the log text shows the count", MV:ErrorsText():find("x3", 1, true) ~= nil)
+
+-- a log written by an older build folds its duplicates when it loads
+MacroVaultProDB.otherErrors = {
+  { when = "2026-01-02 10:00:00", text = "same" },
+  { when = "2026-01-03 10:00:00", text = "same" },
+  { when = "2026-01-01 10:00:00", text = "same" },
+}
+MV:FoldRepeats()
+local folded = MacroVaultProDB.otherErrors
+check("saved repeats fold on load", #folded == 1 and folded[1].count == 3
+  and folded[1].when == "2026-01-01 10:00:00" and folded[1].last == "2026-01-03 10:00:00",
+  tostring(#folded) .. " / " .. tostring(folded[1] and folded[1].count))
+
 -- diag must say which window-skin pieces drew the window, and must still say
 -- something when Skin.lua never loaded.
 check("diag has a skin report", type(MV.SkinReport) == "function")
