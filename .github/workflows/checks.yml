@@ -39,3 +39,14 @@ jobs:
       - name: Pre-flight
         shell: pwsh
         run: ./tools/preflight.ps1
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.x
+
+      - name: Maker checks
+        shell: pwsh
+        run: |
+          bun install --frozen-lockfile
+          bun run test:maker

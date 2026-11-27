@@ -1,6 +1,5 @@
 {
   "name": "macrovaultpro",
-  "version": "1.0.3",
   "private": true,
   "description": "Maker checks for the MacroVaultPro addon. The addon ships from MacroVaultPro/; this file exists only to run tests/maker.",
   "scripts": {
