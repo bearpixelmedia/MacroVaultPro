@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.6"
+MV.VERSION       = "1.0.3.7"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27n"
+MV.BUILD         = "2026-11-27o"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -736,10 +736,12 @@ MV.MAKER_MODES   = { priority = true, sequence = true }
 -- number of idle seconds, or never. The empty clause is how the client writes a
 -- castsequence that only restarts when it reaches the end of the list.
 MV.SEQUENCE_RESET_SECONDS = 10
+MV.SEQUENCE_RESET_SECONDS_MIN = 1
+MV.SEQUENCE_RESET_SECONDS_MAX = 60
 MV.SEQUENCE_RESETS = {
 	target  = "reset=target",
 	combat  = "reset=combat",
-	seconds = "reset=" .. MV.SEQUENCE_RESET_SECONDS,
+	seconds = "reset=" .. MV.SEQUENCE_RESET_SECONDS,   -- the clause uses the maker's own count
 	none    = "",
 }
 MV.SEQUENCE_RESET_ORDER = { "target", "combat", "seconds", "none" }
@@ -748,7 +750,8 @@ function MV:GetMaker()
 	if self.maker then return self.maker end
 
 	local maker = {
-		name = self.MAKER_DEFAULT_NAME, scope = "account", mode = "priority", reset = "target", steps = {},
+		name = self.MAKER_DEFAULT_NAME, scope = "account", mode = "priority", reset = "target",
+		resetSeconds = self.SEQUENCE_RESET_SECONDS, steps = {},
 	}
 	local saved = (type(MacroVaultProDB) == "table") and MacroVaultProDB.maker or nil
 
@@ -759,6 +762,11 @@ function MV:GetMaker()
 		maker.scope = saved.scope == "char" and "char" or "account"
 		maker.mode = (saved.mode == "sequence") and "sequence" or "priority"
 		maker.reset = self.SEQUENCE_RESETS[saved.reset] and saved.reset or "target"
+		local seconds = tonumber(saved.resetSeconds)
+		if seconds and seconds == math.floor(seconds)
+			and seconds >= self.SEQUENCE_RESET_SECONDS_MIN and seconds <= self.SEQUENCE_RESET_SECONDS_MAX then
+			maker.resetSeconds = seconds
+		end
 		if type(saved.icon) == "number" or type(saved.icon) == "string" then
 			maker.icon = saved.icon
 		end
@@ -800,6 +808,7 @@ function MV:SaveMaker()
 		scope      = maker.scope,
 		mode       = maker.mode,
 		reset      = maker.reset,
+		resetSeconds = maker.resetSeconds,
 		icon       = maker.icon,
 		macroIndex = maker.macroIndex,
 		builtName  = maker.builtName,
@@ -830,6 +839,23 @@ function MV:SetMakerReset(key)
 	return true
 end
 
+-- The seconds after which a sequence starts over, saved with the steps.
+function MV:SetMakerResetSeconds(value)
+	value = tonumber(value)
+	if not value or value ~= math.floor(value) then
+		return false, "that is not a whole number of seconds"
+	end
+	if value < self.SEQUENCE_RESET_SECONDS_MIN or value > self.SEQUENCE_RESET_SECONDS_MAX then
+		return false, ("seconds must be between %d and %d"):format(
+			self.SEQUENCE_RESET_SECONDS_MIN, self.SEQUENCE_RESET_SECONDS_MAX)
+	end
+
+	local maker = self:GetMaker()
+	maker.resetSeconds = value
+	self:SaveMaker()
+	return true
+end
+
 function MV:CycleMakerReset()
 	local maker = self:GetMaker()
 	local at = 0
@@ -843,7 +869,7 @@ end
 function MV:SequenceResetShort(key)
 	key = key or self:GetMaker().reset
 	if key == "combat" then return "combat" end
-	if key == "seconds" then return ("%ds"):format(self.SEQUENCE_RESET_SECONDS) end
+	if key == "seconds" then return ("%ds"):format(self:GetMaker().resetSeconds or self.SEQUENCE_RESET_SECONDS) end
 	if key == "none" then return "none" end
 	return "target"
 end
@@ -851,7 +877,9 @@ end
 function MV:SequenceResetLabel(key)
 	key = key or self:GetMaker().reset
 	if key == "combat" then return "entering combat" end
-	if key == "seconds" then return ("%d seconds of not pressing it"):format(self.SEQUENCE_RESET_SECONDS) end
+	if key == "seconds" then
+		return ("%d seconds of not pressing it"):format(self:GetMaker().resetSeconds or self.SEQUENCE_RESET_SECONDS)
+	end
 	if key == "none" then return "never - only when it runs out of spells" end
 	return "the target changing"
 end
@@ -938,6 +966,9 @@ function MV:ComposeMakerSequence(maker)
 
 	if #names > 0 then
 		local clause = self.SEQUENCE_RESETS[maker.reset] or self.SEQUENCE_RESETS.target
+		if maker.reset == "seconds" then
+			clause = "reset=" .. (maker.resetSeconds or self.SEQUENCE_RESET_SECONDS)
+		end
 		local list = table.concat(names, ", ")
 		parts[#parts + 1] = (clause ~= "") and ("/castsequence %s %s"):format(clause, list)
 			or ("/castsequence %s"):format(list)

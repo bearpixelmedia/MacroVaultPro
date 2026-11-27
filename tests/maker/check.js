@@ -203,6 +203,17 @@ check("combat reset is written",
 MV:SetMakerReset("seconds")
 check("seconds reset uses the stored count",
   MV:ComposeMaker():find("/castsequence reset=10 Frostbolt") ~= nil, MV:ComposeMaker())
+MV:SetMakerResetSeconds(25)
+check("an edited seconds count is written",
+  MV:ComposeMaker():find("/castsequence reset=25 Frostbolt") ~= nil, MV:ComposeMaker())
+check("seconds count is saved with the steps",
+  MacroVaultProDB.maker.resetSeconds == 25, MacroVaultProDB.maker.resetSeconds)
+check("zero seconds is refused", MV:SetMakerResetSeconds(0) == false)
+check("a count over the cap is refused", MV:SetMakerResetSeconds(600) == false)
+check("text is refused", MV:SetMakerResetSeconds("soon") == false)
+check("a refused count keeps the saved one",
+  MacroVaultProDB.maker.resetSeconds == 25, MacroVaultProDB.maker.resetSeconds)
+MV:SetMakerResetSeconds(10)
 MV:SetMakerReset("none")
 local noReset = MV:ComposeMaker()
 check("none drops the reset clause",

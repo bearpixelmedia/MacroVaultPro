@@ -2259,14 +2259,40 @@ function UI:BuildMakerPanel(panel)
 		GameTooltip:AddLine(("Now: %s."):format(MV:SequenceResetLabel()), 1, 0.82, 0, true)
 		GameTooltip:AddLine("target - a new target starts at the first spell.", 0.72, 0.70, 0.80, true)
 		GameTooltip:AddLine("combat - every pull starts at the first spell.", 0.72, 0.70, 0.80, true)
-		GameTooltip:AddLine(("%ds - %d seconds of not pressing it starts at the first spell."):format(
-			MV.SEQUENCE_RESET_SECONDS, MV.SEQUENCE_RESET_SECONDS), 0.72, 0.70, 0.80, true)
+		local secs = MV:GetMaker().resetSeconds or MV.SEQUENCE_RESET_SECONDS
+		GameTooltip:AddLine(("%ds - that long without pressing it starts at the first spell."):format(secs),
+			0.72, 0.70, 0.80, true)
+		GameTooltip:AddLine("The count is the SECS field beside this button, when this is the chosen reset.",
+			0.72, 0.70, 0.80, true)
 		GameTooltip:AddLine("none - it only starts over when it runs out of spells.", 0.72, 0.70, 0.80, true)
 		GameTooltip:AddLine("Click to cycle. Sequence mode only; priority macros ignore it.", 0.72, 0.70, 0.80, true)
 		GameTooltip:Show()
 	end)
 	reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	self.makerResetButton = reset
+
+	-- The seconds count: only meaningful for the timed reset, so it appears beside
+	-- the button only then. Committed on Enter or when the field loses focus, so
+	-- typing "25" does not save 2 on the way there.
+	local secLabel = Text(pane, 10, MUTED, "RIGHT")
+	secLabel:SetPoint("BOTTOMRIGHT", reset, "BOTTOMLEFT", -58, 8)
+	secLabel:SetText("SECS")
+	self.makerResetSecondsLabel = secLabel
+
+	local seconds = ui:MakeEditBox(pane, 42, 24)
+	seconds:SetPoint("BOTTOMRIGHT", reset, "BOTTOMLEFT", -8, 0)
+	seconds:SetMaxLetters(2)
+	seconds:SetScript("OnEnterPressed", function(self)
+		ui:MakerRun("reset seconds", ui.CommitMakerResetSeconds)
+		self:ClearFocus()
+	end)
+	seconds:SetScript("OnEditFocusLost", function()
+		ui:MakerRun("reset seconds", ui.CommitMakerResetSeconds)
+	end)
+	seconds:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	self.makerResetSecondsBox = seconds
+	showIf(seconds, false)
+	showIf(secLabel, false)
 
 end
 
@@ -2368,6 +2394,15 @@ function UI:RefreshMaker()
 		self.makerResetButton:SetLabel(("Reset: %s"):format(MV:SequenceResetShort(maker.reset)))
 		-- Priority macros have no castsequence, so the reset does nothing there.
 		self.makerResetButton:SetAlpha(maker.mode == "sequence" and 1 or 0.4)
+	end
+	if self.makerResetSecondsBox then
+		local timed = maker.reset == "seconds"
+		showIf(self.makerResetSecondsBox, timed)
+		showIf(self.makerResetSecondsLabel, timed)
+		-- Never overwrite a number being typed.
+		if timed and not self.makerResetSecondsBox:HasFocus() then
+			self.makerResetSecondsBox:SetText(tostring(maker.resetSeconds or MV.SEQUENCE_RESET_SECONDS))
+		end
 	end
 	if self.makerTitle then
 		self.makerTitle:SetText(maker.mode == "sequence"
@@ -2673,6 +2708,21 @@ function UI:ToggleMakerMode()
 	self:SetStatus(maker.mode == "sequence"
 		and "Sequence - the macro casts one spell per press and starts over at the top. Spells only."
 		or "Priority - each press tries every step in order. Macros and spells both fit.")
+end
+
+function UI:CommitMakerResetSeconds()
+	local box = self.makerResetSecondsBox
+	if not box then return end
+
+	local ok, why = MV:SetMakerResetSeconds(tonumber(box:GetText() or ""))
+	if not ok then
+		self:RefreshMaker()
+		self:SetStatus((why or "That is not a number of seconds") .. " - kept the previous value.", true)
+		return
+	end
+
+	self:RefreshMaker()
+	self:SetStatus(("Sequence resets after %d seconds of not pressing it."):format(MV:GetMaker().resetSeconds))
 end
 
 function UI:ToggleMakerReset()

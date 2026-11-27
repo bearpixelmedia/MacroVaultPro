@@ -17,6 +17,17 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.7
+
+- **The timed reset is a number you choose.** With `Reset: 10s` selected, a `SECS`
+  field sits beside the button: type anything from 1 to 60 and the built
+  `/castsequence` uses that figure. It is saved with the steps, so it survives a
+  reload, and the field only appears while the timed reset is selected.
+- The number is committed when you press Enter or click away, so typing `25` does
+  not write `reset=2` along the way; an out-of-range or non-numeric entry keeps
+  the previous value and says why.
+- The `Reset:` tooltip now quotes the current count instead of a fixed 10.
+
 ## 1.0.3.6
 
 - **The sequence's reset is yours to choose.** A `Reset:` button next to `Runs:`
