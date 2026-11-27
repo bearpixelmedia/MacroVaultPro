@@ -14,7 +14,7 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.3"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27d"
+MV.BUILD         = "2026-11-27e"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -742,6 +742,9 @@ function MV:GetMaker()
 		if type(saved.macroIndex) == "number" then
 			maker.macroIndex = saved.macroIndex
 		end
+		if type(saved.builtName) == "string" and saved.builtName ~= "" then
+			maker.builtName = saved.builtName
+		end
 
 		for _, step in ipairs(type(saved.steps) == "table" and saved.steps or {}) do
 			if type(step) == "table" and MAKER_KINDS[step.kind]
@@ -750,6 +753,7 @@ function MV:GetMaker()
 					kind  = step.kind,
 					value = trim(step.value),
 					icon  = step.icon,
+					scope = (step.scope == "char" or step.scope == "account") and step.scope or nil,
 				}
 			end
 		end
@@ -765,7 +769,7 @@ function MV:SaveMaker()
 
 	local steps = {}
 	for index, step in ipairs(maker.steps) do
-		steps[index] = { kind = step.kind, value = step.value, icon = step.icon }
+		steps[index] = { kind = step.kind, value = step.value, icon = step.icon, scope = step.scope }
 	end
 
 	MacroVaultProDB.maker = {
@@ -773,17 +777,34 @@ function MV:SaveMaker()
 		scope      = maker.scope,
 		icon       = maker.icon,
 		macroIndex = maker.macroIndex,
+		builtName  = maker.builtName,
 		steps      = steps,
 	}
 end
 
--- The macro with this name, or nil. A saved sequence can only rely on names.
-function MV:MakerFindMacro(name)
-	if type(name) ~= "string" or name == "" then return nil end
+-- The macro with this name, or nil and why. A saved sequence can only rely on
+-- names, and names are not unique: the same name can exist as an account macro
+-- and as a character macro, so a step also remembers the scope it came from.
+function MV:MakerFindMacro(name, scope)
+	if type(name) ~= "string" or name == "" then return nil, "that step has no macro name" end
+
+	local matches = {}
 	for _, macro in ipairs(self:GetMacros()) do
-		if macro.name == name then return macro end
+		if macro.name == name then
+			matches[#matches + 1] = macro
+		end
 	end
-	return nil
+
+	if #matches == 0 then return nil end
+	if #matches == 1 then return matches[1] end
+
+	if scope then
+		for _, macro in ipairs(matches) do
+			if macro.scope == scope then return macro end
+		end
+	end
+
+	return nil, ("%d macros are named '%s' - rename one of them in the client"):format(#matches, name)
 end
 
 -- What one step adds to the body: its lines, or nil and why it cannot be used.
@@ -795,9 +816,9 @@ function MV:MakerStepLines(step)
 	end
 
 	if step.kind == "macro" then
-		local macro = self:MakerFindMacro(step.value)
+		local macro, why = self:MakerFindMacro(step.value, step.scope)
 		if not macro then
-			return nil, ("the macro '%s' has been renamed or deleted"):format(tostring(step.value))
+			return nil, why or ("the macro '%s' has been renamed or deleted"):format(tostring(step.value))
 		end
 
 		-- The maker's own output sits in the same macro list as everything else,
@@ -845,7 +866,7 @@ function MV:ComposeMaker(maker)
 	return table.concat(parts, "\n"), problems
 end
 
-function MV:AddMakerStep(kind, value, icon, position)
+function MV:AddMakerStep(kind, value, icon, position, scope)
 	local maker = self:GetMaker()
 	if not MAKER_KINDS[kind] then
 		return false, "This maker takes spells and macros."
@@ -858,6 +879,16 @@ function MV:AddMakerStep(kind, value, icon, position)
 	end
 
 	local step = { kind = kind, value = trim(value), icon = icon }
+	if kind == "macro" then
+		-- Two macros can share a name, one account and one character, so a macro
+		-- step remembers the scope it was added from: without it the body could
+		-- come from the other macro.
+		step.scope = (scope == "char" or scope == "account") and scope or nil
+		if not step.scope then
+			local macro = self:MakerFindMacro(step.value)
+			if macro then step.scope = macro.scope end
+		end
+	end
 	if type(position) == "number" and position >= 1 and position <= #maker.steps then
 		table.insert(maker.steps, position, step)
 	else
@@ -925,8 +956,15 @@ function MV:BuildMakerMacro()
 
 	local icon = maker.icon or (maker.steps[1] and maker.steps[1].icon) or 134400
 
+	-- The same slot is updated, and a renamed sequence renames that macro instead
+	-- of leaving the old one behind: a bar button points at the slot, and a second
+	-- macro would orphan the one the button points at. A slot holding neither the
+	-- name being built nor
+	-- the name this sequence last built belongs to someone else.
 	local existing = maker.macroIndex and self:GetMacro(maker.macroIndex)
-	if existing and existing.name ~= name then existing = nil end
+	if existing and existing.name ~= name and existing.name ~= maker.builtName then
+		existing = nil
+	end
 
 	local index, err
 	if existing then
@@ -937,6 +975,7 @@ function MV:BuildMakerMacro()
 	if not index then return nil, err end
 
 	maker.macroIndex = index
+	maker.builtName = name
 	self:SaveMaker()
 	return index
 end

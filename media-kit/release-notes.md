@@ -29,6 +29,10 @@ in game stays out until it has been.
   sequence longer than the client's 255 characters is refused with the count
   instead of being cut short, and changing the order updates the same macro, so a
   button already on your bar follows it.
+- **A sequence cannot include the macro it builds.** The maker's own macro is in
+  your macro list, so it could be added to its own sequence; that is now refused
+  with the reason on the row, instead of building a macro that doubles in size
+  every time.
 
 ## 1.0.2
 

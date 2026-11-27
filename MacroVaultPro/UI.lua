@@ -2225,7 +2225,7 @@ function UI:RefreshMaker()
 				row.number:SetText(tostring(index))
 				row.icon:SetTexture(step.icon or 134400)
 				row.text:SetText(makerStepLabel(step))
-				if step.kind == "macro" and not MV:MakerFindMacro(step.value) then
+				if step.kind == "macro" and not MV:MakerFindMacro(step.value, step.scope) then
 					row.text:SetTextColor(1, 0.5, 0.45)
 				else
 					row.text:SetTextColor(TEXT[1], TEXT[2], TEXT[3])
@@ -2467,7 +2467,7 @@ function UI:MakerDrop(drag)
 			self:SetStatus(("Step %d moved to %d."):format(from, to))
 		end
 	elseif drag.makerAdd then
-		local ok, err = MV:AddMakerStep("macro", drag.makerAdd.name, drag.makerAdd.icon, position)
+		local ok, err = MV:AddMakerStep("macro", drag.makerAdd.name, drag.makerAdd.icon, position, drag.makerAdd.scope)
 		if not ok then
 			self:SetStatus(err or "Could not add that macro.", true)
 		else
@@ -2506,7 +2506,7 @@ end
 
 function UI:MakerAddMacro(item)
 	if not item or not item.name then return end
-	local ok, err = MV:AddMakerStep("macro", item.name, item.icon)
+	local ok, err = MV:AddMakerStep("macro", item.name, item.icon, nil, item.scope)
 	if not ok then
 		self:SetStatus(err or "Could not add that macro.", true)
 		return
