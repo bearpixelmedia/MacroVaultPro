@@ -17,6 +17,13 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.4
+
+- `/mvpro diag` now prints a `window skin` line naming each template the client
+  provided (`PortraitFrameTemplate`, `LargeSideTabButtonTemplate`,
+  `BackdropTemplate`, `UIPanelButtonTemplate`) as `yes`, `fallback` or
+  `not-built`, so a screenshot of the report shows which look is drawing.
+
 ## 1.0.3.3
 
 - **Every page and pane now uses the window's panel styling**, so the list, the

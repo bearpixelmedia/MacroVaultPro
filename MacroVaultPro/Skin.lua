@@ -12,6 +12,12 @@ MV = MV or _G.MacroVaultPro or {}
 local Skin = {}
 MV.Skin = Skin
 
+-- Which of the client's templates each piece of the skin actually managed to
+-- use: nil until that piece is first built, then true when the template drew it
+-- and false when a fallback did. /mvpro diag prints this, so a screenshot says
+-- which path is drawing without guessing from the picture.
+Skin.templates = {}
+
 local PORTRAIT = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Media\\icon.tga"
 local UNKNOWN_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 
@@ -49,6 +55,7 @@ end
 -- as the portrait. `frame.title` is its title, `frame.close` its close button.
 function Skin.Window(name, width, height, titleText)
 	local frame = Skin.FromTemplate("Frame", name, UIParent, "PortraitFrameTemplate")
+	Skin.templates.PortraitFrameTemplate = frame ~= nil
 	if frame then
 		-- Where the title, the portrait and the close button sit has moved between
 		-- client versions, so all three are looked for in both places.
@@ -94,6 +101,7 @@ end
 -- window. Without the template it is a plain frame with a dark fill.
 function Skin.Card(parent, width, height)
 	local card = Skin.FromTemplate("Frame", nil, parent, "BackdropTemplate")
+	Skin.templates.BackdropTemplate = (card ~= nil and card.SetBackdrop ~= nil) and true or false
 	if card and card.SetBackdrop then
 		card:SetBackdrop(CARD)
 		card:SetBackdropColor(0.03, 0.03, 0.03, 0.72)
@@ -112,8 +120,12 @@ end
 -- panes inside a page read as cards too. Returns false when the frame cannot take
 -- a backdrop, and the caller draws the plain version instead.
 function Skin.Panel(frame)
-	if not frame or not frame.SetBackdrop then return false end
+	if not frame or not frame.SetBackdrop then
+		Skin.templates.BackdropTemplate = false
+		return false
+	end
 	local ok = pcall(frame.SetBackdrop, frame, CARD)
+	Skin.templates.BackdropTemplate = ok and true or false
 	if not ok then return false end
 	pcall(frame.SetBackdropColor, frame, 0.03, 0.03, 0.03, 0.72)
 	pcall(frame.SetBackdropBorderColor, frame, 0.62, 0.56, 0.46, 0.9)
@@ -135,7 +147,9 @@ end
 -- there is one. SetChecked shows it chosen.
 function Skin.SideTab(window, previous, icon, onClick, tooltipText)
 	local tab = Skin.FromTemplate("Frame", nil, window, "LargeSideTabButtonTemplate")
-	if tab and tab.Icon and tab.SetChecked and tab.SetCustomOnMouseUpHandler then
+	tab = (tab and tab.Icon and tab.SetChecked and tab.SetCustomOnMouseUpHandler) and tab or nil
+	Skin.templates.LargeSideTabButtonTemplate = tab ~= nil
+	if tab then
 		Skin.SetIcon(tab.Icon, icon)
 		if tab.SetFillToInterior then tab:SetFillToInterior(true) end
 		tab:SetCustomOnMouseUpHandler(function(_, mouseButton, inside)
@@ -151,7 +165,6 @@ function Skin.SideTab(window, previous, icon, onClick, tooltipText)
 	end
 
 	-- Without the side-tab template: the spellbook's own tab art.
-	if tab then tab:Hide() end
 	tab = CreateFrame("CheckButton", nil, window)
 	tab:SetSize(32, 32)
 	local back = tab:CreateTexture(nil, "BACKGROUND")
@@ -182,6 +195,7 @@ end
 -- state and glow as the buttons in the client's own windows.
 function Skin.Button(parent, text, width, onClick)
 	local button = Skin.FromTemplate("Button", nil, parent, "UIPanelButtonTemplate")
+	Skin.templates.UIPanelButtonTemplate = button ~= nil
 	if not button then
 		button = CreateFrame("Button", nil, parent)
 		local back = button:CreateTexture(nil, "BACKGROUND")

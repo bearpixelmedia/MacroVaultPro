@@ -188,6 +188,21 @@ local ek, ev, ei, ewhy = MV:CursorStep()
 check("empty cursor explains itself in the fourth slot",
   ek == nil and ewhy ~= nil and tostring(ewhy):find("Nothing is on the cursor") ~= nil, tostring(ewhy))
 
+-- diag must say which window-skin pieces drew the window, and must still say
+-- something when Skin.lua never loaded.
+check("diag has a skin report", type(MV.SkinReport) == "function")
+local noSkin = MV:SkinReport()
+check("skin report admits Skin.lua is missing",
+  tostring(noSkin):find("Skin.lua did not load") ~= nil, tostring(noSkin))
+
+MV.Skin = { templates = { PortraitFrameTemplate = true, LargeSideTabButtonTemplate = false } }
+local partSkin = MV:SkinReport()
+check("skin report shows yes, fallback and not-built",
+  partSkin:find("PortraitFrameTemplate=yes") ~= nil
+    and partSkin:find("LargeSideTabButtonTemplate=fallback") ~= nil
+    and partSkin:find("BackdropTemplate=not%-built") ~= nil, partSkin)
+MV.Skin = nil
+
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
 `;
 

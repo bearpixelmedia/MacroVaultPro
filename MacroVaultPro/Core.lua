@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.3"
+MV.VERSION       = "1.0.3.4"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27k"
+MV.BUILD         = "2026-11-27l"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -1383,6 +1383,26 @@ local function argText(value)
 	return text
 end
 
+-- Which window-skin pieces the client actually provided, as each one is built:
+-- the Lueur-style window when the templates are there, the plain fallback when
+-- they are not. /mvpro diag prints this next to the build stamp.
+function MV:SkinReport()
+	local skin = self.Skin
+	if type(skin) ~= "table" or type(skin.templates) ~= "table" then
+		return "Skin.lua did not load - the window drew its plain fallback"
+	end
+
+	local pieces = {}
+	for _, name in ipairs({ "PortraitFrameTemplate", "LargeSideTabButtonTemplate",
+		"BackdropTemplate", "UIPanelButtonTemplate" }) do
+		local used = skin.templates[name]
+		local state = "not-built"
+		if used ~= nil then state = used and "yes" or "fallback" end
+		pieces[#pieces + 1] = name .. "=" .. state
+	end
+	return table.concat(pieces, "  ")
+end
+
 function MV:Diag()
 	local layout = self:GetLayout(true)
 	local stats  = self.dragStats or {}
@@ -1412,6 +1432,7 @@ function MV:Diag()
 	self:PrintRaw(("addon %s  build %s  interface %s"):format(
 		self.VERSION, self.BUILD, tostring(tocVersion)))
 	self:PrintRaw(("client %s  build %s"):format(tostring(clientVersion), tostring(clientBuild)))
+	self:PrintRaw("window skin  " .. self:SkinReport())
 	self:PrintRaw(("globals MAX_ACCOUNT_MACROS=%s  MAX_CHARACTER_MACROS=%s"):format(
 		tostring(_G.MAX_ACCOUNT_MACROS or "unset"), tostring(_G.MAX_CHARACTER_MACROS or "unset")))
 	self:PrintRaw(("slots account 1-%d  character %d-%d  total %d  (from %s)"):format(
