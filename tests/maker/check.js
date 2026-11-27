@@ -516,6 +516,8 @@ check("the repeat carries its count", otherLog[2].count == 3 and otherLog[1].cou
 check("the repeat records when it was last seen", type(otherLog[2].last) == "string",
   tostring(otherLog[2].last))
 check("the log text shows the count", MV:ErrorsText():find("x3", 1, true) ~= nil)
+check("the header counts every sighting", MV:ErrorsText():find("4 sightings", 1, true) ~= nil,
+  MV:ErrorsText())
 
 -- a log written by an older build folds its duplicates when it loads
 MacroVaultProDB.otherErrors = {

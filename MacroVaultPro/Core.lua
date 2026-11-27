@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION = "1.0.3.17"
+MV.VERSION = "1.0.3.18"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD = "2026-11-27y"
+MV.BUILD = "2026-11-27z"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -241,6 +241,17 @@ local function appendEntry(lines, entry)
 	lines[#lines + 1] = ""
 end
 
+-- Repeats are folded into one entry, so the per-entry counts have to be added
+-- up for the header: it is the only place that says how often the log fired.
+local function sightingsTotal(store)
+	local total = 0
+	for i = 1, #store do
+		local entry = store[i]
+		total = total + ((type(entry) == "table" and tonumber(entry.count)) or 1)
+	end
+	return total
+end
+
 -- The whole log as one plain-text block - no prefix and no colour codes - so
 -- the window's Copy button hands over exactly what a bug report needs.
 function MV:ErrorsText()
@@ -259,8 +270,8 @@ function MV:ErrorsText()
 		return table.concat(lines, "\n")
 	end
 
-	lines[#lines + 1] = ("%d own + %d from other addons  -  saved in WTF/Account/<account>/SavedVariables/MacroVaultPro.lua"):format(
-		#own, #other)
+	lines[#lines + 1] = ("%d own + %d from other addons  -  %d sightings  -  saved in WTF/Account/<account>/SavedVariables/MacroVaultPro.lua"):format(
+		#own, #other, sightingsTotal(own) + sightingsTotal(other))
 	lines[#lines + 1] = ""
 
 	for i = #own, 1, -1 do appendEntry(lines, own[i]) end

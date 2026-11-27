@@ -17,6 +17,12 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.18
+
+- **The log header says how often it fired.** Folding repeats into one line
+  hid the volume, so the summary above the entries now totals every sighting,
+  folded repeats included.
+
 ## 1.0.3.17
 
 - **Repeats of one error take one slot.** The log no longer fills up with the
