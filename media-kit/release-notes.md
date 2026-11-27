@@ -17,6 +17,19 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.11
+
+- **The reset choices combine.** Instead of one cycling `Reset:` button there are
+  three toggles - `target`, `combat` and `10s` - and any of them can be on at
+  once, so the old `reset=target/10` is reachable again by switching target and
+  the seconds field on. Three on at once reads `reset=target/combat/10`.
+- **The combination is on the control**: each toggle lights while it is switched
+  on, the timed one's label shows the current count, and every tooltip states what
+  is on now and exactly what `Build macro` will write. All three off writes a
+  `castsequence` with no reset clause.
+- A Maker saved by 1.0.3.6-1.0.3.10 loads its single choice as that one toggle, so
+  nothing already chosen is lost.
+
 ## 1.0.3.10
 
 - **`harm` and `help` are now caught as a contradiction too.** They cannot both

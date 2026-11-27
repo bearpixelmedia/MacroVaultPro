@@ -2297,38 +2297,28 @@ function UI:BuildMakerPanel(panel)
 	end
 	self.makerCondPopup = conds
 
-	-- Only read by the sequence, so it says so rather than looking like a setting
-	-- that also changes priority macros.
-	local reset = ui:MakeButton(pane, "Reset: target", 130, function() ui:MakerRun("reset", ui.ToggleMakerReset) end)
-	reset:SetPoint("BOTTOMRIGHT", mode, "BOTTOMLEFT", -8, 0)
-	reset:SetScript("OnEnter", function(self)
-		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		GameTooltip:SetText("When the sequence starts over", 1, 1, 1)
-		GameTooltip:AddLine(("Now: %s."):format(MV:SequenceResetLabel()), 1, 0.82, 0, true)
-		GameTooltip:AddLine("target - a new target starts at the first spell.", 0.72, 0.70, 0.80, true)
-		GameTooltip:AddLine("combat - every pull starts at the first spell.", 0.72, 0.70, 0.80, true)
-		local secs = MV:GetMaker().resetSeconds or MV.SEQUENCE_RESET_SECONDS
-		GameTooltip:AddLine(("%ds - that long without pressing it starts at the first spell."):format(secs),
-			0.72, 0.70, 0.80, true)
-		GameTooltip:AddLine("The count is the SECS field beside this button, when this is the chosen reset.",
-			0.72, 0.70, 0.80, true)
-		GameTooltip:AddLine("none - it only starts over when it runs out of spells.", 0.72, 0.70, 0.80, true)
-		GameTooltip:AddLine("Click to cycle. Sequence mode only; priority macros ignore it.", 0.72, 0.70, 0.80, true)
-		GameTooltip:Show()
-	end)
-	reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
-	self.makerResetButton = reset
-
-	-- The seconds count: only meaningful for the timed reset, so it appears beside
-	-- the button only then. Committed on Enter or when the field loses focus, so
-	-- typing "25" does not save 2 on the way there.
-	local secLabel = Text(pane, 10, MUTED, "RIGHT")
-	secLabel:SetPoint("BOTTOMRIGHT", reset, "BOTTOMLEFT", -58, 8)
-	secLabel:SetText("SECS")
-	self.makerResetSecondsLabel = secLabel
+	-- The reset choices combine, so each one is its own toggle instead of a single
+	-- cycling button: target, combat, and the seconds field. All off means the body
+	-- carries no reset clause at all. Only a sequence reads them, so the group dims
+	-- while Runs says priority.
+	local function resetTip(button, title, detail)
+		button:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText(title, 1, 1, 1)
+			GameTooltip:AddLine(detail, 0.72, 0.70, 0.80, true)
+			GameTooltip:AddLine(("Switched on now: %s."):format(MV:SequenceResetLabel()), 1, 0.82, 0, true)
+			local clause = MV:ResetClause()
+			GameTooltip:AddLine(clause ~= "" and ("Build macro writes " .. clause) or "Build macro writes no reset clause.",
+				0.72, 0.70, 0.80, true)
+			GameTooltip:AddLine("Click to switch on or off; the choices combine. Sequence mode only.",
+				0.72, 0.70, 0.80, true)
+			GameTooltip:Show()
+		end)
+		button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	end
 
 	local seconds = ui:MakeEditBox(pane, 42, 24)
-	seconds:SetPoint("BOTTOMRIGHT", reset, "BOTTOMLEFT", -8, 0)
+	seconds:SetPoint("BOTTOMRIGHT", mode, "BOTTOMLEFT", -8, 0)
 	seconds:SetMaxLetters(2)
 	seconds:SetScript("OnEnterPressed", function(self)
 		ui:MakerRun("reset seconds", ui.CommitMakerResetSeconds)
@@ -2338,9 +2328,32 @@ function UI:BuildMakerPanel(panel)
 		ui:MakerRun("reset seconds", ui.CommitMakerResetSeconds)
 	end)
 	seconds:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	seconds:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Seconds before the sequence starts over", 1, 1, 1)
+		GameTooltip:AddLine("Used while the button beside it is switched on.", 0.72, 0.70, 0.80, true)
+		GameTooltip:Show()
+	end)
+	seconds:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	self.makerResetSecondsBox = seconds
 	showIf(seconds, false)
-	showIf(secLabel, false)
+
+	local secToggle = ui:MakeButton(pane, ("%ds"):format(MV.SEQUENCE_RESET_SECONDS), 46,
+		function() ui:MakerRun("reset", ui.ToggleMakerResetChoice, "seconds") end)
+	secToggle:SetPoint("BOTTOMRIGHT", seconds, "BOTTOMLEFT", -8, 0)
+	resetTip(secToggle, "Timed reset", "Starts over after that many seconds without a press.")
+
+	local resetCombat = ui:MakeButton(pane, "combat", 54,
+		function() ui:MakerRun("reset", ui.ToggleMakerResetChoice, "combat") end)
+	resetCombat:SetPoint("BOTTOMRIGHT", secToggle, "BOTTOMLEFT", -4, 0)
+	resetTip(resetCombat, "Reset on combat", "Starts over when you enter combat.")
+
+	local resetTarget = ui:MakeButton(pane, "target", 54,
+		function() ui:MakerRun("reset", ui.ToggleMakerResetChoice, "target") end)
+	resetTarget:SetPoint("BOTTOMRIGHT", resetCombat, "BOTTOMLEFT", -4, 0)
+	resetTip(resetTarget, "Reset on target change", "Starts over when you change target.")
+
+	self.makerResetButtons = { target = resetTarget, combat = resetCombat, seconds = secToggle }
 
 end
 
@@ -2446,15 +2459,22 @@ function UI:RefreshMaker()
 	if self.makerModeButton then
 		self.makerModeButton:SetLabel(maker.mode == "sequence" and "Runs: sequence" or "Runs: priority")
 	end
-	if self.makerResetButton then
-		self.makerResetButton:SetLabel(("Reset: %s"):format(MV:SequenceResetShort(maker.reset)))
-		-- Priority macros have no castsequence, so the reset does nothing there.
-		self.makerResetButton:SetAlpha(maker.mode == "sequence" and 1 or 0.4)
+	if self.makerResetButtons then
+		local resets = maker.resets or {}
+		local live = maker.mode == "sequence"
+		for key, button in pairs(self.makerResetButtons) do
+			button:SetActive(resets[key] == true)
+			-- Priority macros have no castsequence, so the whole group does nothing there.
+			button:SetAlpha(live and 1 or 0.4)
+		end
+		if self.makerResetButtons.seconds then
+			self.makerResetButtons.seconds:SetLabel(("%ds"):format(
+				maker.resetSeconds or MV.SEQUENCE_RESET_SECONDS))
+		end
 	end
 	if self.makerResetSecondsBox then
-		local timed = maker.reset == "seconds"
+		local timed = (maker.resets or {}).seconds == true
 		showIf(self.makerResetSecondsBox, timed)
-		showIf(self.makerResetSecondsLabel, timed)
 		-- Never overwrite a number being typed.
 		if timed and not self.makerResetSecondsBox:HasFocus() then
 			self.makerResetSecondsBox:SetText(tostring(maker.resetSeconds or MV.SEQUENCE_RESET_SECONDS))
@@ -2802,7 +2822,8 @@ function UI:CommitMakerResetSeconds()
 	end
 
 	self:RefreshMaker()
-	self:SetStatus(("Sequence resets after %d seconds of not pressing it."):format(MV:GetMaker().resetSeconds))
+	self:SetStatus(("The seconds field is %d - it applies while its toggle is switched on."):format(
+		MV:GetMaker().resetSeconds))
 end
 
 function UI:RefreshMakerConditions()
@@ -2874,22 +2895,23 @@ function UI:ToggleMakerCondition(token)
 	self:RefreshMakerConditions()
 end
 
-function UI:ToggleMakerReset()
-	local ok, why = MV:CycleMakerReset()
+function UI:ToggleMakerResetChoice(key)
+	local ok, why = MV:ToggleMakerReset(key)
 	if not ok then
-		self:SetStatus(why or "Could not change the reset.", true)
+		self:SetStatus(why or "Could not change that reset.", true)
 		return
 	end
 
 	local maker = MV:GetMaker()
 	self:RefreshMaker()
-	if maker.mode ~= "sequence" then
-		self:SetStatus(("Reset set to %s - it only applies once the macro runs as a sequence."):format(
-			MV:SequenceResetLabel(maker.reset)))
+
+	local short = MV:SequenceResetShort(maker)
+	local applies = maker.mode == "sequence" and "" or " It applies once Runs says sequence."
+	if short == "none" then
+		self:SetStatus("No reset - the sequence only starts over when it runs out of spells." .. applies)
 		return
 	end
-	self:SetStatus(("Reset set to %s - Build macro writes it into the castsequence."):format(
-		MV:SequenceResetLabel(maker.reset)))
+	self:SetStatus(("Reset: %s - Build macro writes reset=%s.%s"):format(short, short, applies))
 end
 
 function UI:ToggleMakerScope()

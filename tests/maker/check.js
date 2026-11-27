@@ -196,16 +196,19 @@ MV:SetMakerMode("sequence")
 local seqBody, seqProblems = MV:ComposeMaker()
 check("sequence mode writes one castsequence",
   #seqProblems == 0 and seqBody:find("/castsequence reset=target Frostbolt, Fireball") ~= nil, seqBody)
-check("reset defaults to the target", MV:GetMaker().reset == "target", MV:GetMaker().reset)
-MV:SetMakerReset("combat")
+check("reset defaults to the target", MV:ResetClause() == "reset=target", MV:ResetClause())
+MV:SetMakerReset("target", false)
+MV:SetMakerReset("combat", true)
 check("combat reset is written",
-  MV:ComposeMaker():find("/castsequence reset=combat Frostbolt") ~= nil, MV:ComposeMaker())
-MV:SetMakerReset("seconds")
-check("seconds reset uses the stored count",
-  MV:ComposeMaker():find("/castsequence reset=10 Frostbolt") ~= nil, MV:ComposeMaker())
+  MV:ComposeMaker():find("/castsequence reset=combat ") ~= nil, MV:ComposeMaker())
+MV:SetMakerReset("target", true)
+MV:SetMakerReset("combat", false)
+MV:SetMakerReset("seconds", true)
+check("target and the seconds field combine",
+  MV:ComposeMaker():find("/castsequence reset=target/10 ") ~= nil, MV:ComposeMaker())
 MV:SetMakerResetSeconds(25)
-check("an edited seconds count is written",
-  MV:ComposeMaker():find("/castsequence reset=25 Frostbolt") ~= nil, MV:ComposeMaker())
+check("an edited seconds count combines too",
+  MV:ComposeMaker():find("/castsequence reset=target/25 ") ~= nil, MV:ComposeMaker())
 check("seconds count is saved with the steps",
   MacroVaultProDB.maker.resetSeconds == 25, MacroVaultProDB.maker.resetSeconds)
 check("zero seconds is refused", MV:SetMakerResetSeconds(0) == false)
@@ -213,15 +216,23 @@ check("a count over the cap is refused", MV:SetMakerResetSeconds(600) == false)
 check("text is refused", MV:SetMakerResetSeconds("soon") == false)
 check("a refused count keeps the saved one",
   MacroVaultProDB.maker.resetSeconds == 25, MacroVaultProDB.maker.resetSeconds)
-MV:SetMakerResetSeconds(10)
-MV:SetMakerReset("none")
+MV:SetMakerReset("combat", true)
+check("three choices combine in their fixed order",
+  MV:ComposeMaker():find("/castsequence reset=target/combat/25 ") ~= nil, MV:ComposeMaker())
+MV:SetMakerReset("target", false)
+MV:SetMakerReset("combat", false)
+MV:SetMakerReset("seconds", false)
 local noReset = MV:ComposeMaker()
-check("none drops the reset clause",
+check("all off drops the reset clause",
   noReset:find("/castsequence Frostbolt, Fireball") ~= nil and noReset:find("reset=") == nil, noReset)
-check("reset is saved with the steps", MacroVaultProDB.maker.reset == "none", MacroVaultProDB.maker.reset)
-check("cycling wraps back to target", MV:CycleMakerReset() and MV:GetMaker().reset == "target",
-  MV:GetMaker().reset)
-check("an unknown reset is refused", MV:SetMakerReset("hourly") == false)
+check("resets are saved with the steps", next(MacroVaultProDB.maker.resets) == nil,
+  next(MacroVaultProDB.maker.resets))
+local legacyReset = MV:ReadMakerResets({ reset = "seconds" })
+check("a legacy single choice still loads",
+  legacyReset.seconds == true and next(legacyReset, "seconds") == nil)
+check("an unknown reset is refused", MV:SetMakerReset("hourly", true) == false)
+MV:SetMakerReset("target", true)
+MV:SetMakerResetSeconds(10)
 check("sequence mode keeps the showtooltip header",
   seqBody:sub(1, 12) == "#showtooltip", seqBody:sub(1, 12))
 check("sequence mode skips the per-step cast lines", seqBody:find("/cast Frostbolt") == nil, seqBody)
