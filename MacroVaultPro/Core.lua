@@ -46,10 +46,10 @@ MV.trim = trim
 -- The saved variables do not exist yet at that point, so early entries wait in
 -- MV.pending* and are folded into the DB when ADDON_LOADED fires.
 --
--- Attribution is best effort. Some clients report stack paths too short to carry
--- an addon name ("Core.lua:12"), which no name match can catch, so those errors
--- go to a second list instead of being dropped: nothing this addon raises goes
--- unrecorded, attributed or not.
+-- Attribution is best effort. The client's message usually carries the failing
+-- file, which is what decides between the two lists; a message without one falls
+-- back to the traceback. Nothing is dropped: errors raised by another addon are
+-- kept in their own list, and so is anything no name match could place.
 -------------------------------------------------------------------------------
 
 local MAX_OWN_ERRORS   = 20
@@ -183,7 +183,7 @@ end
 MV:InstallErrorLog()
 
 local function appendEntry(lines, entry)
-	local tag = entry.unattributed and "  (no addon path)" or ""
+	local tag = entry.unattributed and "  (not this addon)" or ""
 	lines[#lines + 1] = ("[%s]%s"):format(tostring(entry.when or "?"), tag)
 	for line in tostring(entry.text or ""):gmatch("[^\n]+") do
 		lines[#lines + 1] = line
@@ -209,14 +209,14 @@ function MV:ErrorsText()
 		return table.concat(lines, "\n")
 	end
 
-	lines[#lines + 1] = ("%d own + %d unattributed  -  saved in WTF/Account/<account>/SavedVariables/MacroVaultPro.lua"):format(
+	lines[#lines + 1] = ("%d own + %d from other addons  -  saved in WTF/Account/<account>/SavedVariables/MacroVaultPro.lua"):format(
 		#own, #other)
 	lines[#lines + 1] = ""
 
 	for i = #own, 1, -1 do appendEntry(lines, own[i]) end
 
 	if #other > 0 then
-		lines[#lines + 1] = ("-- %d with no addon path in the traceback - listed in case one is ours --"):format(#other)
+		lines[#lines + 1] = ("-- %d raised by another addon - listed so a bug report has them --"):format(#other)
 		for i = #other, 1, -1 do appendEntry(lines, other[i]) end
 	end
 
@@ -229,7 +229,7 @@ function MV:ShowErrors()
 	local own, other = ownStore(), otherStore()
 	local text = self:ErrorsText()
 	if self.UI and self.UI.ShowErrorLog then
-		self.UI:ShowErrorLog(text, ("%d own, %d unattributed"):format(#own, #other))
+		self.UI:ShowErrorLog(text, ("%d own, %d other"):format(#own, #other))
 	else
 		for line in (text .. "\n"):gmatch("([^\n]*)\n") do
 			self:PrintRaw(line)
