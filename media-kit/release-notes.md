@@ -17,6 +17,16 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.6
+
+- **The sequence's reset is yours to choose.** A `Reset:` button next to `Runs:`
+  cycles through **target** (`reset=target`), **combat** (`reset=combat`),
+  **10s** (`reset=10`) and **none** (no reset clause at all), and the choice is
+  saved with the steps. Its tooltip says what the current one does.
+- The reset button dims while `Runs: priority`, because a priority macro has no
+  `castsequence` for it to affect; the setting is still remembered for when you
+  switch back.
+
 ## 1.0.3.5
 
 - **The Maker can run its steps as a sequence instead of a priority list.**

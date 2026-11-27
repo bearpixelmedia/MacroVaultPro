@@ -2157,7 +2157,8 @@ function UI:BuildMakerPanel(panel)
 
 	local scroll = CreateFrame("ScrollFrame", nil, pane)
 	scroll:SetPoint("TOPLEFT", 12, -136)
-	scroll:SetPoint("BOTTOMRIGHT", -12, 128)
+	-- Ends above the row that holds Runs/Reset, so those two never sit on a step.
+	scroll:SetPoint("BOTTOMRIGHT", -12, 152)
 	scroll:EnableMouseWheel(true)
 
 	local child = CreateFrame("Frame", nil, scroll)
@@ -2234,7 +2235,7 @@ function UI:BuildMakerPanel(panel)
 	-- tooltip is the whole difference, because "sequence" here does not mean the
 	-- step list, which is already called that in this tab.
 	local mode = ui:MakeButton(pane, "Runs: priority", 130, function() ui:MakerRun("mode", ui.ToggleMakerMode) end)
-	mode:SetPoint("BOTTOMRIGHT", -12, 12)
+	mode:SetPoint("BOTTOMRIGHT", -12, 112)
 	mode:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		GameTooltip:SetText("How the built macro runs", 1, 1, 1)
@@ -2247,6 +2248,25 @@ function UI:BuildMakerPanel(panel)
 	end)
 	mode:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	self.makerModeButton = mode
+
+	-- Only read by the sequence, so it says so rather than looking like a setting
+	-- that also changes priority macros.
+	local reset = ui:MakeButton(pane, "Reset: target", 130, function() ui:MakerRun("reset", ui.ToggleMakerReset) end)
+	reset:SetPoint("BOTTOMRIGHT", mode, "BOTTOMLEFT", -8, 0)
+	reset:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("When the sequence starts over", 1, 1, 1)
+		GameTooltip:AddLine(("Now: %s."):format(MV:SequenceResetLabel()), 1, 0.82, 0, true)
+		GameTooltip:AddLine("target - a new target starts at the first spell.", 0.72, 0.70, 0.80, true)
+		GameTooltip:AddLine("combat - every pull starts at the first spell.", 0.72, 0.70, 0.80, true)
+		GameTooltip:AddLine(("%ds - %d seconds of not pressing it starts at the first spell."):format(
+			MV.SEQUENCE_RESET_SECONDS, MV.SEQUENCE_RESET_SECONDS), 0.72, 0.70, 0.80, true)
+		GameTooltip:AddLine("none - it only starts over when it runs out of spells.", 0.72, 0.70, 0.80, true)
+		GameTooltip:AddLine("Click to cycle. Sequence mode only; priority macros ignore it.", 0.72, 0.70, 0.80, true)
+		GameTooltip:Show()
+	end)
+	reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	self.makerResetButton = reset
 
 end
 
@@ -2343,6 +2363,11 @@ function UI:RefreshMaker()
 	end
 	if self.makerModeButton then
 		self.makerModeButton:SetLabel(maker.mode == "sequence" and "Runs: sequence" or "Runs: priority")
+	end
+	if self.makerResetButton then
+		self.makerResetButton:SetLabel(("Reset: %s"):format(MV:SequenceResetShort(maker.reset)))
+		-- Priority macros have no castsequence, so the reset does nothing there.
+		self.makerResetButton:SetAlpha(maker.mode == "sequence" and 1 or 0.4)
 	end
 	if self.makerTitle then
 		self.makerTitle:SetText(maker.mode == "sequence"
@@ -2648,6 +2673,24 @@ function UI:ToggleMakerMode()
 	self:SetStatus(maker.mode == "sequence"
 		and "Sequence - the macro casts one spell per press and starts over at the top. Spells only."
 		or "Priority - each press tries every step in order. Macros and spells both fit.")
+end
+
+function UI:ToggleMakerReset()
+	local ok, why = MV:CycleMakerReset()
+	if not ok then
+		self:SetStatus(why or "Could not change the reset.", true)
+		return
+	end
+
+	local maker = MV:GetMaker()
+	self:RefreshMaker()
+	if maker.mode ~= "sequence" then
+		self:SetStatus(("Reset set to %s - it only applies once the macro runs as a sequence."):format(
+			MV:SequenceResetLabel(maker.reset)))
+		return
+	end
+	self:SetStatus(("Reset set to %s - Build macro writes it into the castsequence."):format(
+		MV:SequenceResetLabel(maker.reset)))
 end
 
 function UI:ToggleMakerScope()

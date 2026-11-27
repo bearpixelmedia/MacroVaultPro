@@ -195,7 +195,22 @@ MV:AddMakerStep("spell", "Fireball", 133)
 MV:SetMakerMode("sequence")
 local seqBody, seqProblems = MV:ComposeMaker()
 check("sequence mode writes one castsequence",
-  #seqProblems == 0 and seqBody:find("/castsequence reset=target/10 Frostbolt, Fireball") ~= nil, seqBody)
+  #seqProblems == 0 and seqBody:find("/castsequence reset=target Frostbolt, Fireball") ~= nil, seqBody)
+check("reset defaults to the target", MV:GetMaker().reset == "target", MV:GetMaker().reset)
+MV:SetMakerReset("combat")
+check("combat reset is written",
+  MV:ComposeMaker():find("/castsequence reset=combat Frostbolt") ~= nil, MV:ComposeMaker())
+MV:SetMakerReset("seconds")
+check("seconds reset uses the stored count",
+  MV:ComposeMaker():find("/castsequence reset=10 Frostbolt") ~= nil, MV:ComposeMaker())
+MV:SetMakerReset("none")
+local noReset = MV:ComposeMaker()
+check("none drops the reset clause",
+  noReset:find("/castsequence Frostbolt, Fireball") ~= nil and noReset:find("reset=") == nil, noReset)
+check("reset is saved with the steps", MacroVaultProDB.maker.reset == "none", MacroVaultProDB.maker.reset)
+check("cycling wraps back to target", MV:CycleMakerReset() and MV:GetMaker().reset == "target",
+  MV:GetMaker().reset)
+check("an unknown reset is refused", MV:SetMakerReset("hourly") == false)
 check("sequence mode keeps the showtooltip header",
   seqBody:sub(1, 12) == "#showtooltip", seqBody:sub(1, 12))
 check("sequence mode skips the per-step cast lines", seqBody:find("/cast Frostbolt") == nil, seqBody)

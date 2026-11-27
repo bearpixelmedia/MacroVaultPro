@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.5"
+MV.VERSION       = "1.0.3.6"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27m"
+MV.BUILD         = "2026-11-27n"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -731,12 +731,25 @@ local MAKER_KINDS = { spell = true, macro = true }
 -- advances one spell per press and keeps its place in the list - the closest a
 -- plain macro can get to the way a GSE sequence steps.
 MV.MAKER_MODES   = { priority = true, sequence = true }
-MV.SEQUENCE_RESET = "target/10"
+
+-- What makes a sequence start over: the target changing, entering combat, a
+-- number of idle seconds, or never. The empty clause is how the client writes a
+-- castsequence that only restarts when it reaches the end of the list.
+MV.SEQUENCE_RESET_SECONDS = 10
+MV.SEQUENCE_RESETS = {
+	target  = "reset=target",
+	combat  = "reset=combat",
+	seconds = "reset=" .. MV.SEQUENCE_RESET_SECONDS,
+	none    = "",
+}
+MV.SEQUENCE_RESET_ORDER = { "target", "combat", "seconds", "none" }
 
 function MV:GetMaker()
 	if self.maker then return self.maker end
 
-	local maker = { name = self.MAKER_DEFAULT_NAME, scope = "account", mode = "priority", steps = {} }
+	local maker = {
+		name = self.MAKER_DEFAULT_NAME, scope = "account", mode = "priority", reset = "target", steps = {},
+	}
 	local saved = (type(MacroVaultProDB) == "table") and MacroVaultProDB.maker or nil
 
 	if type(saved) == "table" then
@@ -745,6 +758,7 @@ function MV:GetMaker()
 		end
 		maker.scope = saved.scope == "char" and "char" or "account"
 		maker.mode = (saved.mode == "sequence") and "sequence" or "priority"
+		maker.reset = self.SEQUENCE_RESETS[saved.reset] and saved.reset or "target"
 		if type(saved.icon) == "number" or type(saved.icon) == "string" then
 			maker.icon = saved.icon
 		end
@@ -785,6 +799,7 @@ function MV:SaveMaker()
 		name       = maker.name,
 		scope      = maker.scope,
 		mode       = maker.mode,
+		reset      = maker.reset,
 		icon       = maker.icon,
 		macroIndex = maker.macroIndex,
 		builtName  = maker.builtName,
@@ -804,6 +819,41 @@ end
 function MV:ToggleMakerMode()
 	local maker = self:GetMaker()
 	return self:SetMakerMode(maker.mode == "sequence" and "priority" or "sequence")
+end
+
+-- "target", "combat", "seconds" or "none"; the choice is saved with the steps.
+function MV:SetMakerReset(key)
+	if not self.SEQUENCE_RESETS[key] then return false, "unknown reset" end
+	local maker = self:GetMaker()
+	maker.reset = key
+	self:SaveMaker()
+	return true
+end
+
+function MV:CycleMakerReset()
+	local maker = self:GetMaker()
+	local at = 0
+	for index, key in ipairs(self.SEQUENCE_RESET_ORDER) do
+		if key == maker.reset then at = index end
+	end
+	return self:SetMakerReset(self.SEQUENCE_RESET_ORDER[(at % #self.SEQUENCE_RESET_ORDER) + 1])
+end
+
+-- The short form the Maker button shows, and the long form its tooltip uses.
+function MV:SequenceResetShort(key)
+	key = key or self:GetMaker().reset
+	if key == "combat" then return "combat" end
+	if key == "seconds" then return ("%ds"):format(self.SEQUENCE_RESET_SECONDS) end
+	if key == "none" then return "none" end
+	return "target"
+end
+
+function MV:SequenceResetLabel(key)
+	key = key or self:GetMaker().reset
+	if key == "combat" then return "entering combat" end
+	if key == "seconds" then return ("%d seconds of not pressing it"):format(self.SEQUENCE_RESET_SECONDS) end
+	if key == "none" then return "never - only when it runs out of spells" end
+	return "the target changing"
 end
 
 -- The macro with this name, or nil and why. A saved sequence can only rely on
@@ -887,7 +937,10 @@ function MV:ComposeMakerSequence(maker)
 	end
 
 	if #names > 0 then
-		parts[#parts + 1] = ("/castsequence reset=%s %s"):format(self.SEQUENCE_RESET, table.concat(names, ", "))
+		local clause = self.SEQUENCE_RESETS[maker.reset] or self.SEQUENCE_RESETS.target
+		local list = table.concat(names, ", ")
+		parts[#parts + 1] = (clause ~= "") and ("/castsequence %s %s"):format(clause, list)
+			or ("/castsequence %s"):format(list)
 	end
 
 	return table.concat(parts, "\n"), problems
