@@ -17,6 +17,19 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.12
+
+- **A step can choose who its spell lands on.** The step card now has a `TARGET`
+  row - `target`, `mouseover`, `focus`, `player` - written at the front of the same
+  bracket as the conditions: `[@mouseover,mod:shift,harm]`. Both modes honour it,
+  so a priority macro can heal the person under the cursor and a sequence entry
+  keeps its own target.
+- Clicking the lit target again clears it, back to the client's default, which is
+  your current target.
+- Targets belong to spell steps. A macro step's body carries its own target, so its
+  card is dimmed and the refusal names that reason instead of writing a bracket the
+  inlined body would ignore.
+
 ## 1.0.3.11
 
 - **The reset choices combine.** Instead of one cycling `Reset:` button there are

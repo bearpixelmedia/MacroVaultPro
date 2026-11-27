@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.11"
+MV.VERSION       = "1.0.3.12"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27s"
+MV.BUILD         = "2026-11-27t"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -751,6 +751,20 @@ for _, entry in ipairs(MV.MAKER_CONDITIONS) do
 	MV.MAKER_CONDITION_SET[entry.token] = entry.label
 end
 
+-- Who a step's spell lands on. One at a time, written before the conditions in
+-- the same bracket: [@mouseover,mod:shift,harm]. No entry means the client's own
+-- default, which is the current target.
+MV.MAKER_TARGETS = {
+	{ token = "target",    label = "current target" },
+	{ token = "mouseover", label = "mouseover" },
+	{ token = "focus",     label = "focus" },
+	{ token = "player",    label = "yourself" },
+}
+MV.MAKER_TARGET_SET = {}
+for _, entry in ipairs(MV.MAKER_TARGETS) do
+	MV.MAKER_TARGET_SET[entry.token] = entry.label
+end
+
 -- What makes a sequence start over: the target changing, entering combat, a
 -- number of idle seconds, or never. The empty clause is how the client writes a
 -- castsequence that only restarts when it reaches the end of the list.
@@ -804,6 +818,7 @@ function MV:GetMaker()
 					icon  = step.icon,
 					scope = (step.scope == "char" or step.scope == "account") and step.scope or nil,
 					conditions = self:CleanMakerConditions(step.conditions),
+					target = self.MAKER_TARGET_SET[tostring(step.target)] and step.target or nil,
 				}
 			end
 		end
@@ -826,7 +841,7 @@ function MV:SaveMaker()
 		end
 		steps[index] = {
 			kind = step.kind, value = step.value, icon = step.icon, scope = step.scope,
-			conditions = conditions,
+			conditions = conditions, target = step.target,
 		}
 	end
 
@@ -986,8 +1001,8 @@ function MV:MakerStepLines(step)
 	end
 
 	if step.kind == "macro" then
-		if self:MakerStepConditionText(step) then
-			return nil, "conditions need a spell step - a macro step's body applies its own"
+		if self:MakerConditionClause(step) then
+			return nil, "conditions and targets need a spell step - a macro step's body applies its own"
 		end
 
 		local macro, why = self:MakerFindMacro(step.value, step.scope)
@@ -1051,10 +1066,40 @@ function MV:MakerStepConditionText(step)
 	return table.concat(list, ",")
 end
 
--- The bracket a step's lines start with, or nil when it has no conditions.
+-- The bracket a step's lines start with: the target first, then the conditions in
+-- their fixed order. nil when the step has neither, so its line stays plain.
 function MV:MakerConditionClause(step)
-	local text = self:MakerStepConditionText(step)
-	return text and ("[" .. text .. "]") or nil
+	local parts = {}
+	if step and step.target then parts[#parts + 1] = "@" .. step.target end
+
+	local text = step and self:MakerStepConditionText(step)
+	if text then
+		for token in text:gmatch("[^,]+") do parts[#parts + 1] = token end
+	end
+
+	if #parts == 0 then return nil end
+	return "[" .. table.concat(parts, ",") .. "]"
+end
+
+-- One target per step; "none" clears it back to the client's default.
+function MV:SetMakerStepTarget(position, token)
+	local maker = self:GetMaker()
+	local step = maker.steps[position]
+	if not step then return false, "that step is gone" end
+	if step.kind ~= "spell" then
+		return false, "only spell steps carry a target - a macro step's body applies its own"
+	end
+
+	if token == nil or token == "none" then
+		step.target = nil
+	elseif self.MAKER_TARGET_SET[token] then
+		step.target = token
+	else
+		return false, "unknown target"
+	end
+
+	self:SaveMaker()
+	return true
 end
 
 -- Conditions that can never both hold. [nomod] with any [mod:x] is the one that

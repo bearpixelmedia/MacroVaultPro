@@ -2261,7 +2261,7 @@ function UI:BuildMakerPanel(panel)
 	-- The condition card a row's cond button opens: eight toggles in two rows, kept
 	-- in a floating frame so the step list keeps its 26px rows.
 	local conds = CreateFrame("Frame", "MacroVaultProCondsFrame", UIParent)
-	conds:SetSize(272, 104)
+	conds:SetSize(330, 160)
 	conds:SetFrameStrata("DIALOG")
 	conds:SetClampedToScreen(true)
 	conds:EnableMouse(true)
@@ -2275,7 +2275,42 @@ function UI:BuildMakerPanel(panel)
 
 	local condHint = Text(conds, 10, MUTED)
 	condHint:SetPoint("TOPLEFT", self.makerCondHeader, "BOTTOMLEFT", 0, -2)
-	condHint:SetText("Click to switch on or off. Pairs that cannot both hold are dimmed.")
+	condHint:SetText("Click a choice to switch it on; click the lit one again to clear it.")
+
+	-- One target at a time, then the conditions. Both go into the same bracket, so
+	-- the card is the only place either is set.
+	local targetLabel = Text(conds, 10, MUTED)
+	targetLabel:SetPoint("TOPLEFT", 10, -42)
+	targetLabel:SetText("TARGET")
+
+	self.makerTargetButtons = {}
+	local targetWidths = { target = 52, mouseover = 76, focus = 48, player = 54 }
+	local previousTarget
+	for _, entry in ipairs(MV.MAKER_TARGETS) do
+		local button = ui:MakeButton(conds, entry.token, targetWidths[entry.token] or 60, function()
+			ui:MakerRun("target", ui.SetMakerTarget, entry.token)
+		end)
+		if previousTarget then
+			button:SetPoint("TOPLEFT", previousTarget, "TOPRIGHT", 4, 0)
+		else
+			button:SetPoint("TOPLEFT", 10, -58)
+		end
+		button:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText("@" .. entry.token, 1, 1, 1)
+			GameTooltip:AddLine(entry.label, 0.72, 0.70, 0.80, true)
+			GameTooltip:AddLine("Click the lit one again to go back to your current target.",
+				0.72, 0.70, 0.80, true)
+			GameTooltip:Show()
+		end)
+		button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		self.makerTargetButtons[entry.token] = button
+		previousTarget = button
+	end
+
+	local condLabel = Text(conds, 10, MUTED)
+	condLabel:SetPoint("TOPLEFT", 10, -88)
+	condLabel:SetText("CONDITIONS")
 
 	self.makerCondButtons = {}
 	for index, entry in ipairs(MV.MAKER_CONDITIONS) do
@@ -2284,7 +2319,7 @@ function UI:BuildMakerPanel(panel)
 		local button = ui:MakeButton(conds, "[" .. entry.token .. "]", 62, function()
 			ui:MakerRun("condition", ui.ToggleMakerCondition, entry.token)
 		end)
-		button:SetPoint("TOPLEFT", 10 + column * 64, -44 - line * 28)
+		button:SetPoint("TOPLEFT", 10 + column * 64, -102 - line * 28)
 		button.condLabel = entry.label
 		button:SetScript("OnEnter", function(self)
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -2406,12 +2441,12 @@ function UI:RefreshMaker()
 				row.stepIcon = step.icon
 				row.number:SetText(tostring(index))
 				row.icon:SetTexture(step.icon or 134400)
-				local condText = MV:MakerStepConditionText(step)
-				row.text:SetText(condText
-					and (makerStepLabel(step) .. "  [" .. condText .. "]")
+				local bracket = MV:MakerConditionClause(step)
+				row.text:SetText(bracket
+					and (makerStepLabel(step) .. "  " .. bracket)
 					or makerStepLabel(step))
 				if row.cond then
-					row.cond:SetActive(condText ~= nil)
+					row.cond:SetActive(bracket ~= nil)
 					-- Macros apply their own conditions, so theirs is dimmed.
 					row.cond:SetAlpha(step.kind == "spell" and 1 or 0.4)
 				end
@@ -2606,9 +2641,10 @@ function UI:CreateMakerRow(index)
 	cond:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		local stepNow = row.stepIndex and MV:GetMaker().steps[row.stepIndex]
-		GameTooltip:SetText("Conditions on this step", 1, 1, 1)
-		local textNow = stepNow and MV:MakerStepConditionText(stepNow)
-		GameTooltip:AddLine(textNow and ("[" .. textNow .. "]") or "None - the step runs every time it is reached.",
+		GameTooltip:SetText("Target and conditions", 1, 1, 1)
+		local bracketNow = stepNow and MV:MakerConditionClause(stepNow)
+		GameTooltip:AddLine(bracketNow
+			or "None - the step runs every time it is reached, on your current target.",
 			0.72, 0.70, 0.80, true)
 		if stepNow and stepNow.kind ~= "spell" then
 			GameTooltip:AddLine("Only spell steps carry conditions: a macro's body applies its own.",
@@ -2841,6 +2877,10 @@ function UI:RefreshMakerConditions()
 	if self.makerCondHeader then
 		self.makerCondHeader:SetText(("Conditions - step %d: %s"):format(index, step.value))
 	end
+	for token, button in pairs(self.makerTargetButtons or {}) do
+		button:SetActive(step.target == token)
+		button:SetAlpha(step.kind == "spell" and 1 or 0.4)
+	end
 	for token, button in pairs(self.makerCondButtons or {}) do
 		local on = MV:MakerStepHasCondition(step, token)
 		button:SetActive(on)
@@ -2876,6 +2916,27 @@ function UI:ToggleMakerConditions(index)
 	self:OpenMakerConditions(index, row or self.frame)
 end
 
+function UI:SetMakerTarget(token)
+	local index = self.makerCondStep
+	if not index then return end
+
+	local step = MV:GetMaker().steps[index]
+	local wanted = (step and step.target == token) and "none" or token
+
+	local ok, why = MV:SetMakerStepTarget(index, wanted)
+	if not ok then
+		self:SetStatus(why or "Could not set that target.", true)
+		return
+	end
+
+	self:RefreshMaker()
+	local bracket = MV:MakerConditionClause(MV:GetMaker().steps[index])
+	self:SetStatus(bracket
+		and ("Step %d now casts on %s."):format(index, bracket)
+		or ("Step %d casts on your current target again."):format(index))
+	self:RefreshMakerConditions()
+end
+
 function UI:ToggleMakerCondition(token)
 	local index = self.makerCondStep
 	if not index then return end
@@ -2887,11 +2948,10 @@ function UI:ToggleMakerCondition(token)
 	end
 
 	self:RefreshMaker()
-	local step = MV:GetMaker().steps[index]
-	local text = MV:MakerStepConditionText(step)
-	self:SetStatus(text
-		and ("Step %d now runs on [%s]."):format(index, text)
-		or ("Step %d has no conditions - it runs every time."):format(index))
+	local bracket = MV:MakerConditionClause(MV:GetMaker().steps[index])
+	self:SetStatus(bracket
+		and ("Step %d now runs on %s."):format(index, bracket)
+		or ("Step %d has no target or conditions - it runs every time, on your target."):format(index))
 	self:RefreshMakerConditions()
 end
 

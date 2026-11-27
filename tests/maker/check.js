@@ -345,6 +345,31 @@ check("the harm/help step is left out of the castsequence",
 MV:SetMakerMode("priority")
 MV:ClearMakerSteps()
 
+-- per-step targets share the bracket with conditions, in both modes
+MV:ClearMakerSteps()
+MV:AddMakerStep("spell", "Frostbolt", 116)
+MV:AddMakerStep("spell", "Fireball", 133)
+check("a step starts without a target", MV:MakerConditionClause(MV:GetMaker().steps[1]) == nil)
+MV:SetMakerStepTarget(1, "mouseover")
+check("a target alone writes its own bracket",
+  MV:ComposeMaker():find("/cast %[@mouseover%] Frostbolt") ~= nil, MV:ComposeMaker())
+MV:ToggleMakerStepCondition(1, "harm")
+check("the target sits before the conditions",
+  MV:ComposeMaker():find("%[@mouseover,harm%] Frostbolt") ~= nil, MV:ComposeMaker())
+MV:SetMakerMode("sequence")
+check("the target rides on the castsequence entry",
+  MV:ComposeMaker():find("%[@mouseover,harm%]Frostbolt, Fireball") ~= nil, MV:ComposeMaker())
+MV:SetMakerMode("priority")
+check("targets are saved with the step",
+  MacroVaultProDB.maker.steps[1].target == "mouseover", MacroVaultProDB.maker.steps[1].target)
+MV:SetMakerStepTarget(1, "none")
+check("clearing the target keeps the conditions",
+  MV:ComposeMaker():find("/cast %[harm%] Frostbolt") ~= nil, MV:ComposeMaker())
+check("an unknown target is refused", MV:SetMakerStepTarget(1, "pet") == false)
+MV:AddMakerStep("macro", "Trinket 1", 135000)
+check("a macro step refuses a target", MV:SetMakerStepTarget(3, "player") == false)
+MV:ClearMakerSteps()
+
 -- diag must say which window-skin pieces drew the window, and must still say
 -- something when Skin.lua never loaded.
 check("diag has a skin report", type(MV.SkinReport) == "function")
