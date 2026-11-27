@@ -17,6 +17,13 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.20
+
+- **The load message is measured against a wide glyph.** The layout check counts
+  characters per line at 0.7em instead of trusting the 5.2px average letter, and
+  the line under the share box now names one missing macro and counts the rest,
+  so the longest message still stops at two lines.
+
 ## 1.0.3.19
 
 - **A long load message stays above the box.** The line under the share box

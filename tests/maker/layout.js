@@ -209,10 +209,15 @@ if builtPanel and card then
   end
   crafted = table.concat(crafted, "|")
 
+  -- Characters per line, budgeted at a wide glyph instead of the 5.2px that
+  -- the average character gives at this font size: a capital or a digit runs to
+  -- about 0.7em, so this over-counts lines rather than trusting font metrics.
+  local wrapWidth = status.width > 0 and status.width or 1
+  local charsPerLine = math.max(1, math.floor(wrapWidth / ((status.fontSize or 10) * 0.7)))
+
   local function statusReport()
     local text = UI.makerShareStatus.text or ""
-    local width = status.width > 0 and status.width or 1
-    return math.max(1, math.ceil(status:GetStringWidth() / width)), text
+    return math.max(1, math.ceil(#text / charsPerLine)), text
   end
 
   UI.makerShareBox:SetText("MVPSEQ1|nope")
@@ -232,7 +237,8 @@ if builtPanel and card then
   check("the longest share status fits between the box and the buttons",
     statusPoint.y + worstLines * status:GetStringHeight() <= boxBottom,
     worstLines .. " lines, needs " .. (worstLines * status:GetStringHeight())
-      .. " of " .. (boxBottom - statusPoint.y) .. ": " .. loadedText)
+      .. " of " .. (boxBottom - statusPoint.y) .. " at " .. charsPerLine
+      .. " chars/line: " .. loadedText)
 end
 
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
