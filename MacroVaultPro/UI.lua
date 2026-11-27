@@ -2271,11 +2271,11 @@ function UI:BuildMakerPanel(panel)
 
 	self.makerCondHeader = Text(conds, 11, TEXT)
 	self.makerCondHeader:SetPoint("TOPLEFT", 10, -8)
-	self.makerCondHeader:SetText("Conditions")
+	self.makerCondHeader:SetText("Target and conditions")
 
 	local condHint = Text(conds, 10, MUTED)
 	condHint:SetPoint("TOPLEFT", self.makerCondHeader, "BOTTOMLEFT", 0, -2)
-	condHint:SetText("Click a choice to switch it on; click the lit one again to clear it.")
+	condHint:SetText("Target first, then conditions. Click a choice to switch it on; click the lit one again to clear it.")
 
 	-- One target at a time, then the conditions. Both go into the same bracket, so
 	-- the card is the only place either is set.
@@ -2647,7 +2647,7 @@ function UI:CreateMakerRow(index)
 			or "None - the step runs every time it is reached, on your current target.",
 			0.72, 0.70, 0.80, true)
 		if stepNow and stepNow.kind ~= "spell" then
-			GameTooltip:AddLine("Only spell steps carry conditions: a macro's body applies its own.",
+			GameTooltip:AddLine("Only spell steps carry a target or conditions: a macro's body applies its own.",
 				1, 0.6, 0.5, true)
 		end
 		GameTooltip:Show()
@@ -2875,7 +2875,7 @@ function UI:RefreshMakerConditions()
 	end
 
 	if self.makerCondHeader then
-		self.makerCondHeader:SetText(("Conditions - step %d: %s"):format(index, step.value))
+		self.makerCondHeader:SetText(("Target and conditions - step %d: %s"):format(index, step.value))
 	end
 	for token, button in pairs(self.makerTargetButtons or {}) do
 		button:SetActive(step.target == token)

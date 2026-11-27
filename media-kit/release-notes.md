@@ -17,6 +17,14 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.13
+
+- The step card now calls itself **Target and conditions**, both in its header and
+  per step (`Target and conditions - step 2: Frostbolt`), and its hint says which
+  section is which: the target row first, then the conditions.
+- The `cond` button's tooltip says the same, including that only spell steps carry
+  a target or conditions.
+
 ## 1.0.3.12
 
 - **A step can choose who its spell lands on.** The step card now has a `TARGET`
