@@ -242,6 +242,47 @@ check("priority mode still writes one cast per step",
     and priBody:find("/castsequence") == nil, priBody)
 MV:ClearMakerSteps()
 
+-- per-step conditions, written into whichever mode is active
+MV:ClearMakerSteps()
+MV:AddMakerStep("spell", "Frostbolt", 116)
+MV:AddMakerStep("spell", "Fireball", 133)
+check("a step starts with no conditions",
+  MV:MakerStepConditionText(MV:GetMaker().steps[1]) == nil)
+MV:ToggleMakerStepCondition(1, "harm")
+MV:ToggleMakerStepCondition(1, "mod:shift")
+local condPri = MV:ComposeMaker()
+check("conditions are written in the canonical order",
+  condPri:find("/cast %[mod:shift,harm%] Frostbolt") ~= nil, condPri)
+check("steps without conditions stay plain",
+  condPri:find("/cast Fireball") ~= nil, condPri)
+
+MV:SetMakerMode("sequence")
+local condSeq = MV:ComposeMaker()
+check("conditions ride on the castsequence entry",
+  condSeq:find("%[mod:shift,harm%]Frostbolt, Fireball") ~= nil, condSeq)
+
+MV:ToggleMakerStepCondition(1, "harm")
+check("switching one off keeps the rest",
+  MV:ComposeMaker():find("%[mod:shift%]Frostbolt") ~= nil, MV:ComposeMaker())
+check("conditions are saved with the step",
+  MacroVaultProDB.maker.steps[1].conditions[1] == "mod:shift",
+  MacroVaultProDB.maker.steps[1].conditions and MacroVaultProDB.maker.steps[1].conditions[1])
+MV:ToggleMakerStepCondition(1, "mod:shift")
+local plainSeq = MV:ComposeMaker()
+check("clearing every condition leaves a plain entry",
+  plainSeq:find("reset=target Frostbolt, Fireball") ~= nil and plainSeq:find("%[") == nil, plainSeq)
+
+MV:SetMakerMode("priority")
+table.insert(MV:GetMaker().steps, { kind = "macro", value = "Trinket 1", icon = 135000, conditions = { "harm" } })
+local _, condProblems = MV:ComposeMaker()
+check("a macro step is refused conditions",
+  #condProblems == 1 and condProblems[1]:find("conditions") ~= nil, condProblems[1])
+MV:RemoveMakerStep(2)
+check("toggling a condition onto a macro step is refused",
+  MV:ToggleMakerStepCondition(2, "harm") == false)
+check("an unknown condition is refused", MV:ToggleMakerStepCondition(1, "flying") == false)
+MV:ClearMakerSteps()
+
 -- diag must say which window-skin pieces drew the window, and must still say
 -- something when Skin.lua never loaded.
 check("diag has a skin report", type(MV.SkinReport) == "function")

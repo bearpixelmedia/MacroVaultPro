@@ -452,6 +452,10 @@ function UI:Build()
 		self:StopMovingOrSizing()
 		MV:SavePosition()
 	end)
+	frame:HookScript("OnHide", function()
+		if self.makerCondPopup then self.makerCondPopup:Hide() end
+		self.makerCondStep = nil
+	end)
 
 	tinsert(UISpecialFrames, "MacroVaultProFrame")
 	self:ApplyPosition()
@@ -667,6 +671,11 @@ function UI:SwitchTab(id)
 	for key, panel in pairs(self.panels) do
 		showIf(panel, key == id)
 	end
+
+	-- The condition card belongs to one step in the Maker, so it does not follow
+	-- you to another page.
+	if self.makerCondPopup then self.makerCondPopup:Hide() end
+	self.makerCondStep = nil
 
 	for key, tab in pairs(self.tabs) do
 		local active = key == id
@@ -2249,6 +2258,45 @@ function UI:BuildMakerPanel(panel)
 	mode:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	self.makerModeButton = mode
 
+	-- The condition card a row's cond button opens: eight toggles in two rows, kept
+	-- in a floating frame so the step list keeps its 26px rows.
+	local conds = CreateFrame("Frame", "MacroVaultProCondsFrame", UIParent)
+	conds:SetSize(272, 104)
+	conds:SetFrameStrata("DIALOG")
+	conds:SetClampedToScreen(true)
+	conds:EnableMouse(true)
+	conds:Hide()
+	StylePane(conds)
+	tinsert(UISpecialFrames, "MacroVaultProCondsFrame")
+
+	self.makerCondHeader = Text(conds, 11, TEXT)
+	self.makerCondHeader:SetPoint("TOPLEFT", 10, -8)
+	self.makerCondHeader:SetText("Conditions")
+
+	local condHint = Text(conds, 10, MUTED)
+	condHint:SetPoint("TOPLEFT", self.makerCondHeader, "BOTTOMLEFT", 0, -2)
+	condHint:SetText("Click to switch one on or off. Spells only.")
+
+	self.makerCondButtons = {}
+	for index, entry in ipairs(MV.MAKER_CONDITIONS) do
+		local column = (index - 1) % 4
+		local line = math.floor((index - 1) / 4)
+		local button = ui:MakeButton(conds, "[" .. entry.token .. "]", 62, function()
+			ui:MakerRun("condition", ui.ToggleMakerCondition, entry.token)
+		end)
+		button:SetPoint("TOPLEFT", 10 + column * 64, -44 - line * 28)
+		button.condLabel = entry.label
+		button:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText("[" .. entry.token .. "]", 1, 1, 1)
+			GameTooltip:AddLine(entry.label, 0.72, 0.70, 0.80, true)
+			GameTooltip:Show()
+		end)
+		button:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		self.makerCondButtons[entry.token] = button
+	end
+	self.makerCondPopup = conds
+
 	-- Only read by the sequence, so it says so rather than looking like a setting
 	-- that also changes priority macros.
 	local reset = ui:MakeButton(pane, "Reset: target", 130, function() ui:MakerRun("reset", ui.ToggleMakerReset) end)
@@ -2345,7 +2393,15 @@ function UI:RefreshMaker()
 				row.stepIcon = step.icon
 				row.number:SetText(tostring(index))
 				row.icon:SetTexture(step.icon or 134400)
-				row.text:SetText(makerStepLabel(step))
+				local condText = MV:MakerStepConditionText(step)
+				row.text:SetText(condText
+					and (makerStepLabel(step) .. "  [" .. condText .. "]")
+					or makerStepLabel(step))
+				if row.cond then
+					row.cond:SetActive(condText ~= nil)
+					-- Macros apply their own conditions, so theirs is dimmed.
+					row.cond:SetAlpha(step.kind == "spell" and 1 or 0.4)
+				end
 				if step.kind == "macro" and not MV:MakerFindMacro(step.value, step.scope) then
 					row.text:SetTextColor(1, 0.5, 0.45)
 				else
@@ -2426,6 +2482,8 @@ function UI:RefreshMaker()
 			self.makerCounter:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
 		end
 	end
+
+	self:RefreshMakerConditions()
 end
 
 -- The icon choices are the ones the sequence already carries, plus the default
@@ -2516,12 +2574,34 @@ function UI:CreateMakerRow(index)
 
 	row.text = Text(row, 12, TEXT)
 	row.text:SetPoint("LEFT", 48, 0)
-	row.text:SetWidth(320)
+	row.text:SetWidth(266)
 	if row.text.SetWordWrap then row.text:SetWordWrap(false) end
+
+	-- Conditions do not fit on a 26px row as checkboxes, so each row carries one
+	-- button that opens the small toggle card for that step.
+	local cond = ui:MakeButton(row, "cond", 44, function()
+		ui:MakerRun("conditions", ui.ToggleMakerConditions, row.stepIndex)
+	end)
+	cond:SetPoint("RIGHT", -30, 0)
+	cond:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		local stepNow = row.stepIndex and MV:GetMaker().steps[row.stepIndex]
+		GameTooltip:SetText("Conditions on this step", 1, 1, 1)
+		local textNow = stepNow and MV:MakerStepConditionText(stepNow)
+		GameTooltip:AddLine(textNow and ("[" .. textNow .. "]") or "None - the step runs every time it is reached.",
+			0.72, 0.70, 0.80, true)
+		if stepNow and stepNow.kind ~= "spell" then
+			GameTooltip:AddLine("Only spell steps carry conditions: a macro's body applies its own.",
+				1, 0.6, 0.5, true)
+		end
+		GameTooltip:Show()
+	end)
+	cond:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	row.cond = cond
 
 	local remove = CreateFrame("Button", nil, row)
 	remove:SetSize(22, 22)
-	remove:SetPoint("RIGHT", -2, 0)
+	remove:SetPoint("RIGHT", -6, 0)
 	local removeText = Text(remove, 13, MUTED, "CENTER")
 	removeText:SetPoint("CENTER", 0, 0)
 	removeText:SetText("x")
@@ -2723,6 +2803,71 @@ function UI:CommitMakerResetSeconds()
 
 	self:RefreshMaker()
 	self:SetStatus(("Sequence resets after %d seconds of not pressing it."):format(MV:GetMaker().resetSeconds))
+end
+
+function UI:RefreshMakerConditions()
+	local popup = self.makerCondPopup
+	if not popup or not popup:IsShown() then return end
+
+	local index = self.makerCondStep
+	local step = index and MV:GetMaker().steps[index]
+	if not step then
+		popup:Hide()
+		self.makerCondStep = nil
+		return
+	end
+
+	if self.makerCondHeader then
+		self.makerCondHeader:SetText(("Conditions - step %d: %s"):format(index, step.value))
+	end
+	for token, button in pairs(self.makerCondButtons or {}) do
+		button:SetActive(MV:MakerStepHasCondition(step, token))
+		button:SetAlpha(step.kind == "spell" and 1 or 0.4)
+	end
+end
+
+function UI:OpenMakerConditions(index, anchor)
+	local popup = self.makerCondPopup
+	if not popup or not index or not anchor then return end
+
+	self.makerCondStep = index
+	popup:ClearAllPoints()
+	popup:SetPoint("BOTTOMLEFT", anchor, "TOPLEFT", 0, 4)
+	popup:Show()
+	self:RefreshMakerConditions()
+end
+
+function UI:ToggleMakerConditions(index)
+	local popup = self.makerCondPopup
+	if not popup or not index then return end
+
+	if popup:IsShown() and self.makerCondStep == index then
+		popup:Hide()
+		self.makerCondStep = nil
+		return
+	end
+
+	local row = self.makerRows and self.makerRows[index]
+	self:OpenMakerConditions(index, row or self.frame)
+end
+
+function UI:ToggleMakerCondition(token)
+	local index = self.makerCondStep
+	if not index then return end
+
+	local ok, why = MV:ToggleMakerStepCondition(index, token)
+	if not ok then
+		self:SetStatus(why or "Could not change that condition.", true)
+		return
+	end
+
+	self:RefreshMaker()
+	local step = MV:GetMaker().steps[index]
+	local text = MV:MakerStepConditionText(step)
+	self:SetStatus(text
+		and ("Step %d now runs on [%s]."):format(index, text)
+		or ("Step %d has no conditions - it runs every time."):format(index))
+	self:RefreshMakerConditions()
 end
 
 function UI:ToggleMakerReset()

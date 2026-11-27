@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.7"
+MV.VERSION       = "1.0.3.8"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27o"
+MV.BUILD         = "2026-11-27p"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -732,6 +732,25 @@ local MAKER_KINDS = { spell = true, macro = true }
 -- plain macro can get to the way a GSE sequence steps.
 MV.MAKER_MODES   = { priority = true, sequence = true }
 
+-- Conditions a step can carry, in the order they are written into the body. The
+-- client reads them as macro conditionals: [mod:shift] holds only while Shift is
+-- down, [harm] only on something attackable, and a step with no conditions runs
+-- every time its line is reached.
+MV.MAKER_CONDITIONS = {
+	{ token = "mod:shift", label = "Shift" },
+	{ token = "mod:ctrl",  label = "Ctrl" },
+	{ token = "mod:alt",   label = "Alt" },
+	{ token = "nomod",     label = "no modifier" },
+	{ token = "harm",      label = "enemy" },
+	{ token = "help",      label = "friendly" },
+	{ token = "exists",    label = "target exists" },
+	{ token = "combat",    label = "in combat" },
+}
+MV.MAKER_CONDITION_SET = {}
+for _, entry in ipairs(MV.MAKER_CONDITIONS) do
+	MV.MAKER_CONDITION_SET[entry.token] = entry.label
+end
+
 -- What makes a sequence start over: the target changing, entering combat, a
 -- number of idle seconds, or never. The empty clause is how the client writes a
 -- castsequence that only restarts when it reaches the end of the list.
@@ -785,6 +804,7 @@ function MV:GetMaker()
 					value = trim(step.value),
 					icon  = step.icon,
 					scope = (step.scope == "char" or step.scope == "account") and step.scope or nil,
+					conditions = self:CleanMakerConditions(step.conditions),
 				}
 			end
 		end
@@ -800,7 +820,15 @@ function MV:SaveMaker()
 
 	local steps = {}
 	for index, step in ipairs(maker.steps) do
-		steps[index] = { kind = step.kind, value = step.value, icon = step.icon, scope = step.scope }
+		local conditions
+		if type(step.conditions) == "table" and #step.conditions > 0 then
+			conditions = {}
+			for at, token in ipairs(step.conditions) do conditions[at] = token end
+		end
+		steps[index] = {
+			kind = step.kind, value = step.value, icon = step.icon, scope = step.scope,
+			conditions = conditions,
+		}
 	end
 
 	MacroVaultProDB.maker = {
@@ -914,10 +942,15 @@ function MV:MakerStepLines(step)
 	if type(step) ~= "table" then return nil, "not a step" end
 
 	if step.kind == "spell" then
-		return { "/cast " .. step.value }
+		local clause = self:MakerConditionClause(step)
+		return { "/cast " .. (clause and (clause .. " ") or "") .. step.value }
 	end
 
 	if step.kind == "macro" then
+		if self:MakerStepConditionText(step) then
+			return nil, "conditions need a spell step - a macro step's body applies its own"
+		end
+
 		local macro, why = self:MakerFindMacro(step.value, step.scope)
 		if not macro then
 			return nil, why or ("the macro '%s' has been renamed or deleted"):format(tostring(step.value))
@@ -947,6 +980,68 @@ function MV:MakerStepLines(step)
 	return nil, "unknown step"
 end
 
+-- A step's conditions, as one bracket: [mod:shift,harm]. Known tokens only, in
+-- the order MV.MAKER_CONDITIONS lists them, so the same choices always write the
+-- same text and a saved sequence does not drift between builds.
+function MV:CleanMakerConditions(list)
+	if type(list) ~= "table" then return nil end
+
+	local has = {}
+	for _, token in ipairs(list) do
+		if self.MAKER_CONDITION_SET[token] then has[token] = true end
+	end
+
+	local ordered = {}
+	for _, entry in ipairs(self.MAKER_CONDITIONS) do
+		if has[entry.token] then ordered[#ordered + 1] = entry.token end
+	end
+	return #ordered > 0 and ordered or nil
+end
+
+function MV:MakerStepHasCondition(step, token)
+	for _, value in ipairs((step and step.conditions) or {}) do
+		if value == token then return true end
+	end
+	return false
+end
+
+-- "shift,harm" for the row and the tooltip, or nil when the step always runs.
+function MV:MakerStepConditionText(step)
+	local list = step and step.conditions
+	if type(list) ~= "table" or #list == 0 then return nil end
+	return table.concat(list, ",")
+end
+
+-- The bracket a step's lines start with, or nil when it has no conditions.
+function MV:MakerConditionClause(step)
+	local text = self:MakerStepConditionText(step)
+	return text and ("[" .. text .. "]") or nil
+end
+
+function MV:ToggleMakerStepCondition(position, token)
+	if not self.MAKER_CONDITION_SET[token] then return false, "unknown condition" end
+
+	local maker = self:GetMaker()
+	local step = maker.steps[position]
+	if not step then return false, "that step is gone" end
+	if step.kind ~= "spell" then
+		return false, "only spell steps carry conditions - a macro step's body applies its own"
+	end
+
+	local has = {}
+	for _, value in ipairs(step.conditions or {}) do has[value] = true end
+	has[token] = not has[token]
+
+	local list = {}
+	for _, entry in ipairs(self.MAKER_CONDITIONS) do
+		if has[entry.token] then list[#list + 1] = entry.token end
+	end
+	step.conditions = #list > 0 and list or nil
+
+	self:SaveMaker()
+	return true
+end
+
 -- The same steps as one /castsequence, which the client advances one spell per
 -- press. Only spells fit: a macro step is a list of lines, not a place in a
 -- rotation, so it is reported rather than silently dropped.
@@ -957,7 +1052,10 @@ function MV:ComposeMakerSequence(maker)
 
 	for index, step in ipairs(maker.steps) do
 		if step.kind == "spell" then
-			names[#names + 1] = step.value
+			-- A castsequence entry takes its own condition bracket, so one list can
+			-- branch on a modifier instead of only cycling.
+			local clause = self:MakerConditionClause(step)
+			names[#names + 1] = (clause and (clause .. step.value) or step.value)
 		else
 			problems[#problems + 1] = ("step %d: '%s' is a macro - sequence mode takes spells only"):format(
 				index, tostring(step.value))

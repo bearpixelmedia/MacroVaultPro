@@ -17,6 +17,21 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.8
+
+- **A step can carry conditions.** Each row has a `cond` button that opens a card
+  of eight toggles: `mod:shift`, `mod:ctrl`, `mod:alt`, `nomod`, `harm`, `help`,
+  `exists` and `combat`. Switched on, they are written into the macro in the order
+  they are listed, and the row shows them:
+  `Cast Frostbolt  [mod:shift,harm]`.
+- **Both modes honour them.** Priority writes `/cast [mod:shift,harm] Frostbolt`;
+  sequence puts the bracket on that spell's own entry, so one list can branch on a
+  modifier instead of only cycling: `/castsequence reset=target
+  [mod:shift,harm]Frostbolt, Fireball`.
+- Conditions belong to spell steps. A macro step's body applies its own, so its
+  `cond` button is dimmed and the count's tooltip says why rather than pretending
+  the setting took effect.
+
 ## 1.0.3.7
 
 - **The timed reset is a number you choose.** With `Reset: 10s` selected, a `SECS`
