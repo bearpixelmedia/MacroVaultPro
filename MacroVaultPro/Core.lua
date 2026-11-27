@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.13"
+MV.VERSION       = "1.0.3.14"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27u"
+MV.BUILD         = "2026-11-27v"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -1307,6 +1307,331 @@ function MV:ClearMakerSteps()
 	local maker = self:GetMaker()
 	maker.steps = {}
 	self:SaveMaker()
+end
+
+-------------------------------------------------------------------------------
+-- Sharing a sequence
+--
+-- One line carries the whole maker: name, mode, reset choices, and every step
+-- with its target, conditions and scope. Fields are split on plain delimiters and
+-- the free text is escaped, so a spell or macro name that contains one still
+-- survives a trip through chat, a forum post or a paste.
+--
+--   MVPSEQ1|Heals|sequence|target+combat+25|s:Flash Heal@mouseover*help|m:Trinket 1#a
+--
+-- The prefix carries its own version, so a string written by a later build is
+-- refused by name instead of being half-read by this one.
+-------------------------------------------------------------------------------
+
+MV.MAKER_SHARE_PREFIX   = "MVPSEQ1"
+MV.MAKER_SHARE_MAX      = 2000
+MV.MAKER_STEP_VALUE_MAX = 120
+
+local MAKER_ESCAPES = {
+	["%"] = "%25", ["|"] = "%7C", [":"] = "%3A", ["@"] = "%40", ["*"] = "%2A",
+	["#"] = "%23", [","] = "%2C", ["+"] = "%2B", ["\n"] = "%0A", ["\r"] = "%0D",
+	["\t"] = "%09",
+}
+
+local function makerEscape(text)
+	return (tostring(text or ""):gsub("([%%%c|:@*#,+])", function(ch)
+		return MAKER_ESCAPES[ch] or ("%%%02X"):format(ch:byte())
+	end))
+end
+
+-- The text behind a field, or nil and why when an escape is cut short. Wrong is
+-- reported rather than guessed at: a damaged string must not import as something
+-- close to what the author wrote.
+local function makerUnescape(text)
+	local out = {}
+	local at = 1
+	while at <= #text do
+		local ch = text:sub(at, at)
+		if ch == "%" then
+			local hex = text:sub(at + 1, at + 2)
+			if #hex < 2 or not hex:match("^%x%x$") then
+				return nil, "a % escape is cut short"
+			end
+			out[#out + 1] = string.char(tonumber(hex, 16))
+			at = at + 3
+		else
+			out[#out + 1] = ch
+			at = at + 1
+		end
+	end
+	return table.concat(out)
+end
+
+-- Splits on one delimiter, stepping over %XX so an escaped delimiter never ends
+-- a field.
+local function makerSplitEscaped(text, delimiter)
+	local parts, current, at = {}, {}, 1
+	while at <= #text do
+		local ch = text:sub(at, at)
+		if ch == "%" then
+			current[#current + 1] = text:sub(at, at + 2)
+			at = at + 3
+		elseif ch == delimiter then
+			parts[#parts + 1] = table.concat(current)
+			current = {}
+			at = at + 1
+		else
+			current[#current + 1] = ch
+			at = at + 1
+		end
+	end
+	parts[#parts + 1] = table.concat(current)
+	return parts
+end
+
+-- One step split into its name and the marked parts that follow it: @target,
+-- *conditions and #scope.
+local function makerSplitStep(text)
+	local segments, current, mark, at = {}, {}, nil, 1
+	while at <= #text do
+		local ch = text:sub(at, at)
+		if ch == "%" then
+			current[#current + 1] = text:sub(at, at + 2)
+			at = at + 3
+		elseif ch == "@" or ch == "*" or ch == "#" then
+			segments[#segments + 1] = { mark = mark, text = table.concat(current) }
+			mark = ch
+			current = {}
+			at = at + 1
+		else
+			current[#current + 1] = ch
+			at = at + 1
+		end
+	end
+	segments[#segments + 1] = { mark = mark, text = table.concat(current) }
+	return segments
+end
+
+-- target+combat+25, or none. The order matches MV.SEQUENCE_RESET_ORDER, so the
+-- same choices always write the same string.
+function MV:MakerResetSpec(maker)
+	maker = maker or self:GetMaker()
+	local resets = maker.resets or {}
+	local parts = {}
+
+	if resets.target then parts[#parts + 1] = "target" end
+	if resets.combat then parts[#parts + 1] = "combat" end
+	if resets.seconds then
+		parts[#parts + 1] = tostring(maker.resetSeconds or self.SEQUENCE_RESET_SECONDS)
+	end
+
+	if #parts == 0 then return "none" end
+	return table.concat(parts, "+")
+end
+
+function MV:ExportMakerString(maker)
+	maker = maker or self:GetMaker()
+
+	local fields = {
+		self.MAKER_SHARE_PREFIX,
+		makerEscape(maker.name or self.MAKER_DEFAULT_NAME),
+		maker.mode == "sequence" and "sequence" or "priority",
+		self:MakerResetSpec(maker),
+	}
+
+	for _, step in ipairs(maker.steps) do
+		local piece = (step.kind == "macro" and "m:" or "s:") .. makerEscape(step.value)
+		if step.kind == "spell" then
+			if step.target then piece = piece .. "@" .. step.target end
+			local conditions = self:MakerStepConditionText(step)
+			if conditions then piece = piece .. "*" .. conditions end
+		elseif step.scope then
+			piece = piece .. "#" .. (step.scope == "char" and "c" or "a")
+		end
+		fields[#fields + 1] = piece
+	end
+
+	return table.concat(fields, "|")
+end
+
+function MV:ReadMakerResetSpec(spec)
+	local resets = {}
+	local seconds = self.SEQUENCE_RESET_SECONDS
+	if type(spec) ~= "string" or spec == "" then
+		return nil, nil, "the string has no reset section"
+	end
+	if spec == "none" then return resets, seconds end
+
+	for token in spec:gmatch("[^+]+") do
+		if token == "target" or token == "combat" then
+			resets[token] = true
+		else
+			local value = tonumber(token)
+			if value and value == math.floor(value)
+				and value >= self.SEQUENCE_RESET_SECONDS_MIN
+				and value <= self.SEQUENCE_RESET_SECONDS_MAX then
+				resets.seconds = true
+				seconds = value
+			else
+				return nil, nil, ("'%s' is not a reset choice - expected target, combat, %d-%ds or none"):format(
+					tostring(token), self.SEQUENCE_RESET_SECONDS_MIN, self.SEQUENCE_RESET_SECONDS_MAX)
+			end
+		end
+	end
+
+	return resets, seconds
+end
+
+function MV:ReadMakerShareStep(piece, position)
+	if type(piece) ~= "string" or piece == "" then
+		return nil, ("step %d is empty - every step needs a kind and a name"):format(position)
+	end
+
+	local kind
+	if piece:sub(1, 2) == "s:" then kind = "spell"
+	elseif piece:sub(1, 2) == "m:" then kind = "macro"
+	else
+		return nil, ("step %d should start with s: or m:, not '%s'"):format(position, piece:sub(1, 2))
+	end
+
+	local segments = makerSplitStep(piece:sub(3))
+	local value, why = makerUnescape(segments[1].text)
+	if not value then
+		return nil, ("step %d's name is damaged - %s"):format(position, why)
+	end
+	value = trim(value)
+	if value == "" then
+		return nil, ("step %d has no name"):format(position)
+	end
+	if #value > self.MAKER_STEP_VALUE_MAX then
+		return nil, ("step %d's name is %d characters; the limit is %d"):format(
+			position, #value, self.MAKER_STEP_VALUE_MAX)
+	end
+
+	local step = { kind = kind, value = value }
+
+	for at = 2, #segments do
+		local mark = segments[at].mark
+		local inner, innerWhy = makerUnescape(segments[at].text)
+		if not inner then
+			return nil, ("step %d's %s is damaged - %s"):format(position, tostring(mark), innerWhy)
+		end
+
+		if mark == "@" then
+			if kind ~= "spell" then
+				return nil, ("step %d is a macro step - only spell steps take a target"):format(position)
+			end
+			if step.target then
+				return nil, ("step %d asks for two targets"):format(position)
+			end
+			if not self.MAKER_TARGET_SET[inner] then
+				return nil, ("step %d asks for @%s - the maker writes @target, @mouseover, @focus or @player"):format(
+					position, inner)
+			end
+			step.target = inner
+		elseif mark == "*" then
+			if kind ~= "spell" then
+				return nil, ("step %d is a macro step - only spell steps take conditions"):format(position)
+			end
+			if step.conditions then
+				return nil, ("step %d lists its conditions twice"):format(position)
+			end
+
+			local list = {}
+			for token in inner:gmatch("[^,]+") do
+				if not self.MAKER_CONDITION_SET[token] then
+					return nil, ("step %d uses [%s], which this maker never writes"):format(position, token)
+				end
+				list[#list + 1] = token
+			end
+			if #list == 0 then
+				return nil, ("step %d has an empty condition list"):format(position)
+			end
+
+			local clean = self:CleanMakerConditions(list)
+			local conflict = self:MakerConditionConflict(clean)
+			if conflict then
+				return nil, ("step %d: %s"):format(position, conflict)
+			end
+			step.conditions = clean
+		elseif mark == "#" then
+			if kind ~= "macro" then
+				return nil, ("step %d is a spell - only macro steps remember where they came from"):format(position)
+			end
+			if inner ~= "a" and inner ~= "c" then
+				return nil, ("step %d's scope is '%s' - expected a or c"):format(position, inner)
+			end
+			step.scope = (inner == "c") and "char" or "account"
+		end
+	end
+
+	return step
+end
+
+-- Takes a shared string in, or says exactly what is wrong with it. Nothing is
+-- written until every step has been read: one bad step must not leave half of
+-- someone else's sequence behind in the maker.
+--
+-- Returns true, stepCount, missingMacros on success, or false, why.
+function MV:ImportMakerString(text)
+	if type(text) ~= "string" then
+		return false, "the box is empty - paste a sequence string first"
+	end
+	text = trim(text)
+	if text == "" then
+		return false, "the box is empty - paste a sequence string first"
+	end
+	if #text > self.MAKER_SHARE_MAX then
+		return false, ("that is %d characters - a sequence string is under %d"):format(
+			#text, self.MAKER_SHARE_MAX)
+	end
+
+	local fields = makerSplitEscaped(text, "|")
+	if fields[1] ~= self.MAKER_SHARE_PREFIX then
+		return false, ("this is not a MacroVaultPro sequence - it should start with %s"):format(
+			self.MAKER_SHARE_PREFIX)
+	end
+
+	local name, nameWhy = makerUnescape(fields[2] or "")
+	if not name then return false, "the name is damaged - " .. nameWhy end
+	name = trim(name)
+	if name == "" then name = self.MAKER_DEFAULT_NAME end
+	if #name > self.MAX_NAME then name = name:sub(1, self.MAX_NAME) end
+
+	local mode = fields[3]
+	if not self.MAKER_MODES[mode] then
+		return false, ("'%s' is not a mode - expected priority or sequence"):format(tostring(mode))
+	end
+
+	local resets, seconds, resetWhy = self:ReadMakerResetSpec(fields[4])
+	if not resets then return false, resetWhy end
+
+	if #fields - 4 > self.MAKER_MAX_STEPS then
+		return false, ("the string holds %d steps - the maker holds %d"):format(
+			#fields - 4, self.MAKER_MAX_STEPS)
+	end
+
+	local steps = {}
+	for at = 5, #fields do
+		local step, stepWhy = self:ReadMakerShareStep(fields[at], at - 4)
+		if not step then return false, stepWhy end
+		steps[#steps + 1] = step
+	end
+
+	local maker = self:GetMaker()
+	maker.name = name
+	maker.mode = mode
+	maker.resets = resets
+	maker.resetSeconds = seconds
+	maker.steps = steps
+	self:SaveMaker()
+
+	-- A sequence can name macros its new owner does not have. That is not a reason
+	-- to refuse the import: the steps stay, and the maker already reports the
+	-- missing macro when it composes the body.
+	local missing = {}
+	for _, step in ipairs(steps) do
+		if step.kind == "macro" and not self:MakerFindMacro(step.value, step.scope) then
+			missing[#missing + 1] = step.value
+		end
+	end
+
+	return true, #steps, missing
 end
 
 -- Creates the real macro, or updates the one this sequence made last time.

@@ -454,6 +454,7 @@ function UI:Build()
 	end)
 	frame:HookScript("OnHide", function()
 		if self.makerCondPopup then self.makerCondPopup:Hide() end
+		if self.makerShare then self.makerShare:Hide() end
 		self.makerCondStep = nil
 	end)
 
@@ -675,6 +676,7 @@ function UI:SwitchTab(id)
 	-- The condition card belongs to one step in the Maker, so it does not follow
 	-- you to another page.
 	if self.makerCondPopup then self.makerCondPopup:Hide() end
+	if self.makerShare then self.makerShare:Hide() end
 	self.makerCondStep = nil
 
 	for key, tab in pairs(self.tabs) do
@@ -2240,6 +2242,21 @@ function UI:BuildMakerPanel(panel)
 	local clear = ui:MakeButton(pane, "Clear steps", 92, function() ui:MakerRun("clear", ui.ClearMaker) end)
 	clear:SetPoint("LEFT", pickup, "RIGHT", 8, 0)
 
+	-- The whole sequence as one line, and back in again. Sits with the other
+	-- sequence-wide actions rather than on a row of its own.
+	local share = ui:MakeButton(pane, "Share", 72, function() ui:MakerRun("share", ui.ShareMaker) end)
+	share:SetPoint("LEFT", clear, "RIGHT", 8, 0)
+	share:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Share or load a sequence", 1, 1, 1)
+		GameTooltip:AddLine("One line carries every step with its target, conditions and scope, plus the name, mode and reset.",
+			0.72, 0.70, 0.80, true)
+		GameTooltip:AddLine("Paste someone else's line into the box and press Load.",
+			0.72, 0.70, 0.80, true)
+		GameTooltip:Show()
+	end)
+	share:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
 	-- The same steps run two different ways. The label is the current state; the
 	-- tooltip is the whole difference, because "sequence" here does not mean the
 	-- step list, which is already called that in this tab.
@@ -3021,4 +3038,117 @@ function UI:ClearMaker()
 	MV:ClearMakerSteps()
 	self:RefreshMaker()
 	self:SetStatus("Sequence cleared - the macro it built stays where it is.")
+end
+
+-- One box for both directions: Copy fills it with this sequence and selects it,
+-- Load reads whatever is in it. There is no clipboard API in this client, so the
+-- player's own Ctrl+C / Ctrl+V does the copying - the same trick the error log
+-- uses.
+function UI:BuildMakerShare()
+	if self.makerShare then return self.makerShare end
+
+	local frame = CreateFrame("Frame", "MacroVaultProShareFrame", UIParent)
+	frame:SetSize(430, 250)
+	frame:SetFrameStrata("DIALOG")
+	frame:SetToplevel(true)
+	frame:SetClampedToScreen(true)
+	frame:EnableMouse(true)
+	frame:SetPoint("CENTER", self.frame or UIParent, "CENTER", 0, 0)
+	frame:Hide()
+	StylePane(frame)
+	tinsert(UISpecialFrames, "MacroVaultProShareFrame")
+
+	local header = Text(frame, 11, TEXT)
+	header:SetPoint("TOPLEFT", 12, -10)
+	header:SetText("Share this sequence")
+
+	local hint = Text(frame, 10, MUTED)
+	hint:SetPoint("TOPLEFT", 12, -28)
+	hint:SetWidth(406)
+	hint:SetText("One line: every step with its target, conditions and scope, plus the name, mode and reset. Copy it, or paste a string over it and press Load.")
+
+	local box = CreateFrame("EditBox", nil, frame)
+	box:SetPoint("TOPLEFT", 12, -56)
+	box:SetPoint("BOTTOMRIGHT", -12, 54)
+	box:SetMultiLine(true)
+	box:SetAutoFocus(false)
+	box:SetFont(FONT, 11, "")
+	box:SetTextColor(TEXT[1], TEXT[2], TEXT[3])
+	box:SetTextInsets(8, 8, 6, 6)
+	box:SetMaxLetters(MV.MAKER_SHARE_MAX)
+	Paint(box, 0.09, 0.09, 0.12, 1)
+	Border(box, 0.22, 0.20, 0.30, 1)
+	box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
+	local status = Text(frame, 10, MUTED)
+	status:SetPoint("BOTTOMLEFT", 12, 36)
+	status:SetWidth(406)
+	status:SetText("")
+
+	local copy = self:MakeButton(frame, "Copy", 78, function() self:CopyMakerShare() end)
+	copy:SetPoint("BOTTOMLEFT", 12, 8)
+
+	local load = self:MakeButton(frame, "Load", 78, function() self:LoadMakerShare() end)
+	load:SetPoint("LEFT", copy, "RIGHT", 8, 0)
+
+	local close = self:MakeButton(frame, "Close", 78, function() frame:Hide() end)
+	close:SetPoint("BOTTOMRIGHT", -12, 8)
+
+	self.makerShare = frame
+	self.makerShareBox = box
+	self.makerShareStatus = status
+	return frame
+end
+
+function UI:ShareMaker()
+	local frame = self:BuildMakerShare()
+	local maker = MV:GetMaker()
+	local text = MV:ExportMakerString(maker)
+
+	self.makerShareBox:SetText(text)
+	self.makerShareBox:SetFocus()
+	self.makerShareBox:HighlightText()
+	self.makerShareStatus:SetText(("%d steps, %d characters - selected, press Ctrl+C."):format(
+		#maker.steps, #text))
+	self.makerShareStatus:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+
+	frame:Show()
+	frame:Raise()
+end
+
+function UI:CopyMakerShare()
+	local box = self.makerShareBox
+	if not box then return end
+
+	local text = MV:ExportMakerString()
+	box:SetText(text)
+	box:SetFocus()
+	box:HighlightText()
+	self.makerShareStatus:SetText(("%d characters - press Ctrl+C to copy."):format(#text))
+	self.makerShareStatus:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+end
+
+function UI:LoadMakerShare()
+	local box = self.makerShareBox
+	if not box then return end
+
+	local ok, result, missing = MV:ImportMakerString(box:GetText())
+	if not ok then
+		self.makerShareStatus:SetText(tostring(result))
+		self.makerShareStatus:SetTextColor(1, 0.5, 0.45)
+		return
+	end
+
+	box:ClearFocus()
+	self:RefreshMaker()
+
+	local message = ("Loaded %d steps."):format(result)
+	if missing and #missing > 0 then
+		message = message .. (" %d macro steps need a macro this character does not have: %s."):format(
+			#missing, table.concat(missing, ", "))
+	end
+
+	self.makerShareStatus:SetText(message)
+	self.makerShareStatus:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+	self:SetStatus("Sequence loaded - " .. message)
 end

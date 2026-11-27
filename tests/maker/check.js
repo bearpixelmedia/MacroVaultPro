@@ -370,6 +370,94 @@ MV:AddMakerStep("macro", "Trinket 1", 135000)
 check("a macro step refuses a target", MV:SetMakerStepTarget(3, "player") == false)
 MV:ClearMakerSteps()
 
+-- a sequence travels as one string: export, import, and everything refused
+MV:ClearMakerSteps()
+MV:GetMaker().name = "Heals"
+MV:SetMakerMode("sequence")
+MV:SetMakerReset("target", true)
+MV:SetMakerReset("combat", true)
+MV:SetMakerReset("seconds", true)
+MV:SetMakerResetSeconds(25)
+MV:AddMakerStep("spell", "Flash Heal", 135907)
+MV:SetMakerStepTarget(1, "mouseover")
+MV:ToggleMakerStepCondition(1, "help")
+-- two macros share this name in the stub list, so the scope has to be named
+MV:AddMakerStep("macro", "Trinket 1", 135000, nil, "account")
+
+local shared = MV:ExportMakerString()
+check("export is one line", shared:find(NL) == nil and #shared < MV.MAKER_SHARE_MAX, shared)
+check("export starts with its prefix", shared:sub(1, 8) == "MVPSEQ1|", shared)
+check("export carries the reset and the bracket",
+  shared:find("sequence|target%+combat%+25|") ~= nil
+    and shared:find("s:Flash Heal@mouseover%*help") ~= nil
+    and shared:find("m:Trinket 1#a") ~= nil, shared)
+
+MV:ClearMakerSteps()
+MV:GetMaker().name = "MV Combo"
+MV:SetMakerMode("priority")
+MV:SetMakerReset("target", false)
+MV:SetMakerReset("combat", false)
+MV:SetMakerReset("seconds", false)
+MV:SetMakerResetSeconds(10)
+
+local okLoad, loadedCount = MV:ImportMakerString(shared)
+check("import accepts what export wrote", okLoad == true and loadedCount == 2,
+  tostring(okLoad) .. " " .. tostring(loadedCount))
+check("import restores the name and mode",
+  MV:GetMaker().name == "Heals" and MV:GetMaker().mode == "sequence",
+  MV:GetMaker().name .. "/" .. MV:GetMaker().mode)
+check("import restores every reset choice",
+  MV:GetMaker().resets.target == true and MV:GetMaker().resets.combat == true
+    and MV:GetMaker().resets.seconds == true and MV:GetMaker().resetSeconds == 25,
+  tostring(MV:GetMaker().resetSeconds))
+check("import restores the target and conditions",
+  MV:GetMaker().steps[1].target == "mouseover"
+    and MV:MakerStepConditionText(MV:GetMaker().steps[1]) == "help",
+  tostring(MV:GetMaker().steps[1].target))
+check("import restores a macro step's scope", MV:GetMaker().steps[2].scope == "account",
+  MV:GetMaker().steps[2].scope)
+check("a round trip writes the same string again", MV:ExportMakerString() == shared, MV:ExportMakerString())
+
+local function refuses(text, needle)
+  local ok, why = MV:ImportMakerString(text)
+  return ok == false and type(why) == "string" and why:find(needle) ~= nil
+end
+check("a foreign string is refused", refuses("hello there", "not a MacroVaultPro sequence"))
+check("an empty box is refused", refuses("   ", "empty"))
+check("an unknown mode is refused", refuses("MVPSEQ1|N|fancy|none", "not a mode"))
+check("an unknown reset is refused", refuses("MVPSEQ1|N|sequence|target+99", "not a reset choice"))
+check("an unknown target is refused", refuses("MVPSEQ1|N|priority|target|s:Frostbolt@pet", "asks for @pet"))
+check("an unknown condition is refused", refuses("MVPSEQ1|N|priority|target|s:Frostbolt*flying", "never writes"))
+check("a contradictory pair is refused", refuses("MVPSEQ1|N|priority|target|s:Frostbolt*harm,help", "contradict"))
+check("a target on a macro step is refused",
+  refuses("MVPSEQ1|N|priority|target|m:Trinket 1@focus", "only spell steps"))
+check("a nameless step is refused", refuses("MVPSEQ1|N|priority|target|s:", "has no name"))
+check("a step without a kind is refused", refuses("MVPSEQ1|N|priority|target|Frostbolt", "should start with s: or m:"))
+check("too many steps are refused",
+  refuses("MVPSEQ1|N|priority|target" .. string.rep("|s:A", MV.MAKER_MAX_STEPS + 1), "holds 12"))
+check("a cut escape is refused", refuses("MVPSEQ1|N|priority|target|s:Frost%2", "damaged"))
+check("a refused import changes nothing",
+  MV:GetMaker().name == "Heals" and #MV:GetMaker().steps == 2,
+  MV:GetMaker().name .. " " .. #MV:GetMaker().steps)
+
+-- reserved characters survive the trip, so a name with a delimiter is not mangled
+MV:ClearMakerSteps()
+MV:GetMaker().name = "A|B"
+MV:AddMakerStep("spell", "Odd|Spell, One", 1)
+local odd = MV:ExportMakerString()
+check("reserved characters are escaped", odd:find("Odd|Spell") == nil and odd:find("A|B") == nil, odd)
+local okOdd = MV:ImportMakerString(odd)
+check("an escaped name survives the round trip",
+  okOdd == true and MV:GetMaker().name == "A|B" and MV:GetMaker().steps[1].value == "Odd|Spell, One",
+  MV:GetMaker().name .. " / " .. tostring(MV:GetMaker().steps[1] and MV:GetMaker().steps[1].value))
+
+-- a macro step the new owner does not have is reported, not refused
+local okGone, _, goneMissing = MV:ImportMakerString("MVPSEQ1|N|priority|none|m:Gone")
+check("import names the macro steps it cannot find",
+  okGone == true and goneMissing and goneMissing[1] == "Gone", goneMissing and goneMissing[1])
+check("none writes no reset clause",
+  MV:ResetClause() == "" and next(MV:GetMaker().resets) == nil, MV:ResetClause())
+
 -- diag must say which window-skin pieces drew the window, and must still say
 -- something when Skin.lua never loaded.
 check("diag has a skin report", type(MV.SkinReport) == "function")

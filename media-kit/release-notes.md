@@ -17,6 +17,25 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.14
+
+- **A sequence travels as one line.** `Share` opens a box holding the whole maker
+  as text - the name, the mode, the reset choices and every step with its target,
+  conditions and scope:
+  `MVPSEQ1|Heals|sequence|target+combat+25|s:Flash Heal@mouseover*help|m:Trinket 1#a`.
+  Copy selects it for Ctrl+C; there is no clipboard API to call.
+- **Loading validates before it writes.** The prefix says which build wrote the
+  line, the mode must be priority or sequence, reset choices must be `target`,
+  `combat`, `none` or 1-60 seconds, steps must start with `s:` or `m:`, each
+  condition and target must be one this maker writes, a contradictory pair is
+  refused, and a macro step cannot carry a target or conditions. One bad step
+  refuses the whole line, so nothing is half-imported; the reason names the step
+  and the field.
+- Names are escaped, so a spell or macro containing `|`, `:`, `,`, `@`, `*`, `#`
+  or `+` survives the round trip.
+- A macro step normally lives in a sequence without its macro on the other side;
+  the import still takes it and says how many macros it needs.
+
 ## 1.0.3.13
 
 - The step card now calls itself **Target and conditions**, both in its header and
