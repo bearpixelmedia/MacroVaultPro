@@ -2194,13 +2194,7 @@ function UI:RefreshMaker()
 			items,
 			function(row, item) self:RenderMacroRow(row, item) end,
 			function(item)
-				local ok, err = MV:AddMakerStep("macro", item.name, item.icon)
-				if not ok then
-					self:SetStatus(err or "Could not add that macro.", true)
-					return
-				end
-				self:RefreshMaker()
-				self:SetStatus(("Added %s to the end of the sequence."):format(item.name))
+				self:MakerRun("add macro", self.MakerAddMacro, item)
 			end,
 			function(item)
 				-- Counted here as well as on the step rows: a macro dragged out of
@@ -2308,11 +2302,7 @@ function UI:RefreshMakerIcons()
 			button.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 			Border(button, 0.20, 0.18, 0.28, 1)
 			button:SetScript("OnClick", function(self)
-				local current = MV:GetMaker()
-				current.icon = self.iconValue
-				MV:SaveMaker()
-				UI:RefreshMaker()
-				UI:SetStatus("Icon chosen - Build macro applies it.")
+				UI:MakerRun("icon", UI.ChooseMakerIcon, self.iconValue)
 			end)
 			button:SetScript("OnEnter", function(self)
 				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -2381,11 +2371,7 @@ function UI:CreateMakerRow(index)
 	remove:SetScript("OnEnter", function() removeText:SetTextColor(1, 0.5, 0.45) end)
 	remove:SetScript("OnLeave", function() removeText:SetTextColor(MUTED[1], MUTED[2], MUTED[3]) end)
 	remove:SetScript("OnClick", function()
-		local position = row.stepIndex
-		if position and MV:RemoveMakerStep(position) then
-			ui:RefreshMaker()
-			ui:SetStatus(("Removed step %d."):format(position))
-		end
+		ui:MakerRun("remove", ui.MakerRemoveStep, row.stepIndex)
 	end)
 
 	-- Reordering uses the same press tracker as the sheet, so it works on a client
@@ -2515,6 +2501,32 @@ function UI:MakerTakeCursor(position)
 		self:SetStatus(("/cast %s added."):format(value))
 	else
 		self:SetStatus(("Macro %s added."):format(value))
+	end
+end
+
+function UI:MakerAddMacro(item)
+	if not item or not item.name then return end
+	local ok, err = MV:AddMakerStep("macro", item.name, item.icon)
+	if not ok then
+		self:SetStatus(err or "Could not add that macro.", true)
+		return
+	end
+	self:RefreshMaker()
+	self:SetStatus(("Added %s to the end of the sequence."):format(item.name))
+end
+
+function UI:ChooseMakerIcon(iconValue)
+	local current = MV:GetMaker()
+	current.icon = iconValue
+	MV:SaveMaker()
+	self:RefreshMaker()
+	self:SetStatus("Icon chosen - Build macro applies it.")
+end
+
+function UI:MakerRemoveStep(position)
+	if position and MV:RemoveMakerStep(position) then
+		self:RefreshMaker()
+		self:SetStatus(("Removed step %d."):format(position))
 	end
 end
 
