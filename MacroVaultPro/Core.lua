@@ -14,7 +14,7 @@ _G.MacroVaultPro = MV
 
 MV.VERSION       = "1.0.3"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27b"
+MV.BUILD         = "2026-11-27c"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -1413,12 +1413,15 @@ function MV:Diag()
 		cursor.tries, cursor.spells, cursor.macros, cursor.misses))
 	if cursor.last then
 		local last = cursor.last
-		self:PrintRaw(("maker cursor last  kind %s  arg1 %s  arg2 %s  GetSpellInfo -> %s"):format(
+		-- One read column covers both answers: the name GetSpellInfo returned, or
+		-- the macro GetCursorInfo's index pointed at.
+		local read = last.spellName or last.macroName
+		if not read and last.kind == "spell" then read = "no name" end
+		self:PrintRaw(("maker cursor last  kind %s  arg1 %s  arg2 %s  read %s"):format(
 			tostring(last.kind),
 			argText(last.first),
 			argText(last.second),
-			last.spellInfo and tostring(last.spellName or "answered")
-				or (last.kind == "spell" and "no name" or "-")))
+			tostring(read or "-")))
 	end
 
 	self:PrintRaw(("maker drags since load  press=%d  client=%d  drops=%d"):format(

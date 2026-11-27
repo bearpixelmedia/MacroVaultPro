@@ -2202,8 +2202,16 @@ function UI:RefreshMaker()
 				self:RefreshMaker()
 				self:SetStatus(("Added %s to the end of the sequence."):format(item.name))
 			end,
-			function(item) self:PressDrag({ icon = item.icon, makerAdd = item }) end,
-			function(item) self:BeginDrag({ icon = item.icon, makerAdd = item }, "client") end
+			function(item)
+				-- Counted here as well as on the step rows: a macro dragged out of
+				-- this pane is still a maker drag, and diag has to show it.
+				MV:CountDrag("makerPress")
+				self:PressDrag({ icon = item.icon, makerAdd = item })
+			end,
+			function(item)
+				MV:CountDrag("makerClient")
+				self:BeginDrag({ icon = item.icon, makerAdd = item }, "client")
+			end
 		)
 
 		if self.makerListHeader then
