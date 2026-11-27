@@ -3,7 +3,8 @@
   "private": true,
   "description": "Maker checks for the MacroVaultPro addon. The addon ships from MacroVaultPro/; this file exists only to run tests/maker.",
   "scripts": {
-    "test:maker": "bun tests/maker/check.js"
+    "test:maker": "bun tests/maker/check.js",
+    "test:obp": "bun tests/onebuttonpad/check.js"
   },
   "devDependencies": {
     "fengari": "^0.1.5",

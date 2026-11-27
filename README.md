@@ -21,6 +21,17 @@ saved with the rest of the addon's settings.
 Macro slots are read from the client rather than assumed, and nothing is written
 while you are in combat.
 
+## One Button Pad
+
+A second, separate addon ships from this repository: **One Button Pad**
+(`OneButtonPad/`). It reads Forever One Button's cells and Console Port's pad
+bindings and puts both in one window at controller size — every cell with the key
+that presses it, and every pad button with the action bar slot it runs. It only
+reads: neither addon's cells, keys or bindings are changed. `/obp` opens it,
+`/obp report` prints the same information to chat and `/obp diag` prints a report;
+rebuild and install it with
+`powershell -NoProfile -ExecutionPolicy Bypass -File tools/onebuttonpad.ps1`.
+
 ## Install
 
 Unzip `MacroVaultPro-<version>.zip` into the client's `Interface/AddOns/` folder, so
@@ -46,10 +57,11 @@ exactly which drag path works.
 | Path | What it is |
 | --- | --- |
 | `MacroVaultPro/` | The addon itself — the only folder that ships to players. `MacroVaultPro.toc` declares the interface, version, SavedVariables and icon; `Core.lua` holds the data layer and slash commands, `Library.lua` the 26 ready-made macros, `UI.lua` the window, and `Media/icon.tga` the addon-list icon the `.toc` points at. |
+| `OneButtonPad/` | The separate One Button Pad addon: `Core.lua` reads Forever One Button's cells and Console Port's pad bindings, `UI.lua` draws the window. It builds to its own zip and never borrows MacroVaultPro's version or saved variables. |
 | `media-kit/` | The CurseForge listing: paste-ready description, listing copy, changelog, avatar, banner and gallery images. `media-kit/README.md` is the upload checklist. |
 | `media-kit/build/` | The HTML/CSS the banner and gallery cards are rendered from, the avatar master, and `render.ps1`, which regenerates every image in the kit. Development only — never goes in the zip. |
 | `AGENTS.md` | The project goal, the state table one chat moves one row of, and the rules for working here — read before any change. |
-| `tools/` | `package.ps1` builds the archive, `install.ps1` installs it into the client and verifies it, `release.ps1` bumps the version and writes the changelog before running both, and `upload-curseforge.ps1` checks the archive and sends it to CurseForge only with `-Upload`. Nothing in `tools/` publishes without that switch. |
+| `tools/` | `package.ps1` builds the archive, `install.ps1` installs it into the client and verifies it, `release.ps1` bumps the version and writes the changelog before running both, and `upload-curseforge.ps1` checks the archive and sends it to CurseForge only with `-Upload`. Nothing in `tools/` publishes without that switch. `onebuttonpad.ps1` packages One Button Pad as `dist/OneButtonPad-<version>.zip` and installs it the same way, and never uploads. |
 | `dist/` | Build output: `MacroVaultPro-<version>.zip`, the file you upload. |
 
 ## Rebuilding
