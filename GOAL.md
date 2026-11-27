@@ -3,11 +3,8 @@
 **Goal:** MacroVaultPro reaches CurseForge with a Maker that has been seen working in
 game — published on the owner's word, never on a guess.
 
-This file is the state of record for MacroVaultPro. The `bmp-goal` skill still lists
-these four rows itself, so there are two copies and they can disagree — when they do,
-**this file wins**; the skill's copy is the stale one. Rows move here, never back. A chat
-that moves a row edits it here, and while the skill still lists that row it says in its
-final message that the skill's copy is now stale. Project facts — commands, install
+This file is the state of record for MacroVaultPro, and the only copy of these rows: a
+chat that moves one edits it here, in the same turn. Project facts — commands, install
 path, settled decisions, machine limits — stay in `AGENTS.md` and are not repeated here.
 
 ## Status — one chat moves one row
