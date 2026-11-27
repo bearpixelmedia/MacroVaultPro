@@ -48,6 +48,7 @@ exactly which drag path works.
 | `MacroVaultPro/` | The addon itself — the only folder that ships to players. `MacroVaultPro.toc` declares the interface, version, SavedVariables and icon; `Core.lua` holds the data layer and slash commands, `Library.lua` the 26 ready-made macros, `UI.lua` the window, and `Media/icon.tga` the addon-list icon the `.toc` points at. |
 | `media-kit/` | The CurseForge listing: paste-ready description, listing copy, changelog, avatar, banner and gallery images. `media-kit/README.md` is the upload checklist. |
 | `media-kit/build/` | The HTML/CSS the banner and gallery cards are rendered from, the avatar master, and `render.ps1`, which regenerates every image in the kit. Development only — never goes in the zip. |
+| `AGENTS.md` | The project goal, the state table one chat moves one row of, and the rules for working here — read before any change. |
 | `tools/` | `package.ps1` builds the archive, `install.ps1` installs it into the client and verifies it, `release.ps1` bumps the version and writes the changelog before running both, and `upload-curseforge.ps1` checks the archive and sends it to CurseForge only with `-Upload`. Nothing in `tools/` publishes without that switch. |
 | `dist/` | Build output: `MacroVaultPro-<version>.zip`, the file you upload. |
 
