@@ -17,6 +17,15 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.16
+
+- **The error log names the addon that actually broke.** Errors raised by
+  another addon are listed under their own heading now instead of being
+  reported as MacroVaultPro's, and the log's own frame is no longer stored as
+  part of the trace.
+- Entries logged before this version stay where they are; `/mvpro errors clear`
+  empties the log if the old ones are in the way.
+
 ## 1.0.3.15
 
 - **Load asks before it replaces anything.** When the maker already holds steps,

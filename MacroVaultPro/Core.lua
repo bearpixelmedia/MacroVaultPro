@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION = "1.0.3.15"
+MV.VERSION = "1.0.3.16"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD = "2026-11-27w"
+MV.BUILD = "2026-11-27x"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -136,19 +136,48 @@ function MV:InstallErrorLog()
 
 	local logging = false
 
-	seterrorhandler(function(message)
+	local handler
+	handler = function(message)
 		if not logging then
 			logging = true
 			local ok, stack = pcall(debugstack, 2, 20, 20)
 			stack = (ok and type(stack) == "string") and stack or ""
+
+			-- The handler is the innermost frame in the traceback and its path is
+			-- this addon's, so leaving it in would file every addon's error here.
+			local tag = self.errorHandlerTag
+			if tag then
+				local kept = {}
+				for line in stack:gmatch("[^\n]+") do
+					if not line:find(tag, 1, true) then kept[#kept + 1] = line end
+				end
+				stack = table.concat(kept, "\n")
+			end
+
 			local text = tostring(message or "unknown error")
-			local ours = text:find("MacroVaultPro", 1, true) ~= nil
-				or stack:find("MacroVaultPro", 1, true) ~= nil
+			-- The client puts the failing file in the message, which is the
+			-- reliable place to look. Only a message without one falls back to
+			-- the traceback.
+			local ours
+			if text:find("Interface/AddOns/", 1, true) then
+				ours = text:find("MacroVaultPro", 1, true) ~= nil
+			else
+				ours = stack:find("MacroVaultPro", 1, true) ~= nil
+			end
 			MV:LogError(text, stack, not ours)
 			logging = false
 		end
 		if original then return original(message) end
-	end)
+	end
+
+	-- Used above to drop this handler's own frame from the stored trace.
+	if type(debug) == "table" and type(debug.getinfo) == "function" then
+		local ok, info = pcall(debug.getinfo, handler, "S")
+		if ok and type(info) == "table" and info.short_src and info.linedefined then
+			self.errorHandlerTag = ("in function <%s:%d>"):format(info.short_src, info.linedefined)
+		end
+	end
+	seterrorhandler(handler)
 end
 
 MV:InstallErrorLog()
