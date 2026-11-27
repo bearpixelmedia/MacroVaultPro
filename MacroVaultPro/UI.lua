@@ -2076,6 +2076,7 @@ function UI:BuildMakerPanel(panel)
 	local title = Text(pane, 10, MUTED)
 	title:SetPoint("TOPLEFT", 12, -9)
 	title:SetText("MACRO MAKER  -  the steps run in the order below")
+	self.makerTitle = title
 
 	-- A spell dragged out of the spellbook is never delivered to a frame, so the
 	-- release is read from the cursor here.
@@ -2229,6 +2230,24 @@ function UI:BuildMakerPanel(panel)
 	local clear = ui:MakeButton(pane, "Clear steps", 92, function() ui:MakerRun("clear", ui.ClearMaker) end)
 	clear:SetPoint("LEFT", pickup, "RIGHT", 8, 0)
 
+	-- The same steps run two different ways. The label is the current state; the
+	-- tooltip is the whole difference, because "sequence" here does not mean the
+	-- step list, which is already called that in this tab.
+	local mode = ui:MakeButton(pane, "Runs: priority", 130, function() ui:MakerRun("mode", ui.ToggleMakerMode) end)
+	mode:SetPoint("BOTTOMRIGHT", -12, 12)
+	mode:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText("How the built macro runs", 1, 1, 1)
+		GameTooltip:AddLine("Priority - each press tries every step in order and casts the first that works. Spells and macros both fit.",
+			0.72, 0.70, 0.80, true)
+		GameTooltip:AddLine("Sequence - one spell per press, moving down the list and starting over. Spells only.",
+			0.72, 0.70, 0.80, true)
+		GameTooltip:AddLine("Click to switch. The steps stay where they are.", 0.72, 0.70, 0.80, true)
+		GameTooltip:Show()
+	end)
+	mode:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	self.makerModeButton = mode
+
 end
 
 function UI:RefreshMaker()
@@ -2321,6 +2340,14 @@ function UI:RefreshMaker()
 		self.makerScopeButton:SetLabel(("Create on: %s"):format(
 			maker.scope == "char" and "this character" or "account"
 		))
+	end
+	if self.makerModeButton then
+		self.makerModeButton:SetLabel(maker.mode == "sequence" and "Runs: sequence" or "Runs: priority")
+	end
+	if self.makerTitle then
+		self.makerTitle:SetText(maker.mode == "sequence"
+			and "MACRO MAKER  -  one spell per press, down the list"
+			or "MACRO MAKER  -  the steps run in the order below")
 	end
 
 	self:RefreshMakerIcons()
@@ -2607,6 +2634,20 @@ function UI:MakerRemoveStep(position)
 		self:RefreshMaker()
 		self:SetStatus(("Removed step %d."):format(position))
 	end
+end
+
+function UI:ToggleMakerMode()
+	local ok, why = MV:ToggleMakerMode()
+	if not ok then
+		self:SetStatus(why or "Could not switch how the macro runs.", true)
+		return
+	end
+
+	local maker = MV:GetMaker()
+	self:RefreshMaker()
+	self:SetStatus(maker.mode == "sequence"
+		and "Sequence - the macro casts one spell per press and starts over at the top. Spells only."
+		or "Priority - each press tries every step in order. Macros and spells both fit.")
 end
 
 function UI:ToggleMakerScope()

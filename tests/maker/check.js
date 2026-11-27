@@ -188,6 +188,34 @@ local ek, ev, ei, ewhy = MV:CursorStep()
 check("empty cursor explains itself in the fourth slot",
   ek == nil and ewhy ~= nil and tostring(ewhy):find("Nothing is on the cursor") ~= nil, tostring(ewhy))
 
+-- sequence mode: the same steps become one /castsequence the client advances
+MV:ClearMakerSteps()
+MV:AddMakerStep("spell", "Frostbolt", 116)
+MV:AddMakerStep("spell", "Fireball", 133)
+MV:SetMakerMode("sequence")
+local seqBody, seqProblems = MV:ComposeMaker()
+check("sequence mode writes one castsequence",
+  #seqProblems == 0 and seqBody:find("/castsequence reset=target/10 Frostbolt, Fireball") ~= nil, seqBody)
+check("sequence mode keeps the showtooltip header",
+  seqBody:sub(1, 12) == "#showtooltip", seqBody:sub(1, 12))
+check("sequence mode skips the per-step cast lines", seqBody:find("/cast Frostbolt") == nil, seqBody)
+check("mode is saved", MacroVaultProDB.maker.mode == "sequence", MacroVaultProDB.maker.mode)
+
+MV:AddMakerStep("macro", "Trinket 1", 135000)
+local seqBody2, seqProblems2 = MV:ComposeMaker()
+check("sequence mode names the macro step it cannot use",
+  #seqProblems2 == 1 and seqProblems2[1]:find("spells only") ~= nil, seqProblems2[1])
+check("the offending step keeps its name in the report",
+  seqProblems2[1]:find("Trinket 1") ~= nil, seqProblems2[1])
+MV:RemoveMakerStep(3)
+
+MV:SetMakerMode("priority")
+local priBody, priProblems = MV:ComposeMaker()
+check("priority mode still writes one cast per step",
+  #priProblems == 0 and priBody:find("/cast Frostbolt") ~= nil
+    and priBody:find("/castsequence") == nil, priBody)
+MV:ClearMakerSteps()
+
 -- diag must say which window-skin pieces drew the window, and must still say
 -- something when Skin.lua never loaded.
 check("diag has a skin report", type(MV.SkinReport) == "function")

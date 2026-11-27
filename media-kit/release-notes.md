@@ -17,6 +17,17 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.5
+
+- **The Maker can run its steps as a sequence instead of a priority list.**
+  `Runs: priority` is what it always did - each press tries every step and casts
+  the first that works. `Runs: sequence` writes one
+  `/castsequence reset=target/10 a, b, c`, so the client casts one spell per
+  press and keeps its place, the way a GSE sequence steps. The toggle sits next to
+  `Build macro`, and the steps stay where they are when you switch.
+- Sequence mode takes spells only: a macro step is named in the count's red
+  tooltip rather than dropped from the body without a word.
+
 ## 1.0.3.4
 
 - `/mvpro diag` now prints a `window skin` line naming each template the client

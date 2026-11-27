@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION       = "1.0.3.4"
+MV.VERSION       = "1.0.3.5"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD         = "2026-11-27l"
+MV.BUILD         = "2026-11-27m"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of
@@ -725,10 +725,18 @@ MV.MAKER_DEFAULT_NAME = "MV Combo"
 
 local MAKER_KINDS = { spell = true, macro = true }
 
+-- How the steps run when the macro is pressed. "priority" is what the maker always
+-- did: every step goes in as its own /cast line and the client casts the first one
+-- that works. "sequence" writes a single /castsequence instead, so the client
+-- advances one spell per press and keeps its place in the list - the closest a
+-- plain macro can get to the way a GSE sequence steps.
+MV.MAKER_MODES   = { priority = true, sequence = true }
+MV.SEQUENCE_RESET = "target/10"
+
 function MV:GetMaker()
 	if self.maker then return self.maker end
 
-	local maker = { name = self.MAKER_DEFAULT_NAME, scope = "account", steps = {} }
+	local maker = { name = self.MAKER_DEFAULT_NAME, scope = "account", mode = "priority", steps = {} }
 	local saved = (type(MacroVaultProDB) == "table") and MacroVaultProDB.maker or nil
 
 	if type(saved) == "table" then
@@ -736,6 +744,7 @@ function MV:GetMaker()
 			maker.name = saved.name
 		end
 		maker.scope = saved.scope == "char" and "char" or "account"
+		maker.mode = (saved.mode == "sequence") and "sequence" or "priority"
 		if type(saved.icon) == "number" or type(saved.icon) == "string" then
 			maker.icon = saved.icon
 		end
@@ -775,11 +784,26 @@ function MV:SaveMaker()
 	MacroVaultProDB.maker = {
 		name       = maker.name,
 		scope      = maker.scope,
+		mode       = maker.mode,
 		icon       = maker.icon,
 		macroIndex = maker.macroIndex,
 		builtName  = maker.builtName,
 		steps      = steps,
 	}
+end
+
+-- Switching mode only changes how the body is written; the steps stay put.
+function MV:SetMakerMode(mode)
+	if not self.MAKER_MODES[mode] then return false, "unknown mode" end
+	local maker = self:GetMaker()
+	maker.mode = mode
+	self:SaveMaker()
+	return true
+end
+
+function MV:ToggleMakerMode()
+	local maker = self:GetMaker()
+	return self:SetMakerMode(maker.mode == "sequence" and "priority" or "sequence")
 end
 
 -- The macro with this name, or nil and why. A saved sequence can only rely on
@@ -845,9 +869,37 @@ function MV:MakerStepLines(step)
 	return nil, "unknown step"
 end
 
+-- The same steps as one /castsequence, which the client advances one spell per
+-- press. Only spells fit: a macro step is a list of lines, not a place in a
+-- rotation, so it is reported rather than silently dropped.
+function MV:ComposeMakerSequence(maker)
+	local parts = { "#showtooltip" }
+	local problems = {}
+	local names = {}
+
+	for index, step in ipairs(maker.steps) do
+		if step.kind == "spell" then
+			names[#names + 1] = step.value
+		else
+			problems[#problems + 1] = ("step %d: '%s' is a macro - sequence mode takes spells only"):format(
+				index, tostring(step.value))
+		end
+	end
+
+	if #names > 0 then
+		parts[#parts + 1] = ("/castsequence reset=%s %s"):format(self.SEQUENCE_RESET, table.concat(names, ", "))
+	end
+
+	return table.concat(parts, "\n"), problems
+end
+
 -- The exact macro text, and anything that could not go in.
 function MV:ComposeMaker(maker)
 	maker = maker or self:GetMaker()
+
+	if maker.mode == "sequence" then
+		return self:ComposeMakerSequence(maker)
+	end
 
 	local parts = { "#showtooltip" }
 	local problems = {}
