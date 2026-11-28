@@ -1,6 +1,6 @@
 # MacroVaultPro in-game check — 1.0.3.12 → 1.0.3.24
 
-Installed build: **1.0.3.24**, stamp `[2026-11-27af]`. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
+Installed builds: **MacroVaultPro 1.0.3.24**, stamp `[2026-11-27af]`; **One Button Pad 0.1.1**, stamp `[2026-11-28a]` — a separate addon, checked in section 5 of the same reload. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
 
 ## 0. You are on the new build
 
@@ -50,6 +50,25 @@ Installed build: **1.0.3.24**, stamp `[2026-11-27af]`. Everything below is reach
 
 - The header says `1 sightings` when there is exactly one — grammar only, no work started.
 - The three old entries can't fold with new repeats of the same error, because their text still carries the pre-1.0.3.16 handler frame.
+
+## 5. One Button Pad 0.1.1 — separate addon, same reload
+
+Its own `.toc` reads 0.1.1 and Console Port is no longer a dependency: this addon is Forever One Button only.
+
+- [ ] Chat after the reload shows `One Button Pad  v0.1.1 loaded - /obp` (the prefix is coloured) — not v0.1.0
+- [ ] `/obp` opens **one pane**: a single list, **no pad column**, no `CONSOLE PORT  -  PAD BINDINGS` header anywhere
+- [ ] Header under `FOREVER ONE BUTTON  -  CELLS AND KEYS` reads `version 1.2.14  -  N cells, M with a key`, and when some cells have no key it continues `  -  K with no key`; N, M and K match the rows you can count
+- [ ] Every row reads `Cell <n>    <name>` with a chord on the right (`SHIFT-1`, `CTRL-SHIFT-4`, …); a name the client cannot resolve falls back to `spell <id>` or `item <id>`, never a blank row
+- [ ] A cell with no key shows `no key` on the right and is dimmed grey, still listed — not hidden
+- [ ] A cell numbered past what the grid shows is dimmed the same way; the window does not label it, so count the dimmed rows against `/obp report`, which marks each one `(past the cells it shows)`
+- [ ] `/obp report` ends with `read-only: this window never moves a cell or changes a key.`, and has a `cell(s) have no key - they are in the grid, but no chord presses them` line whenever K above is more than 0
+- [ ] `/obp diag` first line under the header reads exactly `addon 0.1.1  build 2026-11-28a` — not 0.1.0, not `2026-11-27a`
+- [ ] `/obp diag` next line reads `foreveronebutton yes  version 1.2.14  cells <keyed>/<total> keyed  shows <grid slots>`; `version -` only means the addon metadata could not be read — everything else still has to say `yes`
+- [ ] `/obp diag` names its reads and all five say yes: `reads db yes  char yes  cells yes  spells yes  items yes` — any `no` names the read that failed, so note which word said it
+- [ ] `/obp diag` last line reads `window built  saved yes` once `/obp` has opened the window; before that `window not built  saved yes` is correct, because the saved-variable table is made when the addon loads
+- [ ] **Copy to chat** prints the same block as `/obp report`, and the window's status line reads `Report printed to chat - it can be copied from there.`
+- [ ] If the window opens at the old 0.1.0 position or looks off after the narrower width, `/obp reset` re-centres it — expected once, not a failure
+- [ ] No Lua error popup from `/obp`, `/obp report` or `/obp diag`
 
 ## Keeping this current
 
