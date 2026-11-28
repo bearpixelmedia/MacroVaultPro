@@ -73,6 +73,15 @@ docCheck("the in-game checklist names the installed One Button Pad version and s
     ? obpInstalledLine[1] + " / " + obpInstalledLine[2] + " vs " + obpVersion + " / " + obpStamp
     : "no installed-build line");
 
+// Section 5 tells the owner what `/obp diag` prints; the addon formats that line
+// with two spaces, so the checklist has to quote it in that exact shape.
+const obpDiagLine = checklistSource.match(/`addon (\S+) {2}build (\S+)`/);
+docCheck("the checklist's /obp diag line expects that same build",
+  !!obpDiagLine && obpDiagLine[1] === obpVersion && obpDiagLine[2] === obpStamp,
+  obpDiagLine
+    ? obpDiagLine[1] + " / " + obpDiagLine[2] + " vs " + obpVersion + " / " + obpStamp
+    : "no /obp diag line");
+
 const tocFiles = tocSource.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.endsWith(".lua"));
 const luaFiles = fs.readdirSync(path.join(root, "MacroVaultPro")).filter((name) => name.endsWith(".lua")).sort();
 docCheck("the .toc loads every .lua in the addon folder, and nothing else",
