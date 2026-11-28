@@ -255,6 +255,13 @@ corrected the boundary.
   `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` on reload, so the
   message and traceback exist as text rather than only in a dialog.
 
+## Support
+
+MacroVaultPro is made by [Bear Pixel Media](https://bearpixelmedia.com), a web design
+& local SEO studio in Clyde, NC. For a bug, a question, or a macro you cannot get
+working, write to <hello@bearpixelmedia.com> and paste the `/mvpro diag` block with
+it — that block carries the build stamp and the client build.
+
 ## Gallery
 
 The four panels on the Images tab are illustrations drawn from the addon's own layout

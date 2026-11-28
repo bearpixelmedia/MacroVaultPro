@@ -69,4 +69,6 @@ Zip the `MacroVaultPro` folder itself, so the archive contains
 | Field | Value |
 | --- | --- |
 | Source | https://github.com/bearpixelmedia/MacroVaultPro |
+| Website | https://bearpixelmedia.com |
+| Support | hello@bearpixelmedia.com |
 | Issues | (your issue tracker, if you want one) |
