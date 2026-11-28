@@ -1,20 +1,19 @@
 -- One Button Pad - the window.
 --
--- Two lists side by side, both read-only: Forever One Button's cells with the key
--- that presses each one, and Console Port's pad bindings with what each one runs.
--- Sized for a controller: one row per line, a 34 px row, a 24 px icon and 13 px
--- text, so it reads from a sofa instead of a desk chair. Nothing here changes
--- either addon - every control refreshes or copies.
+-- One read-only list: Forever One Button's cells, the chord that presses each
+-- one, and nothing else. Sized for a controller player reading across a room: one
+-- row per line, a 34 px row, a 24 px icon and 13 px text. Every control refreshes
+-- or copies - none of them changes a cell or a key.
 local ADDON_NAME, OPB = ...
 OPB = OPB or _G.OneButtonPad or {}
 
 local UI = {}
 OPB.UI = UI
 
-local WIDTH, HEIGHT = 700, 468
+local WIDTH, HEIGHT = 402, 468
 local ROW_HEIGHT   = 34
-local PANE_WIDTH   = 330
-local LIST_HEIGHT  = 296
+local PANE_WIDTH   = 374
+local LIST_HEIGHT  = 326
 
 local FONT   = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 local ACCENT = { 0.34, 0.72, 0.97 }
@@ -151,12 +150,12 @@ function UI:MakeList(parent, height)
 
 		row.label = Text(row, 13, TEXT)
 		row.label:SetPoint("LEFT", 8, 0)
-		row.label:SetWidth(200)
+		row.label:SetWidth(228)
 		if row.label.SetWordWrap then row.label:SetWordWrap(false) end
 
 		row.tag = Text(row, 12, MUTED, "RIGHT")
 		row.tag:SetPoint("RIGHT", -6, 0)
-		row.tag:SetWidth(110)
+		row.tag:SetWidth(118)
 
 		return row
 	end
@@ -241,54 +240,33 @@ function UI:Build()
 
 	local subtitle = Text(frame, 11, MUTED)
 	subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 1, -3)
-	subtitle:SetWidth(560)
-	subtitle:SetText("Forever One Button's cells on the left, Console Port's pad bindings on the right. " ..
-		"Both are read-only here.")
+	subtitle:SetWidth(WIDTH - 60)
+	subtitle:SetText("Forever One Button's cells and the chord that presses each one. Read-only: " ..
+		"nothing here moves a cell or changes a key.")
 
 	local close = self:MakeButton(frame, "X", 26, function() frame:Hide() end)
 	close:SetPoint("TOPRIGHT", -10, -10)
 
-	-- Left: Forever One Button's cells.
-	local left = CreateFrame("Frame", nil, frame)
-	left:SetPoint("TOPLEFT", 14, -58)
-	left:SetSize(PANE_WIDTH, LIST_HEIGHT + 44)
-	Paint(left, 0.02, 0.025, 0.035, 0.85)
-	Border(left, 0.16, 0.22, 0.30, 1)
+	local pane = CreateFrame("Frame", nil, frame)
+	pane:SetPoint("TOPLEFT", 14, -58)
+	pane:SetSize(PANE_WIDTH, LIST_HEIGHT + 44)
+	Paint(pane, 0.02, 0.025, 0.035, 0.85)
+	Border(pane, 0.16, 0.22, 0.30, 1)
 
-	local leftHeader = Text(left, 10, MUTED)
-	leftHeader:SetPoint("TOPLEFT", 10, -9)
-	leftHeader:SetText("FOREVER ONE BUTTON  -  CELLS AND KEYS")
+	local header = Text(pane, 10, MUTED)
+	header:SetPoint("TOPLEFT", 10, -9)
+	header:SetText("FOREVER ONE BUTTON  -  CELLS AND KEYS")
 
-	self.cellStatus = Text(left, 11, TEXT)
+	self.cellStatus = Text(pane, 11, TEXT)
 	self.cellStatus:SetPoint("TOPLEFT", 10, -25)
 	self.cellStatus:SetWidth(PANE_WIDTH - 20)
 
-	local leftBody = CreateFrame("Frame", nil, left)
-	leftBody:SetPoint("TOPLEFT", 4, -44)
-	leftBody:SetSize(PANE_WIDTH - 8, LIST_HEIGHT)
-	self.cellList = self:MakeList(leftBody)
+	local body = CreateFrame("Frame", nil, pane)
+	body:SetPoint("TOPLEFT", 4, -44)
+	body:SetSize(PANE_WIDTH - 8, LIST_HEIGHT)
+	self.cellList = self:MakeList(body)
 
-	-- Right: Console Port's pad bindings.
-	local right = CreateFrame("Frame", nil, frame)
-	right:SetPoint("TOPLEFT", left, "TOPRIGHT", 12, 0)
-	right:SetSize(PANE_WIDTH, LIST_HEIGHT + 44)
-	Paint(right, 0.02, 0.025, 0.035, 0.85)
-	Border(right, 0.16, 0.22, 0.30, 1)
-
-	local rightHeader = Text(right, 10, MUTED)
-	rightHeader:SetPoint("TOPLEFT", 10, -9)
-	rightHeader:SetText("CONSOLE PORT  -  PAD BINDINGS")
-
-	self.padStatus = Text(right, 11, TEXT)
-	self.padStatus:SetPoint("TOPLEFT", 10, -25)
-	self.padStatus:SetWidth(PANE_WIDTH - 20)
-
-	local rightBody = CreateFrame("Frame", nil, right)
-	rightBody:SetPoint("TOPLEFT", 4, -44)
-	rightBody:SetSize(PANE_WIDTH - 8, LIST_HEIGHT)
-	self.padList = self:MakeList(rightBody)
-
-	-- Footer: the two controls, and the sentence that keeps the two lists honest.
+	-- Footer: the two controls, and the sentence that keeps the list honest.
 	local refresh = self:MakeButton(frame, "Refresh", 104, function() UI:Refresh() end)
 	refresh:SetPoint("BOTTOMLEFT", 14, 14)
 
@@ -300,8 +278,8 @@ function UI:Build()
 
 	self.status = Text(frame, 10, MUTED)
 	self.status:SetPoint("LEFT", copy, "RIGHT", 12, 0)
-	self.status:SetWidth(WIDTH - 280)
-	self.status:SetText("A pad button runs an action bar slot, not a cell key, so the two lists are kept apart.")
+	self.status:SetWidth(WIDTH - 286)
+	self.status:SetText("A cell is pressed by its chord, so the key on the right is what to press.")
 
 	self:ApplyPosition()
 	return frame
@@ -318,7 +296,7 @@ function UI:SetStatus(message, isError)
 end
 
 -------------------------------------------------------------------------------
--- Refresh: read both addons once and put the two lists up
+-- Refresh: read Forever One Button once and put the list up
 -------------------------------------------------------------------------------
 
 function UI:Refresh()
@@ -326,11 +304,9 @@ function UI:Refresh()
 
 	local ok, err = pcall(self.RefreshLists, self)
 	if not ok then
-		self:SetStatus(("Could not read the lists - %s"):format(tostring(err)), true)
+		self:SetStatus(("Could not read the cells - %s"):format(tostring(err)), true)
 		self.cellStatus:SetText("")
-		self.padStatus:SetText("")
 		self.cellList:SetItems({}, function() end)
-		self.padList:SetItems({}, function() end)
 	end
 end
 
@@ -348,8 +324,9 @@ function UI:RefreshLists()
 				dim   = cell.hidden or not cell.key,
 			}
 		end
-		self.cellStatus:SetText(("version %s  -  %d cells, %d with a key"):format(
+		self.cellStatus:SetText((("version %s  -  %d cells, %d with a key"):format(
 			one.version or "unread", #one.cells, one.keyed or 0))
+			.. (one.keyless and one.keyless > 0 and ("  -  %d with no key"):format(one.keyless) or ""))
 	else
 		self.cellStatus:SetText("not loaded - install Forever One Button, then /reload")
 	end
@@ -357,37 +334,6 @@ function UI:RefreshLists()
 	self.cellList:SetItems(cellRows, function(row, item)
 		row.icon:SetTexture(item.icon or 134400)
 		showIf(row.icon, item.icon ~= nil)
-		row.label:SetText(item.label)
-		row.tag:SetText(item.tag)
-		local color = item.dim and MUTED or TEXT
-		row.label:SetTextColor(color[1], color[2], color[3])
-		row.tag:SetTextColor(color[1], color[2], color[3])
-	end)
-
-	local controller = OPB:Controller()
-	local padRows = {}
-
-	if controller.present then
-		if controller.api then
-			for _, row in ipairs(OPB:PadBindings()) do
-				padRows[#padRows + 1] = {
-					label = row.target or row.binding,
-					tag   = OPB:PadText(row),
-					dim   = row.target == nil,
-				}
-			end
-			self.padStatus:SetText(("version %s  -  %d bindings%s"):format(
-				controller.version or "unread", #padRows,
-				controller.native and "" or " - no gamepad api"))
-		else
-			self.padStatus:SetText("loaded, but its binding calls were not found")
-		end
-	else
-		self.padStatus:SetText("not loaded - the keys on the left are all there is")
-	end
-
-	self.padList:SetItems(padRows, function(row, item)
-		row.icon:Hide()
 		row.label:SetText(item.label)
 		row.tag:SetText(item.tag)
 		local color = item.dim and MUTED or TEXT

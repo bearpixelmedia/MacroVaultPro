@@ -1,10 +1,10 @@
 ## Interface: 16001
 ## Title: One Button Pad
-## Notes: Forever One Button's cells and Console Port's pad bindings in one window, made for a game controller. Reads both addons; changes neither.
+## Notes: Forever One Button's cells and the chord that presses each one, in one read-only window. Reads Forever One Button; changes nothing.
 ## Author: Bear Pixel Media
-## Version: 0.1.0
+## Version: 0.1.1
 ## SavedVariables: OneButtonPadDB
-## OptionalDeps: ForeverOneButton, ConsolePort
+## OptionalDeps: ForeverOneButton
 
 Core.lua
 UI.lua

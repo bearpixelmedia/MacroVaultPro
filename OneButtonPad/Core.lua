@@ -1,30 +1,25 @@
 -- One Button Pad
--- The two halves of a controller setup in one window: what Forever One Button
--- holds in its cells, and what Console Port's pad buttons are bound to.
+-- Forever One Button's cells and the keys that press them, in one window.
 --
--- Read-only on purpose. Neither addon exports an API, so this one reads what they
--- do publish - Forever One Button's saved cells and keys, Console Port's public
--- binding calls - and never writes to either. That is why nothing here can move a
--- cell, change a key or rebind a pad button: the two addons stay in charge of
--- their own data, and this window only says what they are doing.
+-- Read-only on purpose. Forever One Button exports no API, so this one reads what
+-- it does publish - its saved cells and keys - and never writes to it. Nothing
+-- here can move a cell or change a key: that addon stays in charge of its own
+-- data, and this window only says what it is doing.
 --
--- The question it answers for a controller player: Forever One Button's cells are
--- keyboard chords (SHIFT-1, CTRL-SHIFT-4), and a gamepad cannot produce those. A
--- pad button runs an action bar slot instead. So the window puts the cells on the
--- left and the pad's own binding map on the right, in the same place, at a size
--- that can be read from a sofa.
+-- The question it answers: which chord presses which cell, including the cells the
+-- grid is not showing. Forever One Button's cells are keyboard chords (SHIFT-1,
+-- CTRL-SHIFT-4), listed at a size that can be read from a sofa.
 
 local ADDON_NAME, OPB = ...
 ADDON_NAME = ADDON_NAME or "OneButtonPad"
 OPB = OPB or _G.OneButtonPad or {}
 _G.OneButtonPad = OPB
 
-OPB.VERSION = "0.1.0"
+OPB.VERSION = "0.1.1"
 -- Printed by /obp diag so a report says which copy of the files is loaded.
-OPB.BUILD   = "2026-11-27a"
+OPB.BUILD   = "2026-11-28a"
 
-OPB.ONE_BUTTON   = "ForeverOneButton"
-OPB.CONSOLE_PORT = "ConsolePort"
+OPB.ONE_BUTTON = "ForeverOneButton"
 
 -- Forever One Button's own maximum, and the cell count it shows without a choice.
 OPB.MAX_CELLS     = 30
@@ -68,7 +63,7 @@ OPB.trim = trim
 -------------------------------------------------------------------------------
 
 -- True, false, or nil when the client cannot answer. "Cannot answer" is kept
--- apart from "not loaded", so a report never calls an addon missing because a
+-- apart from "not loaded", so a report never calls the addon missing because a
 -- function was absent.
 local function addonLoaded(name)
 	local fn = (type(_G.C_AddOns) == "table" and _G.C_AddOns.IsAddOnLoaded) or _G.IsAddOnLoaded
@@ -135,15 +130,15 @@ end
 -------------------------------------------------------------------------------
 
 function OPB:IsLoaded(name)
+	name = name or self.ONE_BUTTON
+	if name ~= self.ONE_BUTTON then return false end
+
 	local loaded = addonLoaded(name)
 	if loaded ~= nil then return loaded end
 
-	-- A client with no loader check: both addons name their own saved variables or
-	-- their own frames, and their presence says they are there.
-	if name == self.ONE_BUTTON then
-		return type(_G.ForeverOneButtonDB) == "table" or _G.ForeverOneButtonGrid ~= nil
-	end
-	return type(_G.ConsolePort) == "table"
+	-- A client with no loader check: the addon names its own saved variables and
+	-- its own grid, and their presence says it is there.
+	return type(_G.ForeverOneButtonDB) == "table" or _G.ForeverOneButtonGrid ~= nil
 end
 
 -- The key that presses a cell: a saved key string, nil for a cell the player
@@ -203,7 +198,7 @@ end
 
 -- Everything the window needs about Forever One Button, in one read.
 function OPB:OneButton()
-	local info = { present = self:IsLoaded(self.ONE_BUTTON), cells = {}, keyed = 0 }
+	local info = { present = self:IsLoaded(self.ONE_BUTTON), cells = {}, keyed = 0, keyless = 0 }
 	if not info.present then return info end
 
 	info.version = addonVersion(self.ONE_BUTTON)
@@ -214,138 +209,23 @@ function OPB:OneButton()
 
 	info.cells = self:Cells(account, _G.ForeverOneButtonCharDB, info.shown)
 	for _, cell in ipairs(info.cells) do
-		if cell.key then info.keyed = info.keyed + 1 end
+		if cell.key then
+			info.keyed = info.keyed + 1
+		else
+			info.keyless = info.keyless + 1
+		end
 	end
 	return info
 end
 
 -------------------------------------------------------------------------------
--- Console Port: what each pad button is bound to
--------------------------------------------------------------------------------
-
-function OPB:Controller()
-	local info = { present = self:IsLoaded(self.CONSOLE_PORT) }
-	if not info.present then return info end
-
-	info.version = addonVersion(self.CONSOLE_PORT)
-
-	local api = _G.ConsolePort
-	info.api = type(api) == "table"
-		and type(api.GetCurrentBindings) == "function"
-		and type(api.GetFormattedButtonCombination) == "function"
-
-	-- The client's own gamepad support is what Console Port drives on this build;
-	-- its presence is reported, not guessed at.
-	info.native = type(_G.GamepadMode) == "table"
-		or (type(Enum) == "table" and type(Enum.BindingContext) == "table"
-			and Enum.BindingContext.GamepadModeInGameCore ~= nil)
-
-	return info
-end
-
--- The Blizzard action bar widgets a pad button usually points at, in words a
--- player recognises. Longest prefix wins, so MultiBarBottomLeftButton3 is not
--- mistaken for MultiBarButton3.
-local BAR_PREFIXES = {
-	{ "MultiBarBottomLeftButton",  "bottom left bar" },
-	{ "MultiBarBottomRightButton", "bottom right bar" },
-	{ "MultiBarRightButton",       "right bar" },
-	{ "MultiBarLeftButton",        "left bar" },
-	{ "MultiBar5Button",           "bar 5" },
-	{ "MultiBar6Button",           "bar 6" },
-	{ "MultiBar7Button",           "bar 7" },
-	{ "ActionButton",              "main bar" },
-	{ "BonusActionButton",         "bonus bar" },
-	{ "StanceButton",              "stance bar" },
-	{ "PetActionButton",           "pet bar" },
-	{ "ForeverOneButtonCell",      "Forever One Button cell" },
-}
-OPB.BAR_PREFIXES = BAR_PREFIXES
-
--- "main bar 3" for ActionButton3, nil when the widget name is not a bar button.
-function OPB:DescribeWidget(name)
-	if type(name) ~= "string" or name == "" then return nil end
-
-	local best
-	for _, entry in ipairs(BAR_PREFIXES) do
-		if name:sub(1, #entry[1]) == entry[1] then
-			if not best or #entry[1] > #best[1] then best = entry end
-		end
-	end
-	if not best then return nil end
-
-	local index = name:sub(#best[1] + 1)
-	if index ~= "" then return best[2] .. " " .. index end
-	return best[2]
-end
-
--- What a binding string runs, in words: a bar button, or the binding's own name
--- when it is one of Console Port's own actions.
-function OPB:DescribeBinding(binding)
-	binding = tostring(binding or "")
-	local widget = binding:match("^CLICK%s+([^:]+)")
-	if not widget then return nil end
-	return self:DescribeWidget(widget) or widget
-end
-
--- Every pad binding Console Port currently has: button, modifier, the binding it
--- runs and, when the client can draw one, its glyph. Sorted, so the same
--- bindings always print in the same order.
-function OPB:PadBindings()
-	local controller = self:Controller()
-	if not controller.present or not controller.api then return {} end
-
-	local api = _G.ConsolePort
-	local ok, current = pcall(api.GetCurrentBindings, api)
-	if not ok or type(current) ~= "table" then return {} end
-
-	local list = {}
-	for button, set in pairs(current) do
-		if type(set) == "table" then
-			for modifier, binding in pairs(set) do
-				if type(binding) == "string" and binding ~= "" then
-					local glyph
-					local got, value = pcall(api.GetFormattedButtonCombination, api, button, modifier)
-					if got and type(value) == "string" and value ~= "" then glyph = value end
-
-					list[#list + 1] = {
-						button   = tostring(button),
-						modifier = tostring(modifier),
-						binding  = binding,
-						glyph    = glyph,
-						target   = self:DescribeBinding(binding),
-					}
-				end
-			end
-		end
-	end
-
-	table.sort(list, function(a, b)
-		if a.button ~= b.button then return a.button < b.button end
-		return a.modifier < b.modifier
-	end)
-	return list
-end
-
--- "PAD1 + SHIFT" when there is no glyph. A glyph from Console Port is passed
--- through as it comes, because the client draws it.
-function OPB:PadText(row)
-	if type(row) ~= "table" then return "" end
-	if row.glyph then return row.glyph end
-	if row.modifier and row.modifier ~= "" and row.modifier ~= "NONE" then
-		return row.button .. " + " .. row.modifier
-	end
-	return row.button
-end
-
--------------------------------------------------------------------------------
--- Reports: one copyable block for chat, one line for /obp diag
+-- Reports: one copyable block for chat, one line per read for /obp diag
 -------------------------------------------------------------------------------
 
 function OPB:ReportLines()
 	local lines = {}
-
 	local one = self:OneButton()
+
 	if one.present then
 		lines[#lines + 1] = ("Forever One Button %s - %d cells, %d with a key (shows %d)"):format(
 			one.version or "version unread", #one.cells, one.keyed or 0, one.shown or 0)
@@ -358,29 +238,15 @@ function OPB:ReportLines()
 				cell.slot, tostring(cell.name), cell.key or "no key",
 				cell.hidden and "  (past the cells it shows)" or "")
 		end
+		if (one.keyless or 0) > 0 then
+			lines[#lines + 1] = ("  %d cell(s) have no key - they are in the grid, but no chord presses them"):format(
+				one.keyless)
+		end
 	else
 		lines[#lines + 1] = "Forever One Button is not loaded."
 	end
 
-	local controller = self:Controller()
-	if controller.present then
-		lines[#lines + 1] = ("Console Port %s - gamepad api %s"):format(
-			controller.version or "version unread", controller.native and "present" or "not found")
-		if not controller.api then
-			lines[#lines + 1] = "  its binding calls were not found, so no pad button is listed"
-		else
-			local rows = self:PadBindings()
-			lines[#lines + 1] = ("  %d pad bindings"):format(#rows)
-			for _, row in ipairs(rows) do
-				lines[#lines + 1] = ("  %-18s  %s"):format(
-					self:PadText(row), row.target or row.binding)
-			end
-		end
-	else
-		lines[#lines + 1] = "Console Port is not loaded - the keys on the left are all there is."
-	end
-
-	lines[#lines + 1] = "cells answer keyboard chords; a pad button runs an action bar slot, so a cell a pad cannot reach needs its spell on a bar the pad is bound to."
+	lines[#lines + 1] = "read-only: this window never moves a cell or changes a key."
 	return lines
 end
 
@@ -390,19 +256,27 @@ function OPB:PrintReport()
 	end
 end
 
+-- Each line names one read this addon makes, so a half-empty window can be told
+-- apart from a half-empty saved variable.
 function OPB:Diag()
 	local one = self:OneButton()
-	local controller = self:Controller()
-	local rows = self:PadBindings()
+
+	local db     = type(_G.ForeverOneButtonDB) == "table"
+	local char   = type(_G.ForeverOneButtonCharDB) == "table"
+	local cells  = char and type(_G.ForeverOneButtonCharDB.cells) == "table" or false
+	local spells = (type(C_Spell) == "table" and type(C_Spell.GetSpellInfo) == "function")
+		or type(GetSpellInfo) == "function"
+	local items  = (type(C_Item) == "table" and type(C_Item.GetItemNameByID) == "function")
+		or type(GetItemInfo) == "function"
 
 	self:Print("--- One Button Pad diag ---")
 	self:PrintRaw(("addon %s  build %s"):format(self.VERSION, self.BUILD))
 	self:PrintRaw(("foreveronebutton %s  version %s  cells %d/%d keyed  shows %d"):format(
 		one.present and "yes" or "no", tostring(one.version or "-"),
 		one.keyed or 0, #one.cells or 0, one.shown or 0))
-	self:PrintRaw(("consoleport %s  version %s  binding api %s  gamepad api %s  bindings %d"):format(
-		controller.present and "yes" or "no", tostring(controller.version or "-"),
-		controller.api and "yes" or "no", controller.native and "yes" or "no", #rows))
+	self:PrintRaw(("reads db %s  char %s  cells %s  spells %s  items %s"):format(
+		db and "yes" or "no", char and "yes" or "no", cells and "yes" or "no",
+		spells and "yes" or "no", items and "yes" or "no"))
 	self:PrintRaw(("window %s  saved %s"):format(
 		self.UI and self.UI.frame and "built" or "not built",
 		type(OneButtonPadDB) == "table" and "yes" or "no"))
@@ -465,7 +339,7 @@ loader:SetScript("OnEvent", function(_, event, arg1)
 	elseif event == "PLAYER_LOGIN" then
 		OPB:Print(("v%s loaded - /obp"):format(OPB.VERSION))
 	elseif event == "UPDATE_BINDINGS" then
-		-- A pad binding or a cell key can change while the window is open.
+		-- A cell key can change while the window is open.
 		if OPB.UI and OPB.UI.frame and OPB.UI.frame:IsShown() then
 			OPB.UI:Refresh()
 		end

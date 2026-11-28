@@ -8,12 +8,16 @@ const { lua, lauxlib, lualib, to_luastring, to_jsstring } = require("fengari");
 const root = path.resolve(__dirname, "..", "..");
 const corePath = path.join(root, "OneButtonPad", "Core.lua");
 const uiPath = path.join(root, "OneButtonPad", "UI.lua");
+const tocPath = path.join(root, "OneButtonPad", "OneButtonPad.toc");
 let failed = false;
 
+const sources = new Map();
 for (const file of [corePath, uiPath]) {
   const name = path.basename(file);
+  const text = fs.readFileSync(file, "utf8");
+  sources.set(name, text);
   try {
-    luaparse.parse(fs.readFileSync(file, "utf8"), { luaVersion: "5.1" });
+    luaparse.parse(text, { luaVersion: "5.1" });
     console.log("PASS parse " + name + " (Lua 5.1)");
   } catch (e) {
     failed = true;
@@ -21,10 +25,40 @@ for (const file of [corePath, uiPath]) {
   }
 }
 
+// This addon is for Forever WoW alone: Console Port must not be named anywhere.
+const FORBIDDEN = [
+  "ConsolePort", "Console Port", "GetCurrentBindings", "GetFormattedButtonCombination",
+  "PadBindings", "DescribeBinding", "DescribeWidget", "Gamepad", "ActionButton",
+];
+for (const [name, text] of sources) {
+  const hits = FORBIDDEN.filter((word) => text.includes(word));
+  if (hits.length) {
+    failed = true;
+    console.log("FAIL " + name + " still names Console Port: " + hits.join(", "));
+  }
+}
+if (!failed) console.log("PASS no Console Port reference in Core.lua or UI.lua");
+
+const toc = fs.readFileSync(tocPath, "utf8");
+const tocHits = FORBIDDEN.filter((word) => toc.includes(word));
+const optional = (toc.match(/^##\s*OptionalDeps:(.*)$/m) || [, ""])[1].trim();
+if (tocHits.length) {
+  failed = true;
+  console.log("FAIL OneButtonPad.toc still names Console Port: " + tocHits.join(", "));
+} else if (optional !== "ForeverOneButton") {
+  failed = true;
+  console.log("FAIL OneButtonPad.toc OptionalDeps is '" + optional + "', expected ForeverOneButton");
+} else {
+  console.log("PASS .toc depends on Forever One Button only (" + optional + ")");
+}
+
 const stubs = `
 UIParent = {}
 SlashCmdList = {}
-DEFAULT_CHAT_FRAME = { AddMessage = function() end }
+DEFAULT_CHAT_FRAME = { messages = {} }
+function DEFAULT_CHAT_FRAME.AddMessage(frame, message)
+  frame.messages[#frame.messages + 1] = tostring(message)
+end
 tinsert = table.insert
 function CreateFrame()
   local f = {}
@@ -46,10 +80,13 @@ local function check(name, cond, extra)
 end
 
 check("addon table exists", type(OPB) == "table")
-check("saved variables start empty", true)
+check("the version is 0.1.1", OPB.VERSION == "0.1.1", tostring(OPB.VERSION))
+check("the build stamp is today's", OPB.BUILD == "2026-11-28a", tostring(OPB.BUILD))
 
 -- what the client cannot answer must never read as "loaded"
-check("neither addon is loaded in the stub", OPB:IsLoaded(OPB.ONE_BUTTON) == false)
+check("forever one button is not loaded in the stub", OPB:IsLoaded(OPB.ONE_BUTTON) == false)
+check("no other addon is treated as forever one button", OPB:IsLoaded("ConsolePort") == false)
+check("the addon only knows one name", OPB.ONE_BUTTON == "ForeverOneButton")
 
 -- keys: saved string, removed key, untouched default
 check("an untouched cell uses Forever One Button's default",
@@ -81,80 +118,31 @@ check("a cell the client cannot name still has a label",
 
 local one = OPB:OneButton()
 check("one button reads what is saved",
-  one.present == true and one.shown == 3 and #one.cells == 2 and one.keyed == 1,
-  tostring(one.shown) .. " / " .. tostring(one.keyed))
+  one.present == true and one.shown == 3 and #one.cells == 2 and one.keyed == 1 and one.keyless == 1,
+  tostring(one.shown) .. " / " .. tostring(one.keyed) .. " / " .. tostring(one.keyless))
 
--- console port absent: no bindings, and nothing raised
-local controller = OPB:Controller()
-check("console port is reported absent", controller.present == false and controller.api == nil)
-check("no bindings without console port", #OPB:PadBindings() == 0)
-
--- binding targets in words a player recognises
-check("main bar button reads as main bar",
-  OPB:DescribeWidget("ActionButton3") == "main bar 3", tostring(OPB:DescribeWidget("ActionButton3")))
-check("the longest prefix wins",
-  OPB:DescribeWidget("MultiBarBottomLeftButton3") == "bottom left bar 3",
-  tostring(OPB:DescribeWidget("MultiBarBottomLeftButton3")))
-check("a cell widget reads as a cell",
-  OPB:DescribeWidget("ForeverOneButtonCell12") == "Forever One Button cell 12",
-  tostring(OPB:DescribeWidget("ForeverOneButtonCell12")))
-check("an unknown widget has no player words", OPB:DescribeWidget("SomethingElse1") == nil)
-check("a click binding is described through its widget",
-  OPB:DescribeBinding("CLICK ActionButton2:LeftButton") == "main bar 2",
-  tostring(OPB:DescribeBinding("CLICK ActionButton2:LeftButton")))
-check("console port's own action is left alone",
-  OPB:DescribeBinding("togglemenu") == nil, tostring(OPB:DescribeBinding("togglemenu")))
-
-local row = { button = "PAD2", modifier = "SHIFT" }
-check("a binding with no glyph reads as button plus modifier",
-  OPB:PadText(row) == "PAD2 + SHIFT", tostring(OPB:PadText(row)))
-check("the no-modifier form is not printed",
-  OPB:PadText({ button = "PAD2", modifier = "NONE" }) == "PAD2")
-check("a glyph is passed through untouched",
-  OPB:PadText({ button = "PAD2", modifier = "SHIFT", glyph = "|Tglyph:16:16|t" }) == "|Tglyph:16:16|t")
-
--- the report must say what is missing instead of breaking
+-- the report must say what is there, and count the cells no chord presses
 local lines = OPB:ReportLines()
-check("the report is plain lines", type(lines) == "table" and #lines >= 3 and type(lines[1]) == "string")
-check("the report says forever one button was read", tostring(lines[1]):find("Forever One Button") ~= nil, lines[1])
-check("the report names console port as missing",
-  tostring(lines[#lines - 1]):find("Console Port is not loaded") ~= nil, lines[#lines - 1])
-check("the report ends with the keyboard-versus-pad note",
-  tostring(lines[#lines]):find("pad button runs an action bar slot") ~= nil, lines[#lines])
+check("the report is plain lines", type(lines) == "table" and #lines >= 4 and type(lines[1]) == "string")
+check("the report says forever one button was read",
+  tostring(lines[1]):find("Forever One Button") ~= nil, lines[1])
+check("the report counts the cells with no key",
+  table.concat(lines, NL):find("no chord presses them") ~= nil)
+check("the report ends with the read-only note",
+  tostring(lines[#lines]):find("read%-only") ~= nil, lines[#lines])
 
--- a console port stub: bindings are read and sorted, and a broken one raises nothing
-ConsolePort = {
-  GetCurrentBindings = function() end,
-  GetFormattedButtonCombination = function() return nil end,
-}
-check("console port is found through its global", OPB:Controller().present == true)
+-- diag must name the build and the reads, and never mention a pad binding
+local before = #DEFAULT_CHAT_FRAME.messages
+OPB:Diag()
+local diag = table.concat(DEFAULT_CHAT_FRAME.messages, NL, before + 1)
+check("diag prints the build stamp", diag:find(OPB.BUILD, 1, true) ~= nil)
+check("diag names the reads it makes", diag:find("reads db yes") ~= nil)
+check("diag says the window is not built yet", diag:find("window not built") ~= nil)
 
-ConsolePort.GetCurrentBindings = function()
-  return {
-    PAD2 = { SHIFT = "CLICK ActionButton4:LeftButton", NONE = "CLICK ActionButton3:LeftButton" },
-    PAD1 = { NONE = "CLICK MultiBarBottomLeftButton1:LeftButton" },
-  }
-end
-ConsolePort.GetFormattedButtonCombination = function(_, button, modifier)
-  return button == "PAD1" and "|Tglyph|t" or nil
-end
-
-local bindings = OPB:PadBindings()
-check("every binding is listed", #bindings == 3, #bindings)
-check("bindings are sorted by button then modifier",
-  bindings[1].button == "PAD1" and bindings[2].button == "PAD2" and bindings[2].modifier == "NONE"
-    and bindings[3].modifier == "SHIFT",
-  bindings[1].button .. "/" .. bindings[2].modifier .. "/" .. bindings[3].modifier)
-check("a binding carries the words for what it runs",
-  bindings[3].target == "main bar 4", tostring(bindings[3].target))
-check("a glyph comes from console port",
-  OPB:PadText(bindings[1]) == "|Tglyph|t", tostring(OPB:PadText(bindings[1])))
-
-ConsolePort.GetCurrentBindings = function() error("boom") end
-check("a failing binding call is reported as no bindings, not an error",
-  #OPB:PadBindings() == 0)
-
-ForeverOneButtonCharDB, ForeverOneButtonDB, ConsolePort = nil, nil, nil
+ForeverOneButtonCharDB, ForeverOneButtonDB = nil, nil
+local empty = OPB:ReportLines()
+check("an unloaded addon is reported, not crashed",
+  tostring(empty[1]):find("not loaded") ~= nil, empty[1])
 
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
 `;

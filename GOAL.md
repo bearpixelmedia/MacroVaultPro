@@ -13,7 +13,7 @@ path, settled decisions, machine limits — stay in `AGENTS.md` and are not repe
 |---|---|---|
 | Maker | Code done, harness green — **unverified in game** | owner at the keyboard |
 | 1.0.3 local install | Done — 1.0.3.24, build stamp `[2026-11-27af]`, 6 files hash-verified, **not uploaded** | — |
-| One Button Pad 0.1.0 | Separate addon, code done, harness green — **unverified in game**, installed locally | owner at the keyboard |
+| One Button Pad 0.1.1 | Separate Forever One Button-only addon, Console Port stripped, harness green — **unverified in game**, installed locally | owner at the keyboard |
 | 1.0.3 listing copy | Done — `media-kit/curseforge-*` read 1.0.3 with the Maker, the checklist reads 1.0.3, and the `## 1.0.3` notes cover everything since 1.0.2 | — |
 | 1.0.3 CurseForge upload | Blocked | the in-game Maker check, then the owner's `-Upload` |
 

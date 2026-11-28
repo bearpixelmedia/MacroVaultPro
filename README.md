@@ -29,12 +29,12 @@ while you are in combat.
 ## One Button Pad
 
 A second, separate addon ships from this repository: **One Button Pad**
-(`OneButtonPad/`). It reads Forever One Button's cells and Console Port's pad
-bindings and puts both in one window at controller size — every cell with the key
-that presses it, and every pad button with the action bar slot it runs. It only
-reads: neither addon's cells, keys or bindings are changed. `/obp` opens it,
-`/obp report` prints the same information to chat and `/obp diag` prints a report;
-rebuild and install it with
+(`OneButtonPad/`), built for Forever WoW alone. It reads Forever One Button's
+cells and puts each one in a single window at controller size, with the chord that
+presses it — including cells the grid is not showing, and cells with no key at
+all. It only reads: no cell, key or setting is changed. `/obp` opens it,
+`/obp report` prints the same information to chat and `/obp diag` prints which
+reads answered; rebuild and install it with
 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/onebuttonpad.ps1`.
 
 ## Install
@@ -64,7 +64,7 @@ exactly which drag path works.
 | Path | What it is |
 | --- | --- |
 | `MacroVaultPro/` | The addon itself — the only folder that ships to players. `MacroVaultPro.toc` declares the interface, version, SavedVariables and icon; `Core.lua` holds the data layer and slash commands, `Library.lua` the 26 ready-made macros, `Skin.lua` the client-template skin the window draws with, `UI.lua` the window, and `Media/icon.tga` the addon-list icon the `.toc` points at. |
-| `OneButtonPad/` | The separate One Button Pad addon: `Core.lua` reads Forever One Button's cells and Console Port's pad bindings, `UI.lua` draws the window. It builds to its own zip and never borrows MacroVaultPro's version or saved variables. |
+| `OneButtonPad/` | The separate One Button Pad addon, for Forever WoW only: `Core.lua` reads Forever One Button's cells and keys, `UI.lua` draws the read-only window. It builds to its own zip and never borrows MacroVaultPro's version or saved variables. |
 | `media-kit/` | The CurseForge listing: paste-ready description, listing copy, changelog, avatar, banner and gallery images. `media-kit/README.md` is the upload checklist. |
 | `media-kit/build/` | The HTML/CSS the banner and gallery cards are rendered from, the avatar master, and `render.ps1`, which regenerates every image in the kit. Development only — never goes in the zip. |
 | `AGENTS.md` | The project goal, the state table one chat moves one row of, and the rules for working here — read before any change. |
