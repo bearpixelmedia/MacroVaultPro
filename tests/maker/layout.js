@@ -233,7 +233,27 @@ if builtPanel and card then
   UI:LoadMakerShare()
   local replaceLines = statusReport()
 
-  local worstLines = math.max(refusalLines, loadedLines, replaceLines)
+  -- The twelve-missing paste is the widest text this path makes, but the count
+  -- it prints has to agree with its own noun, and the singular case is the one
+  -- that reads "1 macros" if nobody looks. One step, one name, one missing
+  -- macro: it has to fit the strip too.
+  MV:ClearMakerSteps()
+  UI.makerShareBox:SetText(table.concat({
+    "MVPSEQ1", "N", "priority", "none",
+    "m:" .. string.rep("M", MV.MAX_NAME - 2) .. "01",
+  }, "|"))
+  UI:LoadMakerShare()
+  local oneLines, oneText = statusReport()
+  check('a one-missing status reads "1 macro missing"',
+    oneText:find("1 macro missing: ", 1, true) ~= nil
+      and oneText:find("macros missing", 1, true) == nil, oneText)
+  check('the one-missing status fits between the box and the buttons',
+    statusPoint.y + oneLines * status:GetStringHeight() <= boxBottom,
+    oneLines .. " lines, needs " .. (oneLines * status:GetStringHeight())
+      .. " of " .. (boxBottom - statusPoint.y) .. " at " .. charsPerLine
+      .. " chars/line: " .. oneText)
+
+  local worstLines = math.max(refusalLines, loadedLines, replaceLines, oneLines)
   check("the longest share status fits between the box and the buttons",
     statusPoint.y + worstLines * status:GetStringHeight() <= boxBottom,
     worstLines .. " lines, needs " .. (worstLines * status:GetStringHeight())
