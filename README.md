@@ -13,7 +13,12 @@ macro window. The **Library**
 tab has 26 ready-made targeting, utility and developer macros you can read
 before creating. The **Tools** tab runs the client's own debug tools —
 `/fstack`, `/etrace`, `/api`, build info, script errors, taint log — without
-typing them. The **Sheet** tab puts the macro list beside 36 icon slots: drag one
+typing them. The **Maker** tab composes a list of spells and macros into one bar
+button: drop a spell from your spellbook or click one of your own macros, order
+the steps, give each spell a target and conditions, and build it as a priority
+list or as one `/castsequence` with its own reset choices; **Share** writes the
+whole maker as one line and loads one back. The **Sheet** tab puts the macro
+list beside 36 icon slots: drag one
 onto a slot, drag one slot onto another to swap the two, right-click to clear
 (Undo writes back the layout from before that last clear or move); the layout is
 saved with the rest of the addon's settings.
@@ -45,7 +50,9 @@ game with no addons disabled, and the window opens from `/mvpro` or
 and traceback for each entry — and hands it to a small read-only window, with
 chat as the fallback when that window cannot be built. Its Copy button selects the
 whole block and says to press Ctrl+C. It covers errors raised in the addon's own
-files, including ones thrown while it loads. The same list is saved in
+files, including ones thrown while it loads; an error raised by another addon is
+listed under its own heading, and repeats of one error fold into a single entry
+with a count and the time it was last seen. The same list is saved in
 `WTF/Account/<account>/SavedVariables/MacroVaultPro.lua` after a reload; the
 window's Clear log button empties both stored lists and rebuilds the window. For a drag or load problem, `/mvpro diag`
 prints one copyable block — build stamp, client build, which drag APIs the
@@ -56,7 +63,7 @@ exactly which drag path works.
 
 | Path | What it is |
 | --- | --- |
-| `MacroVaultPro/` | The addon itself — the only folder that ships to players. `MacroVaultPro.toc` declares the interface, version, SavedVariables and icon; `Core.lua` holds the data layer and slash commands, `Library.lua` the 26 ready-made macros, `UI.lua` the window, and `Media/icon.tga` the addon-list icon the `.toc` points at. |
+| `MacroVaultPro/` | The addon itself — the only folder that ships to players. `MacroVaultPro.toc` declares the interface, version, SavedVariables and icon; `Core.lua` holds the data layer and slash commands, `Library.lua` the 26 ready-made macros, `Skin.lua` the client-template skin the window draws with, `UI.lua` the window, and `Media/icon.tga` the addon-list icon the `.toc` points at. |
 | `OneButtonPad/` | The separate One Button Pad addon: `Core.lua` reads Forever One Button's cells and Console Port's pad bindings, `UI.lua` draws the window. It builds to its own zip and never borrows MacroVaultPro's version or saved variables. |
 | `media-kit/` | The CurseForge listing: paste-ready description, listing copy, changelog, avatar, banner and gallery images. `media-kit/README.md` is the upload checklist. |
 | `media-kit/build/` | The HTML/CSS the banner and gallery cards are rendered from, the avatar master, and `render.ps1`, which regenerates every image in the kit. Development only — never goes in the zip. |
@@ -83,8 +90,9 @@ entries, then verifies the archive's root, separators, `.toc` and icon path:
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/package.ps1
 ```
 
-The packager deletes older `dist/MacroVaultPro-*.zip` files, so bump
-`## Version:` in the `.toc` before you build the next release.
+Older archives stay in `dist/` — `tools/upload-curseforge.ps1 -VerifyId` hashes a
+live file against the build it came from — so bump `## Version:` in the `.toc`
+before you build the next release; the new archive is named after the new version.
 
 **Install for testing** — copies `dist/MacroVaultPro-<version>.zip` into
 `D:\World of Warcraft\_forever_\Interface\AddOns` (pass `-AddOns` for another

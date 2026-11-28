@@ -30,7 +30,6 @@ Installed build: **1.0.3.24**, stamp `[2026-11-27af]`. Everything below is reach
 - [ ] There is a visible gap between the hint's second line and the top edge of the edit box — the box starts lower than it did in 1.0.3.23 (1.0.3.24)
 - [ ] The edit box still shows several lines of a long sequence without its last line crowding the **Copy** row (1.0.3.24)
 - [ ] Share a maker holding one step, then Load it into an empty maker: the line reads `Loaded 1 step`, not `1 steps` (1.0.3.23)
-- [ ] The hint and the box do not touch: there is a visible gap between the last hint line and the box's top edge (1.0.3.24)
 
 ## 3. Error log — 1.0.3.16, 1.0.3.17, 1.0.3.18
 

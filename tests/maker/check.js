@@ -9,9 +9,11 @@ const root = path.resolve(__dirname, "..", "..");
 const corePath = path.join(root, "MacroVaultPro", "Core.lua");
 const uiPath = path.join(root, "MacroVaultPro", "UI.lua");
 const skinPath = path.join(root, "MacroVaultPro", "Skin.lua");
+const libPath = path.join(root, "MacroVaultPro", "Library.lua");
+const tocPath = path.join(root, "MacroVaultPro", "MacroVaultPro.toc");
 let failed = false;
 
-for (const file of [corePath, uiPath, skinPath]) {
+for (const file of [corePath, uiPath, skinPath, libPath]) {
   const name = path.basename(file);
   try {
     luaparse.parse(fs.readFileSync(file, "utf8"), { luaVersion: "5.1" });
@@ -21,6 +23,52 @@ for (const file of [corePath, uiPath, skinPath]) {
     console.log("FAIL parse " + name + ": " + e.message);
   }
 }
+
+// README.md and the CurseForge listing count things and name a version. These
+// read those claims from the files the client loads, so a count that drifts, or
+// a file added to the folder but left out of the .toc, fails here.
+function docCheck(name, ok, extra) {
+  console.log((ok ? "PASS " : "FAIL ") + name + (extra !== undefined ? "  [" + extra + "]" : ""));
+  if (!ok) failed = true;
+}
+
+const coreSource = fs.readFileSync(corePath, "utf8");
+const uiSource = fs.readFileSync(uiPath, "utf8");
+const tocSource = fs.readFileSync(tocPath, "utf8");
+const notesSource = fs.readFileSync(path.join(root, "media-kit", "release-notes.md"), "utf8");
+
+const tocVersion = (tocSource.match(/^##\s*Version:\s*(.+?)\s*$/m) || [])[1];
+const coreVersion = (coreSource.match(/MV\.VERSION\s*=\s*"([^"]+)"/) || [])[1];
+const stamp = (coreSource.match(/MV\.BUILD\s*=\s*"([^"]+)"/) || [])[1];
+docCheck("the .toc and the addon report one version",
+  !!tocVersion && tocVersion === coreVersion, tocVersion + " / " + coreVersion);
+docCheck("the build stamp is dated and lettered", /^\d{4}-\d{2}-\d{2}[a-z]{2}$/.test(stamp || ""), stamp);
+docCheck("release-notes has a section for the installed version",
+  !!tocVersion && new RegExp("^## " + tocVersion.replace(/\./g, "\\.") + "\\s*$", "m").test(notesSource),
+  tocVersion);
+
+const tocFiles = tocSource.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.endsWith(".lua"));
+const luaFiles = fs.readdirSync(path.join(root, "MacroVaultPro")).filter((name) => name.endsWith(".lua")).sort();
+docCheck("the .toc loads every .lua in the addon folder, and nothing else",
+  luaFiles.every((name) => tocFiles.includes(name)) && tocFiles.length === luaFiles.length,
+  tocFiles.join(","));
+
+const iconLine = (tocSource.match(/^##\s*IconTexture:\s*(.+?)\s*$/m) || [])[1];
+const iconPath = iconLine
+  ? path.join(root, "MacroVaultPro", iconLine.replace(/^Interface[\\/]AddOns[\\/]MacroVaultPro[\\/]/, "").replace(/\\/g, "/"))
+  : null;
+docCheck("the .toc icon exists on disk", !!iconPath && fs.existsSync(iconPath), iconLine);
+
+// README.md says the addon-list icon is a 64x64 TGA; the size lives in its header.
+const tgaFile = path.join(root, "MacroVaultPro", "Media", "icon.tga");
+const tga = fs.existsSync(tgaFile) ? fs.readFileSync(tgaFile) : null;
+docCheck("the addon-list icon is the documented 64x64 TGA",
+  !!tga && tga.length > 18 && tga.readUInt16LE(12) === 64 && tga.readUInt16LE(14) === 64,
+  tga && tga.length > 18 ? tga.readUInt16LE(12) + "x" + tga.readUInt16LE(14) : "missing");
+
+const sheetCols = Number((uiSource.match(/SHEET_COLUMNS\s*=\s*(\d+)/) || [])[1]);
+const sheetRows = Number((uiSource.match(/SHEET_ROWS\s*=\s*(\d+)/) || [])[1]);
+docCheck("the sheet has the documented 36 slots", sheetCols * sheetRows === 36, sheetCols + "x" + sheetRows);
 
 const stubs = `
 UIParent = {}
@@ -546,12 +594,38 @@ check("skin report shows yes, fallback and not-built",
     and partSkin:find("BackdropTemplate=not%-built") ~= nil, partSkin)
 MV.Skin = nil
 
+-- The counts README.md and the listing carry, read from the files that ship.
+check("the documented twelve client tools are twelve", #MV.TOOLS == 12, #MV.TOOLS)
+check("the documented 26 ready-made macros are 26", #MV.LIBRARY == 26, #MV.LIBRARY)
+local groups = {}
+for _, entry in ipairs(MV.LIBRARY) do
+  groups[entry.group] = (groups[entry.group] or 0) + 1
+end
+check("the library splits into the documented 10 / 11 / 5",
+  groups.Targeting == 10 and groups.Utility == 11 and groups.Development == 5,
+  tostring(groups.Targeting) .. "/" .. tostring(groups.Utility) .. "/" .. tostring(groups.Development))
+
+-- The description promises a bounded log: 20 of the addon's own errors and 10
+-- raised elsewhere. Log past both limits and read what the stores keep.
+MacroVaultProDB.errors, MacroVaultProDB.otherErrors = {}, {}
+for i = 1, 25 do MV:LogError("own " .. i .. ".lua:1: boom") end
+for i = 1, 15 do MV:LogError("Interface/AddOns/Other/Core.lua:" .. i .. ": boom", "", true) end
+check("the log keeps the last 20 of its own errors",
+  #MacroVaultProDB.errors == 20, #MacroVaultProDB.errors)
+check("the log keeps up to 10 raised by another addon",
+  #MacroVaultProDB.otherErrors == 10, #MacroVaultProDB.otherErrors)
+
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
 `;
 
 const L = lauxlib.luaL_newstate();
 lualib.luaL_openlibs(L);
-const src = stubs + fs.readFileSync(corePath, "utf8") + "\n" + tests;
+// Library.lua takes the addon table as its second vararg, as the .toc load
+// gives it; the harness passes the same thing explicitly.
+const librarySource = fs
+  .readFileSync(libPath, "utf8")
+  .replace("local ADDON_NAME, MV = ...", 'local ADDON_NAME, MV = "MacroVaultPro", MacroVaultPro');
+const src = stubs + coreSource + "\n" + librarySource + "\n" + tests;
 if (lauxlib.luaL_loadstring(L, to_luastring(src)) !== lua.LUA_OK) {
   console.log("FAIL load: " + to_jsstring(lua.lua_tostring(L, -1)));
   process.exit(1);
