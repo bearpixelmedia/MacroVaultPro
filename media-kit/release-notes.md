@@ -17,6 +17,12 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.26
+
+- **Every tab's status line is checked word for word**, at the full 16-character
+  macro name, and each one has to stay inside the two lines the bottom bar has
+  above the tab pages.
+
 ## 1.0.3.25
 
 - **The window's status bar can show two lines without covering the panes.**

@@ -1,11 +1,11 @@
-# MacroVaultPro in-game check — 1.0.3 (through local build 1.0.3.25)
+# MacroVaultPro in-game check — 1.0.3 (through local build 1.0.3.26)
 
-Installed build: **MacroVaultPro 1.0.3.25**, stamp `[2026-11-28aa]` — the released 1.0.3 is `[2026-11-27ab]`; **One Button Pad 0.1.1**, stamp `[2026-11-28a]` — a separate addon, checked in section 5 of the same reload. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
+Installed build: **MacroVaultPro 1.0.3.26**, stamp `[2026-11-28ab]` — the released 1.0.3 is `[2026-11-27ab]`; **One Button Pad 0.1.1**, stamp `[2026-11-28a]` — a separate addon, checked in section 5 of the same reload. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
 
 ## 0. You are on the new build
 
 - [ ] `/reload`
-- [ ] `/mvpro selftest` reports `1.0.3.25`, build `2026-11-28aa`, interface `16001`
+- [ ] `/mvpro selftest` reports `1.0.3.26`, build `2026-11-28ab`, interface `16001`
 
 ## 1. Maker card — 1.0.3.12, 1.0.3.13, 1.0.3.15
 

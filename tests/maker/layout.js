@@ -395,7 +395,9 @@ if builtPanel and card then
   -- the longest Load at 118), so the bar is measured with the panels above it.
   -- Library.lua is not part of this harness, so the two data tables the other
   -- panels read are stubbed; the maker and the status bar do not touch them.
-  MV.TOOLS = MV.TOOLS or {}
+  MV.TOOLS = MV.TOOLS or {
+    { label = "Frame stack", cmd = "/fstack", icon = 1 },
+  }
   MV.LIBRARY = MV.LIBRARY or {}
   local builtWindow, windowErr = pcall(function() UI:Build() end)
   check("the window builds against the stubs",
@@ -625,6 +627,165 @@ check("dragging one slot onto another swaps them",
 check("undo puts the swapped slots back",
   UI:UndoSheet() == true and sameSheet(sheetSnapshot(), beforeSwap), describeSheet())
 check("undo is one step only", UI:UndoSheet() == false)
+
+-- The other five tabs write into the same bottom bar, so every one of their
+-- handlers is driven here. Each pinned message also has to stay at two lines
+-- and clear the panes: the bar is 640 wide at font 11, 83 chars a line, and a
+-- two-line message reaches y=43 against panes that start at 48.
+local bar = UI.status
+local barPoint = (bar and bar.points[1]) or {}
+local barY = barPoint.y or 0
+local barLine = bar and bar:GetStringHeight() or 0
+local barChars = bar and math.max(1,
+  math.floor(bar.width / ((bar.fontSize or 10) * 0.7))) or 1
+local panelBottom
+for _, point in ipairs(UI.panels.maker.points) do
+  if point.point == "BOTTOMRIGHT" then panelBottom = point.y end
+end
+
+local function tabBar() return tostring(bar and bar.text or "") end
+local function expectTabBar(name, want)
+  local got = tabBar()
+  check(name, got == want, got .. " (" .. #got .. " chars)")
+  local lines = math.max(1, math.ceil(#got / barChars))
+  check(name .. " stays within two lines and clears the panes",
+    bar ~= nil and lines <= 2 and barY + lines * barLine <= panelBottom - 4,
+    lines .. " lines, top " .. (barY + lines * barLine) .. " vs panel bottom "
+      .. tostring(panelBottom) .. " at " .. barChars .. " chars/line")
+end
+
+-- A macro name at the documented limit, so the name and slot templates are
+-- measured at their widest rather than at a short sample.
+local wideMacro = {
+  index = 120, name = "SixteenCharNames", body = "#showtooltip",
+  icon = 1, scope = "account",
+}
+CreateMacro = function() return wideMacro.index end
+EditMacro = function() return wideMacro.index end
+PickupMacro = function() return true end
+function MV:GetMacro() return wideMacro end
+function MV:GetMacros() return { wideMacro } end
+
+-- Macros
+UI.selectedMacroIndex = nil
+UI:PickupSelected()
+expectTabBar("picking up with nothing selected asks for a macro", "Select a macro first.")
+
+UI.selectedMacroIndex = wideMacro.index
+UI:DuplicateSelected()
+expectTabBar("duplicating explains that it is a copy",
+  "Editing a copy - change the name, then press Save macro.")
+
+UI:PickupSelected()
+expectTabBar("a picked-up macro says where it goes",
+  "Macro on your cursor - drop it on an action bar.")
+
+UI:OpenMacroWindow()
+expectTabBar("a missing macro window says so", "The macro window is not available.")
+
+-- Tools: the button's own OnClick runs the tool and writes the line.
+SlashCmdList.FSTACK = function() end
+SLASH_FSTACK1 = "/fstack"
+local toolButton
+for _, regionFrame in ipairs(REGIONS) do
+  if regionFrame.kind == "Button" then
+    for _, child in ipairs(REGIONS) do
+      if child.parent == regionFrame and child.text == "/fstack" then
+        toolButton = regionFrame
+      end
+    end
+  end
+end
+check("the Tools tab draws a button for /fstack",
+  toolButton ~= nil and toolButton.scripts.OnClick ~= nil, tostring(toolButton ~= nil))
+if toolButton and toolButton.scripts.OnClick then toolButton.scripts.OnClick() end
+expectTabBar("running a tool names the tool and its command", "Frame stack: ran /fstack")
+
+-- Library
+UI.selectedLibrary = nil
+UI:CreateLibraryMacro()
+expectTabBar("creating with nothing selected asks for a library macro",
+  "Select a library macro first.")
+
+UI.selectedLibrary = {
+  label = "SixteenCharNames", body = "#showtooltip", icon = 1,
+  group = "Test", desc = "",
+}
+UI:CreateLibraryMacro()
+expectTabBar("creating a library macro names it and its slot",
+  "Created 'SixteenCharNames' in slot 120.")
+
+UI.libraryScope = "account"
+UI:ToggleLibraryScope()
+expectTabBar("library scope names this character", "New library macros go to this character.")
+UI:ToggleLibraryScope()
+expectTabBar("library scope names the account", "New library macros are account-wide.")
+
+-- Editor
+UI:LoadEditor(wideMacro.index)
+UI:SetEditorScope("char")
+expectTabBar("scope is fixed once a macro exists",
+  "Scope can't change on an existing macro - duplicate it instead.")
+
+UI:NewEditor()
+expectTabBar("a new macro says so", "New macro.")
+
+UI.editorName:SetText("SixteenCharNames")
+UI.editorBody:SetText("")
+UI:SaveEditor()
+expectTabBar("an empty body is refused", "The macro body is empty.")
+
+UI.editorBody:SetText("#showtooltip")
+UI:SaveEditor()
+expectTabBar("saving a new macro names it and its slot",
+  "Created 'SixteenCharNames' in slot 120.")
+UI:SaveEditor()
+expectTabBar("saving an existing macro says Saved",
+  "Saved 'SixteenCharNames' in slot 120.")
+
+UI.editorIndex = nil
+UI:PickupEditor()
+expectTabBar("picking up an unsaved macro asks to save it first",
+  "Save the macro first, then pick it up.")
+
+-- Sheet
+sheetMacros[1] = wideMacro
+UI.sheetMacroMap = nil
+UI:DropOnSlot(1, { macro = wideMacro })
+expectTabBar("dropping a macro into a slot names the slot",
+  "Sheet saved - slot 1. Undo is in this tab.")
+
+UI.sheetSlot = 1
+UI.sheetMacroMap = nil
+local sheetSlot = UI.sheetSlots and UI.sheetSlots[1]
+check("the Sheet tab draws slot 1", sheetSlot ~= nil and sheetSlot.scripts.OnClick ~= nil,
+  tostring(sheetSlot ~= nil))
+if sheetSlot and sheetSlot.scripts.OnClick then
+  sheetSlot.scripts.OnClick(sheetSlot, "LeftButton")
+end
+expectTabBar("clicking a filled slot names the macro",
+  "Selected SixteenCharNames - open My macros to work on it.")
+
+UI:ClearSheetSlot(1)
+expectTabBar("clearing a slot names it and points at undo",
+  "Cleared slot 1 - SixteenCharNames. Undo is in this tab.")
+
+UI:UndoSheet()
+expectTabBar("undo also lands in the bar and says what it undid",
+  "Undid clearing slot 1 - SixteenCharNames.")
+
+local saveButton
+for _, regionFrame in ipairs(REGIONS) do
+  if regionFrame.kind == "Button" and regionFrame:GetLabel() == "Save layout" then
+    saveButton = regionFrame
+  end
+end
+check("the Sheet tab draws its Save layout button",
+  saveButton ~= nil and saveButton.scripts.OnClick ~= nil, tostring(saveButton ~= nil))
+local filled = UI:SheetCount()
+if saveButton and saveButton.scripts.OnClick then saveButton.scripts.OnClick() end
+expectTabBar("saving the layout counts the filled slots",
+  ("Sheet saved - %d of %d slots filled."):format(filled, #UI.sheetSlots))
 
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
 `;
