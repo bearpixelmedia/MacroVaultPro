@@ -630,6 +630,68 @@ check("the log keeps the last 20 of its own errors",
 check("the log keeps up to 10 raised by another addon",
   #MacroVaultProDB.otherErrors == 10, #MacroVaultProDB.otherErrors)
 
+-- The listing promises that a tool runs the handler the client registered for
+-- its command, and that a command with no handler goes through the chat parser
+-- rather than being called missing.
+local ran, seenRest = 0, nil
+SlashCmdList["FSTACK"] = function(rest) ran = ran + 1 seenRest = rest end
+SLASH_FSTACK1 = "/fstack"
+check("a tool runs the client's registered handler",
+  MV:RunTool({ cmd = "/fstack true" }) == true and ran == 1 and seenRest == "true",
+  tostring(ran) .. " / " .. tostring(seenRest))
+
+local sent
+ChatFrame1EditBox = {
+  text = "half typed",
+  SetText = function(self, text) self.text = text end,
+  GetText = function(self) return self.text end,
+}
+ChatEdit_SendText = function(box) sent = box.text; return true end
+check("a command with no handler is handed to the chat parser",
+  MV:RunSlash("/api") == true and sent == "/api", tostring(sent))
+check("a half-typed chat line is put back",
+  ChatFrame1EditBox.text == "half typed", tostring(ChatFrame1EditBox.text))
+
+ChatFrame1EditBox = nil
+local missingOk, missingErr = MV:RunSlash("/notacommand")
+check("a command that is really missing is reported",
+  missingOk == false and tostring(missingErr):find("not available") ~= nil, tostring(missingErr))
+
+-- Opening the window reads the slot limits from the client and falls back to the
+-- numbers the description quotes when the client exposes none.
+MAX_ACCOUNT_MACROS, MAX_CHARACTER_MACROS, Constants = 18, 12, nil
+local clientLayout = MV:GetLayout(true)
+check("the layout reads the client's slot limits",
+  clientLayout.accountSlots == 18 and clientLayout.characterSlots == 12
+    and clientLayout.source == "client limits",
+  tostring(clientLayout.accountSlots) .. "/" .. tostring(clientLayout.characterSlots))
+
+MAX_ACCOUNT_MACROS, MAX_CHARACTER_MACROS, Constants = nil, nil, nil
+local defaultLayout = MV:GetLayout(true)
+check("with no client limit the layout shows the documented 120 / 30",
+  defaultLayout.accountSlots == 120 and defaultLayout.characterSlots == 30
+    and defaultLayout.source == "built-in defaults",
+  tostring(defaultLayout.accountSlots) .. "/" .. tostring(defaultLayout.characterSlots))
+
+-- Nothing is created, changed or picked up while in combat: the guard sits on
+-- every write path, not only on the window's buttons.
+local writes = 0
+local createBefore = CreateMacro
+CreateMacro = function() writes = writes + 1 return 9 end
+InCombatLockdown = function() return true end
+local cIndex, cErr = MV:CreateMacro("Combat", "/cast Frostbolt")
+local uIndex, uErr = MV:UpdateMacro(9, "Combat", "/cast Frostbolt", 1)
+local pOk, pErr = MV:Pickup(9)
+InCombatLockdown = nil
+CreateMacro = createBefore
+check("creating a macro is refused in combat",
+  cIndex == nil and tostring(cErr):find("combat") ~= nil, tostring(cErr))
+check("changing a macro is refused in combat",
+  uIndex == nil and tostring(uErr):find("combat") ~= nil, tostring(uErr))
+check("picking a macro up is refused in combat",
+  pOk == false and tostring(pErr):find("combat") ~= nil, tostring(pErr))
+check("no macro write reaches the client in combat", writes == 0, writes)
+
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
 `;
 
