@@ -48,16 +48,30 @@ docCheck("release-notes has a section for the installed version",
   tocVersion);
 
 // The in-game checklist's build line and its selftest expectation are moved by
-// hand with every install, and both have gone stale before. read them as a claim.
+// hand with every install, and both have gone stale before. Read them as a claim:
+// the line names both addons, so each version and stamp is checked against its
+// own .toc and build constant.
 const checklistPath = path.join(root, "docs", "in-game-checklist.md");
 const checklistSource = fs.existsSync(checklistPath) ? fs.readFileSync(checklistPath, "utf8") : "";
-const installedLine = checklistSource.match(/Installed build: \*\*([^*]+)\*\*, stamp `\[([^\]]+)\]`/);
+const installedLine = checklistSource.match(/Installed build(?:s)?:\s*\*\*MacroVaultPro\s+([^*]+)\*\*,\s+stamp `\[([^\]]+)\]`/);
 docCheck("the in-game checklist names the installed version and stamp",
   !!installedLine && installedLine[1] === tocVersion && installedLine[2] === stamp,
   installedLine ? installedLine[1] + " / " + installedLine[2] : "no installed-build line");
 docCheck("the checklist's selftest line expects that same build",
   !!tocVersion && checklistSource.includes("reports `" + tocVersion + "`, build `" + stamp + "`"),
   tocVersion + " / " + stamp);
+
+const obpTocSource = fs.readFileSync(path.join(root, "OneButtonPad", "OneButtonPad.toc"), "utf8");
+const obpCoreSource = fs.readFileSync(path.join(root, "OneButtonPad", "Core.lua"), "utf8");
+const obpVersion = (obpTocSource.match(/^##\s*Version:\s*(.+?)\s*$/m) || [])[1];
+const obpStamp = (obpCoreSource.match(/OPB\.BUILD\s*=\s*"([^"]+)"/) || [])[1];
+const obpInstalledLine = checklistSource.match(/\*\*One Button Pad\s+([^*]+)\*\*,\s+stamp `\[([^\]]+)\]`/);
+docCheck("the in-game checklist names the installed One Button Pad version and stamp",
+  !!obpVersion && !!obpStamp && !!obpInstalledLine &&
+    obpInstalledLine[1] === obpVersion && obpInstalledLine[2] === obpStamp,
+  obpInstalledLine
+    ? obpInstalledLine[1] + " / " + obpInstalledLine[2] + " vs " + obpVersion + " / " + obpStamp
+    : "no installed-build line");
 
 const tocFiles = tocSource.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.endsWith(".lua"));
 const luaFiles = fs.readdirSync(path.join(root, "MacroVaultPro")).filter((name) => name.endsWith(".lua")).sort();
