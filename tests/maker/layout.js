@@ -222,7 +222,10 @@ if builtPanel and card then
 
   UI.makerShareBox:SetText("MVPSEQ1|nope")
   UI:LoadMakerShare()
-  local refusalLines = statusReport()
+  local refusalLines, refusalText = statusReport()
+  check("the refusal status says what is wrong, exactly",
+    refusalText == "'nil' is not a mode - expected priority or sequence",
+    refusalText .. " (" .. #refusalText .. " chars)")
 
   MV:ClearMakerSteps()
   UI.makerShareBox:SetText(crafted)
@@ -243,7 +246,12 @@ if builtPanel and card then
 
   -- Same string again, now that the maker holds steps: the Replace? question.
   UI:LoadMakerShare()
-  local replaceLines = statusReport()
+  local replaceLines, replaceText = statusReport()
+  local expectedReplace = ("This replaces your %d steps. Press Replace? to go ahead, or Close to keep them.")
+    :format(MV.MAKER_MAX_STEPS)
+  check("the Replace status asks for the same count, exactly",
+    replaceText == expectedReplace,
+    replaceText .. " (" .. #replaceText .. " chars)")
 
   -- The twelve-missing paste is the widest text this path makes, but the count
   -- it prints has to agree with its own noun, and the singular case is the one
