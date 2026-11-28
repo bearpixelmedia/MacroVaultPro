@@ -73,6 +73,18 @@ docCheck("the in-game checklist names the installed One Button Pad version and s
     ? obpInstalledLine[1] + " / " + obpInstalledLine[2] + " vs " + obpVersion + " / " + obpStamp
     : "no installed-build line");
 
+// Section 5 also quotes the load line chat shows. The prefix carries colour codes
+// and ends in two spaces, so strip the codes and hold the doc to what renders.
+const obpPrefix = ((obpCoreSource.match(/local PREFIX = "([^"]*)"/) || [])[1] || "")
+  .replace(/\|c[0-9a-fA-F]{8}/g, "")
+  .replace(/\|r/g, "");
+const obpLoadedLine = "`" + obpPrefix + "v" + (obpVersion || "") + " loaded - /obp`";
+docCheck("the checklist's load line expects that same version",
+  !!obpVersion && !!obpPrefix && checklistSource.includes(obpLoadedLine),
+  checklistSource.includes(obpLoadedLine)
+    ? obpLoadedLine.slice(1, -1)
+    : "expected " + obpLoadedLine);
+
 // Section 5 tells the owner what `/obp diag` prints; the addon formats that line
 // with two spaces, so the checklist has to quote it in that exact shape.
 const obpDiagLine = checklistSource.match(/`addon (\S+) {2}build (\S+)`/);
