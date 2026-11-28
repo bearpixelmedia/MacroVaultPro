@@ -23,5 +23,18 @@ Already live and byte-identical to `dist/`: file 9810929 (1.0.1), 9837232 (1.0.2
 9861169 (1.0.3, 65,597 bytes, sha256 `182BFB181A7D01551786F0A75274BE00D0F7A23754972A22F4DD5BC9A47489DE`,
 checked with `-VerifyId 9861169` after it went public).
 
+Seen in game 2026-11-28, from the owner's six screenshots: every tab renders —
+**My macros** with `account 1/120  character 0/30`, `Account macro · slot 1 ·
+195 characters`, `BODY (195/255)` and its four buttons; **Maker** with
+`SEQUENCE 0/12`, `0 / 255`, the `target`/`combat`/`10s` reset toggles and
+`Runs: priority`; **Tools** with all twelve entries and their commands; **Library**
+`26` with group tags and `MACRO TEXT (32/255)`; the **editor** with `0 / 255` and
+its four buttons; **Sheet** `0/36` with the 6×6 grid, **Save layout** and
+**Undo**. Every label sat inside its card and the status bar was one line on each.
+The shots carry no version stamp — the build is inferred from the install being
+byte-identical to HEAD, 1.0.3.26 — and none of them shows an interaction or the
+two-line status case 1.0.3.26 changed, so the checklist's interaction items are
+still unticked and that row still waits on the owner.
+
 Update a row in the same turn you move it. Only the owner clears a blocker, and a
 chat never starts blocked work twice.
