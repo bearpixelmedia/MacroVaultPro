@@ -1,11 +1,11 @@
-# MacroVaultPro in-game check — 1.0.3.12 → 1.0.3.21
+# MacroVaultPro in-game check — 1.0.3.12 → 1.0.3.22
 
-Installed build: **1.0.3.21**, stamp `[2026-11-27ac]`. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
+Installed build: **1.0.3.22**, stamp `[2026-11-27ad]`. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
 
 ## 0. You are on the new build
 
 - [ ] `/reload`
-- [ ] `/mvpro selftest` reports `1.0.3.21`, build `2026-11-27ac`, interface `16001`
+- [ ] `/mvpro selftest` reports `1.0.3.22`, build `2026-11-27ad`, interface `16001`
 
 ## 1. Maker card — 1.0.3.12, 1.0.3.13, 1.0.3.15
 
@@ -25,7 +25,7 @@ Installed build: **1.0.3.21**, stamp `[2026-11-27ac]`. Everything below is reach
 - [ ] Press **Load**, then **Replace?**: steps are replaced, and the count matches what the gold line said
 - [ ] Paste a broken string such as `MVPSEQ1|nope`, press **Load**: refusal message, steps untouched, **no** `Replace?` prompt
 - [ ] Clear every step, paste a valid string, press **Load**: loads without asking
-- [ ] Load a string whose macro steps this character does not have: the line under the box names two of them and says `and N more`, and it stays between the box and the **Copy** row (1.0.3.21)
+- [ ] Load a string whose macro steps this character does not have: the line under the box names three of them and says `and N more`, and it stays between the box and the **Copy** row (1.0.3.22)
 
 ## 3. Error log — 1.0.3.16, 1.0.3.17, 1.0.3.18
 

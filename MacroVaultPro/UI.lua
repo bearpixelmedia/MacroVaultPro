@@ -3178,17 +3178,18 @@ function UI:LoadMakerShare()
 	local loaded, missing = MV:ApplyMakerString(spec)
 	self:RefreshMaker()
 
-	local message = ("Loaded %d steps."):format(loaded)
+	local message = ("Loaded %d %s."):format(loaded, loaded == 1 and "step" or "steps")
 	if #missing > 0 then
 		-- The strip under the box holds two lines. "12 macros missing:" is short
-		-- enough to name two of them and count the rest: even twelve missing
-		-- sixteen-character names stay at 83 characters, two lines at the
+		-- enough to name three of them and count the rest: even twelve missing
+		-- sixteen-character names stay at 100 characters, two lines at the
 		-- conservative wrap the harness measures.
 		local named = {}
-		for i = 1, math.min(#missing, 2) do named[i] = missing[i] end
+		for i = 1, math.min(#missing, 3) do named[i] = missing[i] end
 		local rest = #missing - #named
-		message = message .. (" %d macros missing: %s%s."):format(
-			#missing, table.concat(named, ", "), rest > 0 and (" and %d more"):format(rest) or "")
+		message = message .. (" %d %s missing: %s%s."):format(
+			#missing, #missing == 1 and "macro" or "macros",
+			table.concat(named, ", "), rest > 0 and (" and %d more"):format(rest) or "")
 	end
 
 	self.makerShareStatus:SetText(message)

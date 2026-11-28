@@ -17,6 +17,14 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.22
+
+- **Three missing macros are named, and the count agrees with its noun.**
+  One missing macro now reads `1 macro missing:` instead of `1 macros missing`,
+  and the short sentence has room for a third name: twelve missing
+  sixteen-character names stay at 100 characters, two lines.
+- **Loaded steps agree too.** A one-step string reads `Loaded 1 step`.
+
 ## 1.0.3.21
 
 - **Two missing macros are named again.** The sentence before the list now reads
