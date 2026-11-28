@@ -79,16 +79,25 @@ if ($Version -eq $current -and -not $Force) {
 }
 
 # ---- next build stamp ----------------------------------------------------
-# Same shape the addon already uses: the date, plus a letter when more than one
-# build lands in a day. /mvpro selftest prints this, so it must keep its shape.
+# Same shape the addon already uses: the date plus two letters, because that is
+# what /mvpro selftest prints and what tests/maker/check.js enforces
+# (^yyyy-MM-dd[a-z]{2}$). A later build on the same day advances the letters as a
+# base-26 number, so ...af becomes ...ag. The earlier version advanced only a
+# single letter and fell back to "${today}a" - one letter, which the harness
+# rejects - for any stamp that already carried two.
 $today = Get-Date -Format "yyyy-MM-dd"
-if ($oldStamp -match "^$([regex]::Escape($today))([a-z])$") {
-	$letter = [char]([int][char]$Matches[1] + 1)
-	if ($letter -gt 'z') { throw "Build letter ran past z for $today" }
-	$stamp = "$today$letter"
-} else {
-	$stamp = "${today}a"
+$letters = "aa"
+if ($oldStamp -match "^$([regex]::Escape($today))([a-z]+)$") {
+	$previous = $Matches[1]
+	if ($previous.Length -lt 2) { $previous = $previous.PadLeft(2, "a") }
+	$chars = $previous.ToCharArray()
+	$i = $chars.Count - 1
+	while ($i -ge 0 -and $chars[$i] -eq "z") { $chars[$i] = [char]"a"; $i-- }
+	if ($i -lt 0) { throw "Build letters ran past zz for $today - use a new date or widen the stamp" }
+	$chars[$i] = [char]([int][char]$chars[$i] + 1)
+	$letters = -join $chars
 }
+$stamp = "$today$letters"
 
 # ---- changelog -----------------------------------------------------------
 # The last commit that touched `## Version:` is the boundary: everything after

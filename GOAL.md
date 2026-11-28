@@ -11,11 +11,11 @@ path, settled decisions, machine limits — stay in `AGENTS.md` and are not repe
 
 | Workstream | State | Blocked by |
 |---|---|---|
-| Maker | Code done, harness green — **unverified in game** | owner at the keyboard |
-| 1.0.3 local install | Done — 1.0.3.24, build stamp `[2026-11-27af]`, 6 files hash-verified, **not uploaded** | — |
-| One Button Pad 0.1.1 | Separate Forever One Button-only addon, Console Port stripped, harness green — **unverified in game**, installed locally | owner at the keyboard |
+| Maker | **Verified in game by the owner**; ships as 1.0.3 | — |
+| 1.0.3 release build | Done — 1.0.3, build stamp `[2026-11-27ab]`, 6 files hash-verified, preflight passed, installed locally, **not uploaded** | — |
+| One Button Pad 0.1.1 | Separate Forever One Button-only addon, Console Port stripped, harness green — **verified in game**, installed locally | — |
 | 1.0.3 listing copy | Done — `media-kit/curseforge-*` read 1.0.3 with the Maker, the checklist reads 1.0.3, and the `## 1.0.3` notes cover everything since 1.0.2 | — |
-| 1.0.3 CurseForge upload | Blocked | the in-game Maker check, then the owner's `-Upload` |
+| 1.0.3 CurseForge upload | Blocked | the owner's `-Upload` word |
 
 Already live and byte-identical to `dist/`: file 9810929 (1.0.1), 9837232 (1.0.2).
 
