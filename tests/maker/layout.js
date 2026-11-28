@@ -229,6 +229,18 @@ if builtPanel and card then
   UI:LoadMakerShare()
   local loadedLines, loadedText = statusReport()
 
+  -- Measuring the widest text says nothing about what it says: the count, the
+  -- cap and the remainder have to be right too, so the whole message is spelled
+  -- out and compared exactly.
+  local function wideName(i)
+    return string.rep("M", MV.MAX_NAME - 2) .. ("%02d"):format(i)
+  end
+  local expectedLoaded = ("Loaded %d steps. %d macros missing: %s, %s, %s and %d more.")
+    :format(MV.MAKER_MAX_STEPS, MV.MAKER_MAX_STEPS,
+      wideName(1), wideName(2), wideName(3), MV.MAKER_MAX_STEPS - 3)
+  check("the longest share status says Loaded 12 steps. 12 macros missing: with three names and 9 more",
+    loadedText == expectedLoaded, loadedText)
+
   -- Same string again, now that the maker holds steps: the Replace? question.
   UI:LoadMakerShare()
   local replaceLines = statusReport()
