@@ -47,6 +47,18 @@ docCheck("release-notes has a section for the installed version",
   !!tocVersion && new RegExp("^## " + tocVersion.replace(/\./g, "\\.") + "\\s*$", "m").test(notesSource),
   tocVersion);
 
+// The in-game checklist's build line and its selftest expectation are moved by
+// hand with every install, and both have gone stale before. read them as a claim.
+const checklistPath = path.join(root, "docs", "in-game-checklist.md");
+const checklistSource = fs.existsSync(checklistPath) ? fs.readFileSync(checklistPath, "utf8") : "";
+const installedLine = checklistSource.match(/Installed build: \*\*([^*]+)\*\*, stamp `\[([^\]]+)\]`/);
+docCheck("the in-game checklist names the installed version and stamp",
+  !!installedLine && installedLine[1] === tocVersion && installedLine[2] === stamp,
+  installedLine ? installedLine[1] + " / " + installedLine[2] : "no installed-build line");
+docCheck("the checklist's selftest line expects that same build",
+  !!tocVersion && checklistSource.includes("reports `" + tocVersion + "`, build `" + stamp + "`"),
+  tocVersion + " / " + stamp);
+
 const tocFiles = tocSource.split(/\r?\n/).map((line) => line.trim()).filter((line) => line.endsWith(".lua"));
 const luaFiles = fs.readdirSync(path.join(root, "MacroVaultPro")).filter((name) => name.endsWith(".lua")).sort();
 docCheck("the .toc loads every .lua in the addon folder, and nothing else",
@@ -596,6 +608,9 @@ MV.Skin = nil
 
 -- The counts README.md and the listing carry, read from the files that ship.
 check("the documented twelve client tools are twelve", #MV.TOOLS == 12, #MV.TOOLS)
+check("the documented 16-character name limit is 16", MV.MAX_NAME == 16, MV.MAX_NAME)
+check("the documented 255-character body limit is 255", MV.MAX_BODY == 255, MV.MAX_BODY)
+check("the documented 12-step maker cap is 12", MV.MAKER_MAX_STEPS == 12, MV.MAKER_MAX_STEPS)
 check("the documented 26 ready-made macros are 26", #MV.LIBRARY == 26, #MV.LIBRARY)
 local groups = {}
 for _, entry in ipairs(MV.LIBRARY) do

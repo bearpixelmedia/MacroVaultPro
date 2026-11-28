@@ -1,5 +1,7 @@
 .freebuff/
 .cloud-attachments/
+# Chat-agent scratch: thread dumps, not project docs
+threads/
 
 # CurseForge author API token - never commit
 .curseforge-token
