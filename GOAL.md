@@ -16,7 +16,7 @@ path, settled decisions, machine limits — stay in `AGENTS.md` and are not repe
 | One Button Pad 0.1.1 | Separate Forever One Button-only addon, Console Port stripped, harness green — **verified in game**, installed locally | — |
 | 1.0.3 listing copy | Done — `media-kit/curseforge-*` read 1.0.3 with the Maker, the checklist reads 1.0.3, and the `## 1.0.3` notes cover everything since 1.0.2 | — |
 | 1.0.3 CurseForge upload | **Live — file 9861169**, approved and public, and `-VerifyId 9861169` prints `IDENTICAL` against `dist/MacroVaultPro-1.0.3.zip` | — |
-| 1.0.3 description on the live page | **Behind — the page still shows the 1.0.0 text**: no Maker section, `Version 1.0.0 — first release`, no gallery-disclosure paragraph, no support address. The 1.0.3 copy is ready in `media-kit/curseforge-description.html` and now carries the site and `hello@bearpixelmedia.com` | pasting it on the project page — the CurseForge API has no description endpoint |
+| 1.0.3 description on the live page | **Behind — the page still shows the 1.0.0 text**: no Maker section, `Version 1.0.0 — first release`, and no gallery-disclosure paragraph, which the panels need while they are still renderings; the live summary is the studio line, not the kit's 118-character one. The 1.0.3 copy is ready in `media-kit/curseforge-description.html` and carries the site and `hello@bearpixelmedia.com` | pasting it: the CurseForge API has no description endpoint, and `authors.curseforge.com` redirects to `sso.curseforge.com` here, so no signed-in author session exists in this browser |
 
 Already live and byte-identical to `dist/`: file 9810929 (1.0.1), 9837232 (1.0.2),
 9861169 (1.0.3, 65,597 bytes, sha256 `182BFB181A7D01551786F0A75274BE00D0F7A23754972A22F4DD5BC9A47489DE`,
