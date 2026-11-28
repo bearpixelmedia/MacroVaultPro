@@ -430,11 +430,16 @@ check("a renumbered macro stays in its slot",
   tostring(UI:SheetMacroAt(1) and UI:SheetMacroAt(1).index))
 
 -- A macro that is gone leaves the slot visible and marks it with the red border.
+-- Any later save has to keep it too: a slot pruned on save is gone at the next
+-- reload, so the check saves the layout before reading it back.
 table.remove(sheetMacros, 3)
 UI.sheetMacroMap = nil
+UI:SaveSheet()
 check("a slot whose macro has gone keeps its entry",
-  UI:GetSheet()[3] ~= nil and UI:SheetMacroAt(3) == nil,
-  tostring(UI:GetSheet()[3] and UI:GetSheet()[3].name))
+  UI:GetSheet()[3] ~= nil and (MacroVaultProDB.sheet or {})[3] ~= nil
+    and UI:SheetMacroAt(3) == nil,
+  tostring(UI:GetSheet()[3] and UI:GetSheet()[3].name) .. " / saved "
+    .. tostring((MacroVaultProDB.sheet or {})[3] and "yes" or "no"))
 
 local goneBorder = {}
 UI:UpdateSlotBorder({
@@ -483,7 +488,9 @@ UI:ClearSheetSlot(1)
 check("clearing a slot takes it out of the sheet and the saved layout",
   UI:GetSheet()[1] == nil and (MacroVaultProDB.sheet or {})[1] == nil,
   describeSheet())
-check("undo is offered after a clear", UI.sheetUndo ~= nil)
+check("the clear takes the undo snapshot",
+  UI.sheetUndo ~= nil and tostring(UI.sheetUndo.label):find("clearing slot 1") ~= nil,
+  tostring(UI.sheetUndo and UI.sheetUndo.label))
 check("undo puts the cleared slot back",
   UI:UndoSheet() == true and sameSheet(sheetSnapshot(), beforeClear), describeSheet())
 check("the restored layout is saved, not only shown",
