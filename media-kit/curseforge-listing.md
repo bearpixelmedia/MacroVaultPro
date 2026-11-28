@@ -54,14 +54,14 @@ one-line description for the Images tab.
 | Field | Value |
 | --- | --- |
 | Release type | Release |
-| Display name | `MacroVaultPro 1.0.2` |
+| Display name | `MacroVaultPro 1.0.3` |
 | Game version | Forever 1.60.1 |
 | Changelog | `release-notes.md`, section for the version being uploaded |
-| File name | `MacroVaultPro-1.0.2.zip` |
+| File name | `MacroVaultPro-1.0.3.zip` |
 
 Zip the `MacroVaultPro` folder itself, so the archive contains
-`MacroVaultPro/MacroVaultPro.toc`, `Core.lua`, `Library.lua`, `UI.lua` and
-`Media/icon.tga` (the addon-list icon the `.toc` points at). Do not put
+`MacroVaultPro/MacroVaultPro.toc`, `Core.lua`, `Library.lua`, `Skin.lua`,
+`UI.lua` and `Media/icon.tga` (the addon-list icon the `.toc` points at). Do not put
 `media-kit` or `build` inside the zip.
 
 ## Links

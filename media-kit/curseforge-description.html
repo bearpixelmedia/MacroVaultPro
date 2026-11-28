@@ -1,6 +1,6 @@
 <p><strong>Every macro you own in one window &mdash; and the client's own tools one click away.</strong></p>
 
-<p>MacroVaultPro lists every account-wide and character macro you have in a single searchable window. Pick one, read its whole body, and put it straight onto your action bars without opening the macro window, retyping a command or working out which slot it lives in. The same window carries the slash commands you end up typing by hand &mdash; <code>/fstack</code>, <code>/etrace</code>, <code>/api</code>, the <code>/console</code> toggles &mdash; and a library of ready-made macros you can create in one click.</p>
+<p>MacroVaultPro lists every account-wide and character macro you have in a single searchable window. Pick one, read its whole body, and put it straight onto your action bars without opening the macro window, retyping a command or working out which slot it lives in. The same window carries the slash commands you end up typing by hand &mdash; <code>/fstack</code>, <code>/etrace</code>, <code>/api</code>, the <code>/console</code> toggles &mdash; a library of ready-made macros you can create in one click, and a Maker that composes a list of steps into a single macro.</p>
 
 <p>Built for <strong>World of Warcraft: Forever</strong> (interface 16001).</p>
 
@@ -22,6 +22,20 @@
 <h3>An editor that respects the client's limits</h3>
 
 <p>Macros are edited as plain text with the client's real limits applied: 255 characters in the body, 16 characters in the name. The body carries a live counter that turns red past the limit, and saving an over-long body is refused with both numbers instead of truncating it; the name field stops at 16 characters.</p>
+
+<h3>A Maker that composes one macro</h3>
+
+<p>The <strong>Maker</strong> tab turns a list of steps into one bar button. Drag a spell from your spellbook onto the drop bar, or click any of your own macros in the list on the left, and the steps run down the list in the order shown. <strong>Build macro</strong> writes the result as a real in-game macro &mdash; one <code>#showtooltip</code> header and a line per step &mdash; and the whole body and its character count are shown above the buttons as you build. A body over the client's 255 characters is refused with the count instead of being cut short, and a sequence holds at most 12 steps. Rebuilding updates the same macro, so a button already on your bar keeps working; renaming the Maker renames that macro rather than leaving a second one behind. <strong>Drag to bar</strong> builds it and puts it on your cursor.</p>
+
+<p>The same steps run in one of two ways. <strong>Runs: priority</strong> writes one <code>/cast</code> per step, so each press tries every step in order and casts the first that works &mdash; spells and macro steps both fit. <strong>Runs: sequence</strong> writes a single <code>/castsequence</code> carrying the reset choices below, so the client casts one spell per press and keeps its place; that mode takes spells only, and names any macro step it cannot use instead of dropping it without a word. The reset is three toggles &mdash; <code>target</code>, <code>combat</code> and a seconds field from 1 to 60 &mdash; and any of them can be on at once, or all three off for a <code>castsequence</code> with no reset clause.</p>
+
+<p>A spell step's <code>cond</code> button opens <strong>Target and conditions</strong>. One target &mdash; <code>target</code>, <code>mouseover</code>, <code>focus</code>, <code>player</code>, <code>cursor</code> or <code>none</code> &mdash; and eight conditions &mdash; <code>mod:shift</code>, <code>mod:ctrl</code>, <code>mod:alt</code>, <code>nomod</code>, <code>harm</code>, <code>help</code>, <code>exists</code> and <code>combat</code> &mdash; are written into the same bracket at the front of that step, target first: <code>[@mouseover,mod:shift,harm]</code>. Sequence mode puts the bracket on the spell's own entry. A pair the client could never satisfy &mdash; <code>nomod</code> beside a modifier, or <code>harm</code> beside <code>help</code> &mdash; is refused with the pair named, and a step saved with one by an older build is reported and left out of the macro. A macro step carries its own target and conditions inside its body, so its card is dimmed and a click says why.</p>
+
+<p><strong>Share</strong> writes the whole Maker as one line &mdash; name, mode, reset choices, and every step with its target, conditions and scope, escaped so names survive the round trip:</p>
+
+<p><code>MVPSEQ1|Heals|sequence|target+combat+25|s:Flash Heal@mouseover*help|m:Trinket 1#a</code></p>
+
+<p><strong>Copy</strong> selects it for Ctrl+C; there is no clipboard API to call. Paste a line into the same box and <strong>Load</strong> checks it before writing anything: the prefix, the mode, the reset choices, the step kinds, every target and condition, and contradictory pairs. One bad step refuses the whole line and names the step and the field, so nothing is half-imported. When the Maker already holds steps the first press turns Load into <strong>Replace?</strong> and says how many steps would go; press it again to replace them, or <strong>Close</strong> to keep what you have. A loaded line whose macro steps this character does not have names them and counts the rest.</p>
 
 <h3>Twelve client tools</h3>
 
@@ -76,13 +90,13 @@
 
 <p>On login the addon prints one line &mdash; <code>v&lt;version&gt; loaded - /mvpro</code> &mdash; so a fresh install reports that it is running instead of looking inert until you type a command.</p>
 
-<p>If something inside the addon does raise a Lua error, <code>/mvpro errors</code> assembles the log as one plain-text block &mdash; build line, both counts, then each entry with its timestamp, message and traceback &mdash; and hands it to a small read-only window instead of printing it into chat; chat is the fallback when that window cannot be built. <strong>Copy</strong> fills the window's text with that block and selects all of it. It records errors raised in the addon's own files, including ones thrown while it is still loading, and keeps the last 20 plus up to 10 whose traceback carries no addon name. The list is saved in <code>MacroVaultProDB</code>, so it survives a reload, and <strong>Clear log</strong> empties both stored lists, drops the entries still waiting to be saved, and rebuilds the window from the empty log.</p>
+<p>If something inside the addon does raise a Lua error, <code>/mvpro errors</code> assembles the log as one plain-text block &mdash; a header, then each entry with its timestamp, message and traceback &mdash; and hands it to a small read-only window instead of printing it into chat; chat is the fallback when that window cannot be built. <strong>Copy</strong> fills the window's text with that block and selects all of it. Errors raised by another addon go under their own heading, tagged <code>(not this addon)</code>, instead of being reported as MacroVaultPro's. Repeats of the same error fold into one entry that keeps the first time, counts the occurrences and shows when it was last seen, and the header totals every sighting, folded repeats included. The list is saved in <code>MacroVaultProDB</code>, so it survives a reload: the addon's own 20 entries and up to 10 from other addons. <strong>Clear log</strong> empties both stored lists, drops the entries still waiting to be saved, and rebuilds the window from the empty log.</p>
 
 <p><code>/mvpro diag</code> prints one block, ready to paste: the addon's build stamp, the client build, whether the client exposes <code>RegisterForDrag</code>, <code>IsMouseButtonDown</code> and <code>GetMouseFocus</code>, the minimap size and shape, the detected slot split, and how many drags each of the two drag paths has started since you logged in &mdash; so a report says exactly which path works.</p>
 
 <h3>Remembers where you left it</h3>
 
-<p>The window position, the last tab, your default scope, the sheet layout, where the minimap button sits and whether it is shown are saved per account in <code>MacroVaultProDB</code>.</p>
+<p>The window position, the last tab, your default scope, the sheet layout, the Maker's name, steps, mode and reset choices, where the minimap button sits and whether it is shown are saved per account in <code>MacroVaultProDB</code>.</p>
 
 <h2>How to use it</h2>
 
@@ -91,6 +105,7 @@
 	<li><strong>My macros</strong> &mdash; search, click a macro, then <strong>Inject</strong>, <strong>Edit</strong>, <strong>Duplicate</strong> or <strong>Macro UI</strong>.</li>
 	<li><strong>Tools</strong> &mdash; click an entry. The tool runs immediately; output appears in chat or in the client's own window.</li>
 	<li><strong>Library</strong> &mdash; pick a macro, check its body, then <strong>Create</strong> or <strong>Create &amp; pick up</strong>.</li>
+	<li><strong>Maker</strong> &mdash; drop a spell onto the drop bar or click a macro on the left, order the steps, then <strong>Build macro</strong>. <strong>Share</strong> writes the sequence as one line and loads one back.</li>
 	<li><strong>Sheet</strong> &mdash; drag macros out of My macros into the slots, drag a slot onto another to swap them, right-click to clear. <strong>Undo</strong> writes back the layout from before that last clear or move.</li>
 	<li>Close with Escape, or type <code>/mvpro</code> again.</li>
 </ol>
@@ -106,6 +121,7 @@
 		<tr><td><code>/mvpro macros</code></td><td>Open the My macros tab</td></tr>
 		<tr><td><code>/mvpro tools</code></td><td>Open the Tools tab</td></tr>
 		<tr><td><code>/mvpro library</code></td><td>Open the Library tab</td></tr>
+		<tr><td><code>/mvpro maker</code></td><td>Open the Maker tab</td></tr>
 		<tr><td><code>/mvpro editor</code></td><td>Open the editor</td></tr>
 		<tr><td><code>/mvpro sheet</code></td><td>Open the sheet</td></tr>
 		<tr><td><code>/mvpro minimap</code></td><td>Show or hide the minimap button</td></tr>
@@ -133,7 +149,7 @@
 <ul>
 	<li><strong>Capacity numbers</strong>: if a client exposes neither <code>MAX_ACCOUNT_MACROS</code>, <code>MAX_CHARACTER_MACROS</code> nor a usable <code>Constants</code> entry, the window shows the built-in defaults of 120 account and 30 character slots until you run <code>/mvpro selftest</code>, which measures the real split.</li>
 	<li><strong>Slash tools are UI tools.</strong> They toggle debug frames, print information and change console settings. MacroVaultPro never casts, moves or fights for you.</li>
-	<li><strong>Panels stay put.</strong> Window position, tab, default scope, sheet layout, and the minimap button's place and visibility are the only settings stored; the error log is the only other thing written.</li>
+	<li><strong>Panels stay put.</strong> Window position, tab, default scope, sheet layout, the Maker's sequence, and the minimap button's place and visibility are the only settings stored; the error log is the only other thing written.</li>
 	<li><strong>Minimap button.</strong> The icon beside the minimap is wired to open the window; a drag writes a new angle around the map edge back to <code>MacroVaultProDB</code>, and right-click writes the default angle back, so nothing about where it sits is hard-coded. Type <code>/mvpro minimap</code> to hide or show it if you would rather not have it on the map. It is built into the addon, so it adds no dependency.</li>
 	<li><strong>Errors are kept, not swallowed.</strong> A failure in the addon's own code is stored for the <code>/mvpro errors</code> window and written into <code>WTF/Account/&lt;account&gt;/SavedVariables/MacroVaultPro.lua</code> on reload, so the message and traceback exist as text rather than only in a dialog.</li>
 </ul>
@@ -144,4 +160,4 @@
 
 <h2>Version</h2>
 
-<p>1.0.2 &mdash; see the changelog on the Files tab.</p>
+<p>1.0.3 &mdash; see the changelog on the Files tab.</p>

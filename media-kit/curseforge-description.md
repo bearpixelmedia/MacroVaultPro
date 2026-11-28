@@ -7,7 +7,8 @@ searchable window. Pick one, read its whole body, and put it straight onto your
 action bars without opening the macro window, retyping a command or working out
 which slot it lives in. The same window carries the slash commands you end up
 typing by hand — `/fstack`, `/etrace`, `/api`, the `/console` toggles — and a
-library of ready-made macros you can create in one click.
+library of ready-made macros you can create in one click, and a Maker that
+composes a list of steps into a single macro.
 
 Built for **World of Warcraft: Forever** (interface 16001).
 
@@ -35,6 +36,56 @@ characters in the body, 16 characters in the name. The body carries a live
 counter that turns red past the limit, and saving an over-long body is refused
 with both numbers instead of truncating it; the name field stops at 16
 characters.
+
+### A Maker that composes one macro
+
+The **Maker** tab turns a list of steps into one bar button. Drag a spell from
+your spellbook onto the drop bar, or click any of your own macros in the list on
+the left, and the steps run down the list in the order shown. **Build macro**
+writes the result as a real in-game macro - one `#showtooltip` header and a line
+per step - and the whole body and its character count are shown above the buttons
+as you build. A body over the client's 255 characters is refused with the count
+instead of being cut short, and a sequence holds at most 12 steps. Rebuilding
+updates the same macro, so a button already on your bar keeps working; renaming
+the Maker renames that macro rather than leaving a second one behind. **Drag to
+bar** builds it and puts it on your cursor.
+
+The same steps run in one of two ways. **Runs: priority** writes one `/cast` per
+step, so each press tries every step in order and casts the first that works -
+spells and macro steps both fit. **Runs: sequence** writes a single
+`/castsequence` carrying the reset choices below, so the client casts one spell
+per press and keeps its place; that mode takes spells only, and names any macro step
+it cannot use instead of dropping it without a word. The reset is three toggles -
+`target`, `combat` and a seconds field from 1 to 60 - and any of them can be on at
+once, or all three off for a `castsequence` with no reset clause.
+
+A spell step's `cond` button opens **Target and conditions**. One target -
+`target`, `mouseover`, `focus`, `player`, `cursor` or `none` - and eight
+conditions - `mod:shift`, `mod:ctrl`, `mod:alt`, `nomod`, `harm`, `help`,
+`exists` and `combat` - are written into the same bracket at the front of that
+step, target first: `[@mouseover,mod:shift,harm]`. Sequence mode puts the bracket
+on the spell's own entry. A pair the client could never satisfy - `nomod` beside a
+modifier, or `harm` beside `help` - is refused with the pair named, and a step
+saved with one by an older build is reported and left out of the macro. A macro
+step carries its own target and conditions inside its body, so its card is dimmed
+and a click says why.
+
+**Share** writes the whole Maker as one line - name, mode, reset choices, and
+every step with its target, conditions and scope, escaped so names survive the
+round trip:
+
+```
+MVPSEQ1|Heals|sequence|target+combat+25|s:Flash Heal@mouseover*help|m:Trinket 1#a
+```
+
+**Copy** selects it for Ctrl+C; there is no clipboard API to call. Paste a line
+into the same box and **Load** checks it before writing anything: the prefix, the
+mode, the reset choices, the step kinds, every target and condition, and
+contradictory pairs. One bad step refuses the whole line and names the step and
+the field, so nothing is half-imported. When the Maker already holds steps the
+first press turns Load into **Replace?** and says how many steps would go; press
+it again to replace them, or **Close** to keep what you have. A loaded line whose
+macro steps this character does not have names them and counts the rest.
 
 ### Twelve client tools
 
@@ -107,16 +158,18 @@ install reports that it is running instead of looking inert until you type a
 command.
 
 If something inside the addon does raise a Lua error, `/mvpro errors` assembles
-the log as one plain-text block — build line, both counts, then each entry with
-its timestamp, message and traceback — and hands it to a small read-only window
-instead of printing it into chat; chat is the fallback when that window cannot be
-built. **Copy** fills the window's text with that block and selects all of it.
-It records errors
-raised in the addon's own files, including ones thrown while it is still loading,
-and keeps the last 20 plus up to 10 whose traceback carries no addon name. The
-list is saved in `MacroVaultProDB`, so it survives a reload, and **Clear log**
-empties both stored lists, drops the entries still waiting to be saved, and
-rebuilds the window from the empty log.
+the log as one plain-text block — a header, then each entry with its timestamp,
+message and traceback — and hands it to a small read-only window instead of
+printing it into chat; chat is the fallback when that window cannot be built.
+**Copy** fills the window's text with that block and selects all of it. Errors
+raised by another addon go under their own heading, tagged `(not this addon)`,
+instead of being reported as MacroVaultPro's. Repeats of the same error fold into
+one entry that keeps the first time, counts the occurrences and shows when it was
+last seen, and the header totals every sighting, folded repeats included. The
+list is saved in `MacroVaultProDB`, so it survives a reload: the addon's own 20
+entries and up to 10 from other addons. **Clear log** empties both stored lists,
+drops the entries still waiting to be saved, and rebuilds the window from the
+empty log.
 
 `/mvpro diag` prints one block, ready to paste: the addon's build stamp, the
 client build, whether the client exposes `RegisterForDrag`,
@@ -126,9 +179,9 @@ since you logged in — so a report says exactly which path works.
 
 ### Remembers where you left it
 
-The window position, the last tab, your default scope, the sheet layout, where
-the minimap button sits and whether it is shown are saved per account in
-`MacroVaultProDB`.
+The window position, the last tab, your default scope, the sheet layout, the
+Maker's name, steps, mode and reset choices, where the minimap button sits and
+whether it is shown are saved per account in `MacroVaultProDB`.
 
 ## How to use it
 
@@ -139,10 +192,13 @@ the minimap button sits and whether it is shown are saved per account in
 3. **Tools** — click an entry. The tool runs immediately; output appears in chat
    or in the client's own window.
 4. **Library** — pick a macro, check its body, then **Create** or **Create & pick up**.
-5. **Sheet** — drag macros out of My macros into the slots, drag a slot onto
+5. **Maker** — drop a spell onto the drop bar or click a macro on the left, order
+   the steps, then **Build macro**. **Share** writes the sequence as one line and
+   loads one back.
+6. **Sheet** — drag macros out of My macros into the slots, drag a slot onto
    another to swap them, right-click to clear. **Undo** writes back the layout
    from before that last clear or move.
-6. Close with Escape, or type `/mvpro` again.
+7. Close with Escape, or type `/mvpro` again.
 
 ## Slash commands
 
@@ -152,6 +208,7 @@ the minimap button sits and whether it is shown are saved per account in
 | `/mvpro macros` | Open the My macros tab |
 | `/mvpro tools` | Open the Tools tab |
 | `/mvpro library` | Open the Library tab |
+| `/mvpro maker` | Open the Maker tab |
 | `/mvpro editor` | Open the editor |
 | `/mvpro sheet` | Open the sheet |
 | `/mvpro minimap` | Show or hide the minimap button |
@@ -185,9 +242,9 @@ corrected the boundary.
   `/mvpro selftest`, which measures the real split.
 - **Slash tools are UI tools.** They toggle debug frames, print information and
   change console settings. MacroVaultPro never casts, moves or fights for you.
-- **Panels stay put.** Window position, tab, default scope, sheet layout, and the
-  minimap button's place and visibility are the only settings stored; the error
-  log is the only other thing written.
+- **Panels stay put.** Window position, tab, default scope, sheet layout, the
+  Maker's sequence, and the minimap button's place and visibility are the only
+  settings stored; the error log is the only other thing written.
 - **Minimap button.** The icon beside the minimap is wired to open the window; a
   drag writes a new angle around the map edge back to `MacroVaultProDB`, and
   right-click writes the default angle back, so nothing about where it sits is
@@ -207,4 +264,4 @@ they are taken.
 
 ## Version
 
-1.0.2 — see the changelog on the Files tab.
+1.0.3 — see the changelog on the Files tab.
