@@ -12,9 +12,9 @@ ADDON_NAME = ADDON_NAME or "MacroVaultPro"
 MV = MV or _G.MacroVaultPro or {}
 _G.MacroVaultPro = MV
 
-MV.VERSION = "1.0.3"
+MV.VERSION = "1.0.3.25"
 -- Printed by /mvpro selftest so a report says which copy of the files is loaded.
-MV.BUILD = "2026-11-27ab"
+MV.BUILD = "2026-11-28aa"
 
 -- Drag bookkeeping for /mvpro diag. A counter is bumped by the path that
 -- actually started or finished the drag, so a retest report can say which of

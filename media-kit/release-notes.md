@@ -17,6 +17,14 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.25
+
+- **The window's status bar can show two lines without covering the panes.**
+  The maker's mode and Load messages wrap at this width; the panes now stop
+  14px higher, so neither line runs under them.
+- **Every maker status message is checked word for word** in the harness,
+  including the longest Load line and its clearance above the panes.
+
 ## 1.0.3.24
 
 - **The share hint has a 4px gap above the box.** The box starts at -60 instead

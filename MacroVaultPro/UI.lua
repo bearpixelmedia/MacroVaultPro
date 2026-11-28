@@ -494,7 +494,9 @@ function UI:Build()
 	for _, id in ipairs({ "macros", "maker", "tools", "library", "editor", "sheet" }) do
 		local panel = CreateFrame("Frame", nil, frame)
 		panel:SetPoint("TOPLEFT", 12, -82)
-		panel:SetPoint("BOTTOMRIGHT", -12, 34)
+		-- 48, not 34: a two-line status at the bottom of the window reaches y=43,
+		-- so the panes stop above it instead of being written over.
+		panel:SetPoint("BOTTOMRIGHT", -12, 48)
 		StylePane(panel)
 		panel:Hide()
 		self.panels[id] = panel

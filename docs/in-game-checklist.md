@@ -1,11 +1,11 @@
-# MacroVaultPro in-game check — 1.0.3 (through local build 1.0.3.24)
+# MacroVaultPro in-game check — 1.0.3 (through local build 1.0.3.25)
 
-Installed builds: **MacroVaultPro 1.0.3**, stamp `[2026-11-27ab]` — the code the owner passed in 1.0.3.24, renumbered for the release; **One Button Pad 0.1.1**, stamp `[2026-11-28a]` — a separate addon, checked in section 5 of the same reload. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
+Installed build: **MacroVaultPro 1.0.3.25**, stamp `[2026-11-28aa]` — the released 1.0.3 is `[2026-11-27ab]`; **One Button Pad 0.1.1**, stamp `[2026-11-28a]` — a separate addon, checked in section 5 of the same reload. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
 
 ## 0. You are on the new build
 
 - [ ] `/reload`
-- [ ] `/mvpro selftest` reports `1.0.3`, build `2026-11-27ab`, interface `16001`
+- [ ] `/mvpro selftest` reports `1.0.3.25`, build `2026-11-28aa`, interface `16001`
 
 ## 1. Maker card — 1.0.3.12, 1.0.3.13, 1.0.3.15
 
@@ -43,6 +43,9 @@ Installed builds: **MacroVaultPro 1.0.3**, stamp `[2026-11-27ab]` — the code t
 ## 4. Quick regressions
 
 - [ ] `/mvpro diag` prints the skin report, including which templates fell back
+- [ ] Maker: press **Runs** to switch modes — the two-line status at the bottom of the window sits below the panes, nothing covered (1.0.3.25)
+- [ ] Maker: paste twelve steps whose macros this character does not have, **Load** — the bottom bar's `Sequence loaded - …` wraps to two lines and still sits below the panes (1.0.3.25)
+- [ ] Every tab still fills its pane to the bottom — the panes stop 14px higher than in 1.0.3.24 (1.0.3.25)
 - [ ] Tabs switch (Macros, Maker, Tools, Library, Editor, Sheet); the minimap button opens and closes the window
 - [ ] No Lua error popup during any of the above
 

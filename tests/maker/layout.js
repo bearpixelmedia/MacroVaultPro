@@ -69,8 +69,13 @@ local function region(kind, name, parent)
   function r:SetScrollChild(child) r.scrollChild = child end
   function r:GetVerticalScroll() return r.scrollOffset or 0 end
   function r:SetVerticalScroll(offset) r.scrollOffset = offset end
+  -- Methods the stubs do not spell out fall back to a no-op, the way the
+  -- client's frames still answer every Set/Get. A lowercase name is data,
+  -- not a method: a frame asked for a field it never set has to see nil,
+  -- or a row with no item looks like it carries a function.
   return setmetatable(r, {
     __index = function(t, key)
+      if type(key) ~= "string" or not key:match("^%u") then return nil end
       local noop = function() end
       t[key] = noop
       return noop
@@ -384,6 +389,117 @@ if builtPanel and card then
     worstLines .. " lines, needs " .. (worstLines * status:GetStringHeight())
       .. " of " .. (boxBottom - statusPoint.y) .. " at " .. charsPerLine
       .. " chars/line: " .. loadedText)
+
+  -- The window's own bottom bar: every maker result is written there, not only
+  -- the share card. Two messages run past one line (the mode toggle at 88 and
+  -- the longest Load at 118), so the bar is measured with the panels above it.
+  -- Library.lua is not part of this harness, so the two data tables the other
+  -- panels read are stubbed; the maker and the status bar do not touch them.
+  MV.TOOLS = MV.TOOLS or {}
+  MV.LIBRARY = MV.LIBRARY or {}
+  local builtWindow, windowErr = pcall(function() UI:Build() end)
+  check("the window builds against the stubs",
+    builtWindow and UI.status ~= nil, tostring(windowErr))
+
+  local bar = UI.status
+  local barPoint = (bar and bar.points[1]) or {}
+  local barY = barPoint.y or 0
+  local barLine = bar and bar:GetStringHeight() or 0
+  local barChars = bar and math.max(1,
+    math.floor(bar.width / ((bar.fontSize or 10) * 0.7))) or 1
+  local panelBottom
+  for _, point in ipairs(UI.panels.maker.points) do
+    if point.point == "BOTTOMRIGHT" then panelBottom = point.y end
+  end
+
+  check("the status bar is 640 wide at the window's bottom left",
+    bar ~= nil and bar.width == 640 and barPoint.point == "BOTTOMLEFT"
+      and barPoint.x == 14 and barY == 13,
+    bar and (bar.width .. " at " .. tostring(barPoint.point) .. " "
+      .. tostring(barPoint.x) .. "," .. tostring(barPoint.y)) or "no bar")
+  check("two status lines clear the panels above them",
+    panelBottom ~= nil and barPoint.y ~= nil
+      and barY + 2 * barLine <= panelBottom - 4,
+    "top " .. tostring(barY + 2 * barLine) .. " vs panel bottom "
+      .. tostring(panelBottom) .. " at " .. barLine .. " per line")
+
+  local function barText() return tostring(bar and bar.text or "") end
+  local function expectBar(name, want)
+    local got = barText()
+    check(name, got == want, got .. " (" .. #got .. " chars)")
+  end
+
+  -- An empty cursor: the client reports nothing, so Core's reason is the text.
+  GetCursorInfo = function() return nil end
+  MV:ClearMakerSteps()
+  UI:MakerTakeCursor()
+  expectBar("the empty cursor line says what to drag",
+    "Nothing is on the cursor - drag a spell from your spellbook, or use the list on the left.")
+  GetCursorInfo = nil
+
+  UI:ClearMaker()
+  expectBar("ClearMaker says which macro stays",
+    "Sequence cleared - the macro it built stays where it is.")
+
+  MV:GetMaker().scope = "char"
+  UI:ToggleMakerScope()
+  expectBar("the scope toggle names the account", "The built macro is account-wide.")
+  UI:ToggleMakerScope()
+  expectBar("the scope toggle names the character",
+    "The built macro goes to this character.")
+
+  MV:AddMakerStep("macro", "Heal", 1, 1, "account")
+  UI:MakerRemoveStep(1)
+  expectBar("removing a step names its position", "Removed step 1.")
+
+  MV:AddMakerStep("macro", "Heal", 1, 1, "account")
+  UI:ChooseMakerIcon(123)
+  expectBar("choosing an icon says when it lands",
+    "Icon chosen - Build macro applies it.")
+
+  MV:ClearMakerSteps()
+  MV:AddMakerStep("spell", "Flash Heal", 1)
+  MV:GetMaker().mode = "priority"
+  UI:ToggleMakerMode()
+  expectBar("the mode toggle explains sequence mode word for word",
+    "Sequence - the macro casts one spell per press and starts over at the top. Spells only.")
+  MV:GetMaker().mode = "sequence"
+  UI:ToggleMakerMode()
+  expectBar("the mode toggle explains priority mode word for word",
+    "Priority - each press tries every step in order. Macros and spells both fit.")
+
+  MV:ClearMakerSteps()
+  UI:MakerAddMacro({ name = "Heal", icon = 1, scope = "account" })
+  expectBar("adding a macro from the list names it and where it lands",
+    "Added Heal to the end of the sequence.")
+
+  MV:GetMaker().resets = { target = true }
+  UI:ToggleMakerResetChoice("target")
+  expectBar("the none reset says when it applies",
+    "No reset - the sequence only starts over when it runs out of spells."
+      .. " It applies once Runs says sequence.")
+
+  UI.makerResetSecondsBox:SetText("5")
+  UI:CommitMakerResetSeconds()
+  expectBar("the seconds field reports the value it kept",
+    "The seconds field is 5 - it applies while its toggle is switched on.")
+
+  -- The longest Load: twelve steps, twelve sixteen-character names. The share
+  -- strip already pins the text; this is the copy the bar has to fit.
+  MV:ClearMakerSteps()
+  UI.makerShareBox:SetText(crafted)
+  UI:LoadMakerShare()
+  local loadedBar = barText()
+  local expectedBar = "Sequence loaded - " .. expectedLoaded
+  check("the bottom bar repeats the Loaded line word for word",
+    loadedBar == expectedBar, loadedBar .. " (" .. #loadedBar .. " chars)")
+  local loadedBarLines = math.max(1, math.ceil(#loadedBar / barChars))
+  check("the longest Loaded line fits two lines and clears the panels",
+    loadedBarLines <= 2
+      and barY + loadedBarLines * barLine <= panelBottom - 4,
+    loadedBarLines .. " lines, top " .. (barY + loadedBarLines * barLine)
+      .. " vs panel bottom " .. tostring(panelBottom) .. " at " .. barChars
+      .. " chars/line: " .. loadedBar)
 end
 
 -- The Sheet. A slot is stored by the macro's name and scope, not by a slot
