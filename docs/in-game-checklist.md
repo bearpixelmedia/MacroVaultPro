@@ -16,7 +16,7 @@ Installed build: **1.0.3.24**, stamp `[2026-11-27af]`. Everything below is reach
 - [ ] With `@cursor` and `harm` on step 1, the made line reads `[@cursor,harm]`, target first
 - [ ] The card does not cover the step list or the made/count line
 
-## 2. Share and Load — 1.0.3.14, 1.0.3.15
+## 2. Share and Load — 1.0.3.14, 1.0.3.15, 1.0.3.23, 1.0.3.24
 
 - [ ] With two or more steps, **Share**: the box holds one line starting `MVPSEQ1|`, and the status line under it is legible and not clipped
 - [ ] **Copy**, paste into chat: the whole string arrives, no colour codes, no line breaks
@@ -26,6 +26,11 @@ Installed build: **1.0.3.24**, stamp `[2026-11-27af]`. Everything below is reach
 - [ ] Paste a broken string such as `MVPSEQ1|nope`, press **Load**: refusal message, steps untouched, **no** `Replace?` prompt
 - [ ] Clear every step, paste a valid string, press **Load**: loads without asking
 - [ ] Load a string whose macro steps this character does not have: the line under the box names three of them and says `and N more`, and it stays between the box and the **Copy** row (1.0.3.22)
+- [ ] The card's hint above the box stops at two lines and leaves the box clear — nothing of it sits on the box's top edge (1.0.3.24)
+- [ ] There is a visible gap between the hint's second line and the top edge of the edit box — the box starts lower than it did in 1.0.3.23 (1.0.3.24)
+- [ ] The edit box still shows several lines of a long sequence without its last line crowding the **Copy** row (1.0.3.24)
+- [ ] Share a maker holding one step, then Load it into an empty maker: the line reads `Loaded 1 step`, not `1 steps` (1.0.3.23)
+- [ ] The hint and the box do not touch: there is a visible gap between the last hint line and the box's top edge (1.0.3.24)
 
 ## 3. Error log — 1.0.3.16, 1.0.3.17, 1.0.3.18
 
