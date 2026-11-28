@@ -17,6 +17,15 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.27
+
+- **A tool that has to go through your chat box waits until combat is over.**
+  The UI and debug entries the client only answers through chat — `/api`,
+  `/fstack`, `/etrace` and their like — no longer type into the box while you
+  are in combat, and the window says why instead of pretending the command does
+  not exist. Out of combat they run exactly as before, and a line you had
+  half-typed is still put back.
+
 ## 1.0.3.26
 
 - **Every tab's status line is checked word for word**, at the full 16-character
