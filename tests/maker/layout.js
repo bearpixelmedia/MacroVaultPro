@@ -55,6 +55,12 @@ local function region(kind, name, parent)
   function r:CreateFontString() return region("FontString", nil, r) end
   function r:SetText(text) r.text = text end
   function r:GetText() return r.text end
+  -- MakeButton redefines SetLabel itself, so the stub records the label where
+  -- that closure puts it: the button's own label FontString.
+  function r:GetLabel()
+    if r.label and r.label.GetText then return r.label:GetText() end
+    return nil
+  end
   function r:SetFont(_, size) r.fontSize = size end
   -- One line of a string is its font size plus its leading; enough for a layout
   -- check, and it keeps the share status measurement stable.
@@ -252,6 +258,8 @@ if builtPanel and card then
   check("the Replace status asks for the same count, exactly",
     replaceText == expectedReplace,
     replaceText .. " (" .. #replaceText .. " chars)")
+  check("the Load button asks Replace? while a paste is pending",
+    UI.makerShareLoad:GetLabel() == "Replace?", tostring(UI.makerShareLoad:GetLabel()))
 
   -- The twelve-missing paste is the widest text this path makes, but the count
   -- it prints has to agree with its own noun, and the singular case is the one
@@ -273,6 +281,47 @@ if builtPanel and card then
     oneLines .. " lines, needs " .. (oneLines * status:GetStringHeight())
       .. " of " .. (boxBottom - statusPoint.y) .. " at " .. charsPerLine
       .. " chars/line: " .. oneText)
+
+  -- ShareMaker and CopyMakerShare print counts the harness never read, and the
+  -- hint above the box has to stop before the box starts.
+  local maker = MV:GetMaker()
+  UI:ShareMaker()
+  local shareStatus = UI.makerShareStatus.text or ""
+  local shareSteps = #maker.steps
+  local expectedShare = ("%d %s, %d characters - selected, press Ctrl+C."):format(
+    shareSteps, shareSteps == 1 and "step" or "steps", #(UI.makerShareBox.text or ""))
+  check("the ShareMaker status names the step and character counts, exactly",
+    shareStatus == expectedShare, shareStatus .. " (" .. #shareStatus .. " chars)")
+
+  UI:CopyMakerShare()
+  local copyStatus = UI.makerShareStatus.text or ""
+  local expectedCopy = ("%d characters - press Ctrl+C to copy.")
+    :format(#(UI.makerShareBox.text or ""))
+  check("the Copy status names the character count, exactly",
+    copyStatus == expectedCopy, copyStatus .. " (" .. #copyStatus .. " chars)")
+  check("the Load button is back to Load after Copy",
+    UI.makerShareLoad:GetLabel() == "Load", tostring(UI.makerShareLoad:GetLabel()))
+
+  local hint
+  for _, regionFrame in ipairs(REGIONS) do
+    if regionFrame.parent == share and regionFrame.kind == "FontString"
+      and tostring(regionFrame.text or ""):sub(1, 9) == "One line:" then
+      hint = regionFrame
+    end
+  end
+  local hintText = hint and tostring(hint.text or "") or ""
+  local hintLines = math.max(1, math.ceil(#hintText / charsPerLine))
+  local hintHeight = hintLines * (hint and hint:GetStringHeight() or 0)
+  local hintTop = hint and hint.points[1] and hint.points[1].y or 0
+  local boxTopY
+  for _, point in ipairs(UI.makerShareBox.points) do
+    if point.point == "TOPLEFT" then boxTopY = point.y end
+  end
+  check("the share card's hint clears the edit box",
+    hint ~= nil and boxTopY ~= nil and hintTop - hintHeight >= boxTopY,
+    hintLines .. " lines, " .. hintHeight .. " tall from " .. hintTop
+      .. ", box top " .. tostring(boxTopY) .. " at " .. charsPerLine
+      .. " chars/line: " .. hintText)
 
   local worstLines = math.max(refusalLines, loadedLines, replaceLines, oneLines)
   check("the longest share status fits between the box and the buttons",

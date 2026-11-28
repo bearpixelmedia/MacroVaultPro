@@ -3071,7 +3071,7 @@ function UI:BuildMakerShare()
 	local hint = Text(frame, 10, MUTED)
 	hint:SetPoint("TOPLEFT", 12, -28)
 	hint:SetWidth(406)
-	hint:SetText("One line: every step with its target, conditions and scope, plus the name, mode and reset. Copy it, or paste a string over it and press Load.")
+	hint:SetText("One line: every step with target, conditions and scope, plus name, mode, reset. Copy it, or paste over it and Load.")
 
 	local box = CreateFrame("EditBox", nil, frame)
 	box:SetPoint("TOPLEFT", 12, -56)
@@ -3119,8 +3119,8 @@ function UI:ShareMaker()
 	self.makerShareBox:SetText(text)
 	self.makerShareBox:SetFocus()
 	self.makerShareBox:HighlightText()
-	self.makerShareStatus:SetText(("%d steps, %d characters - selected, press Ctrl+C."):format(
-		#maker.steps, #text))
+	self.makerShareStatus:SetText(("%d %s, %d characters - selected, press Ctrl+C."):format(
+		#maker.steps, #maker.steps == 1 and "step" or "steps", #text))
 	self.makerShareStatus:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
 
 	frame:Show()

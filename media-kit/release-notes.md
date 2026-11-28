@@ -17,6 +17,13 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.23
+
+- **The share card's hint fits on two lines.** It ran to three at the
+  conservative wrap and overlapped the top of the edit box; the wording is
+  shorter, so it stops at the box.
+- **A one-step maker reads "1 step"** in the share status instead of "1 steps".
+
 ## 1.0.3.22
 
 - **Three missing macros are named, and the count agrees with its noun.**
