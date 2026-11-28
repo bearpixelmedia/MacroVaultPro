@@ -244,8 +244,9 @@ if builtPanel and card then
   }, "|"))
   UI:LoadMakerShare()
   local oneLines, oneText = statusReport()
-  check('a one-missing status reads "1 macro missing"',
-    oneText:find("1 macro missing: ", 1, true) ~= nil
+  check('a one-missing status reads "Loaded 1 step. 1 macro missing"',
+    oneText:find("Loaded 1 step. 1 macro missing: ", 1, true) ~= nil
+      and oneText:find("steps", 1, true) == nil
       and oneText:find("macros missing", 1, true) == nil, oneText)
   check('the one-missing status fits between the box and the buttons',
     statusPoint.y + oneLines * status:GetStringHeight() <= boxBottom,
