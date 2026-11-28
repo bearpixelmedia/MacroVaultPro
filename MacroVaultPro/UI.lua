@@ -3074,7 +3074,7 @@ function UI:BuildMakerShare()
 	hint:SetText("One line: every step with target, conditions and scope, plus name, mode, reset. Copy it, or paste over it and Load.")
 
 	local box = CreateFrame("EditBox", nil, frame)
-	box:SetPoint("TOPLEFT", 12, -56)
+	box:SetPoint("TOPLEFT", 12, -60)
 	box:SetPoint("BOTTOMRIGHT", -12, 70)
 	box:SetMultiLine(true)
 	box:SetAutoFocus(false)

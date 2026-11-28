@@ -195,6 +195,16 @@ if builtPanel and card then
   end
 
   check("the share card's bottom buttons are 24 tall", bottomButtonHeight == 24, bottomButtonHeight)
+
+  local faces = {}
+  for _, regionFrame in ipairs(REGIONS) do
+    if regionFrame.parent == share and regionFrame.kind == "Button" then
+      faces[#faces + 1] = tostring(regionFrame:GetLabel())
+    end
+  end
+  table.sort(faces)
+  check("the share card's buttons read Close, Copy and Load",
+    table.concat(faces, ", ") == "Close, Copy, Load", table.concat(faces, ", "))
   check("the status line clears the buttons below it",
     statusPoint.y >= 8 + bottomButtonHeight + 8,
     statusPoint.y .. " vs buttons top " .. (8 + bottomButtonHeight))
@@ -317,11 +327,56 @@ if builtPanel and card then
   for _, point in ipairs(UI.makerShareBox.points) do
     if point.point == "TOPLEFT" then boxTopY = point.y end
   end
-  check("the share card's hint clears the edit box",
-    hint ~= nil and boxTopY ~= nil and hintTop - hintHeight >= boxTopY,
+  -- y grows downward, so the hint clears the box when its bottom sits above
+  -- the box's top: a positive gap is real space between them.
+  local hintGap = boxTopY and ((hintTop - hintHeight) - boxTopY) or -1
+  check("the share card's hint clears the edit box by at least 4",
+    hint ~= nil and boxTopY ~= nil and hintGap >= 4,
     hintLines .. " lines, " .. hintHeight .. " tall from " .. hintTop
-      .. ", box top " .. tostring(boxTopY) .. " at " .. charsPerLine
-      .. " chars/line: " .. hintText)
+      .. ", box top " .. tostring(boxTopY) .. ", gap " .. hintGap
+      .. " at " .. charsPerLine .. " chars/line: " .. hintText)
+
+  -- Every other way ReadMakerString refuses a paste, driven through the real
+  -- Load path. The maker is emptied first so no Replace? question takes over.
+  local function refusalFor(text)
+    MV:ClearMakerSteps()
+    UI.makerShareBox:SetText(text)
+    UI:LoadMakerShare()
+    return UI.makerShareStatus.text or ""
+  end
+
+  local tooManySteps = { "MVPSEQ1", "N", "priority", "none" }
+  for i = 1, MV.MAKER_MAX_STEPS + 1 do
+    tooManySteps[#tooManySteps + 1] = "m:" .. wideName(i)
+  end
+  local oversized = string.rep("x", MV.MAKER_SHARE_MAX + 1)
+
+  local refusals = {
+    { "an empty box is named",
+      "", "the box is empty - paste a sequence string first" },
+    { "an oversized paste names both limits",
+      oversized, ("that is %d characters - a sequence string is under %d"):format(
+        #oversized, MV.MAKER_SHARE_MAX) },
+    { "a foreign prefix names the expected one",
+      "NOPE|N|priority|none", ("this is not a MacroVaultPro sequence - it should start with %s"):format(
+        MV.MAKER_SHARE_PREFIX) },
+    { "a cut escape names the damaged name",
+      "MVPSEQ1|%2|priority|none", "the name is damaged - a % escape is cut short" },
+    { "a missing reset section is named",
+      "MVPSEQ1|N|priority", "the string has no reset section" },
+    { "an unknown reset choice is named",
+      "MVPSEQ1|N|priority|soon", ("'soon' is not a reset choice - expected target, combat, %d-%ds or none"):format(
+        MV.SEQUENCE_RESET_SECONDS_MIN, MV.SEQUENCE_RESET_SECONDS_MAX) },
+    { "too many steps names both counts",
+      table.concat(tooManySteps, "|"), ("the string holds %d steps - the maker holds %d"):format(
+        MV.MAKER_MAX_STEPS + 1, MV.MAKER_MAX_STEPS) },
+    { "a step without a kind is named",
+      "MVPSEQ1|N|priority|none|zzz", "step 1 should start with s: or m:, not 'zz'" },
+  }
+  for _, case in ipairs(refusals) do
+    local got = refusalFor(case[2])
+    check(case[1], got == case[3], got .. " (" .. #got .. " chars)")
+  end
 
   local worstLines = math.max(refusalLines, loadedLines, replaceLines, oneLines)
   check("the longest share status fits between the box and the buttons",

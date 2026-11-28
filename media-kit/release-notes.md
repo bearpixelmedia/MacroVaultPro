@@ -17,6 +17,13 @@ Describe what the addon does, not how a client feature is expected to behave.
 Anything that depends on client behaviour the addon has not been tested against
 in game stays out until it has been.
 
+## 1.0.3.24
+
+- **The share hint has a 4px gap above the box.** The box starts at -60 instead
+  of -56, so the two-line hint no longer touches it.
+- **Every refusal reason is checked word for word**, along with the Copy, Load
+  and Close labels.
+
 ## 1.0.3.23
 
 - **The share card's hint fits on two lines.** It ran to three at the

@@ -1,11 +1,11 @@
-# MacroVaultPro in-game check — 1.0.3.12 → 1.0.3.23
+# MacroVaultPro in-game check — 1.0.3.12 → 1.0.3.24
 
-Installed build: **1.0.3.23**, stamp `[2026-11-27ae]`. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
+Installed build: **1.0.3.24**, stamp `[2026-11-27af]`. Everything below is reachable on **one reload**, in this order. Tick what passes; for anything clipped, overlapping or refused, note the section and the exact text so it can be fixed against a version number.
 
 ## 0. You are on the new build
 
 - [ ] `/reload`
-- [ ] `/mvpro selftest` reports `1.0.3.23`, build `2026-11-27ae`, interface `16001`
+- [ ] `/mvpro selftest` reports `1.0.3.24`, build `2026-11-27af`, interface `16001`
 
 ## 1. Maker card — 1.0.3.12, 1.0.3.13, 1.0.3.15
 
