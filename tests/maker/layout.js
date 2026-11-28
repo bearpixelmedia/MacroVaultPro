@@ -386,6 +386,123 @@ if builtPanel and card then
       .. " chars/line: " .. loadedText)
 end
 
+-- The Sheet. A slot is stored by the macro's name and scope, not by a slot
+-- number, so the client renumbering a macro leaves the slot where it is; a slot
+-- whose macro has gone stays visible and wears the red border; and Undo puts
+-- back the layout from before the last clear or move.
+local sheetMacros = {
+  { index = 3,  name = "Heal",   icon = 111, scope = "account" },
+  { index = 9,  name = "Heal",   icon = 222, scope = "char" },
+  { index = 14, name = "Ground", icon = 333, scope = "account" },
+}
+function MV:GetMacros() return sheetMacros end
+
+UI.sheet, UI.sheetMacroMap, UI.sheetUndo = nil, nil, nil
+MacroVaultProDB.sheet = nil
+
+UI:DropOnSlot(1, { macro = sheetMacros[1] })
+UI:DropOnSlot(2, { macro = sheetMacros[2] })
+UI:DropOnSlot(3, { macro = sheetMacros[3] })
+
+local savedSheet = MacroVaultProDB.sheet or {}
+local function savedShapeOk(position, name, scope)
+  local entry = savedSheet[position]
+  return type(entry) == "table" and entry.name == name and entry.scope == scope
+    and entry.index == nil and entry.macroIndex == nil and entry.slot == nil
+end
+check("a slot is saved as the macro's name and scope, not a slot number",
+  savedShapeOk(1, "Heal", "account") and savedShapeOk(2, "Heal", "char")
+    and savedShapeOk(3, "Ground", "account"),
+  tostring(savedSheet[1] and (savedSheet[1].name .. "/" .. savedSheet[1].scope)))
+
+check("two macros sharing a name resolve by their own scope",
+  UI:SheetMacroAt(1) ~= nil and UI:SheetMacroAt(1).index == 3
+    and UI:SheetMacroAt(2) ~= nil and UI:SheetMacroAt(2).index == 9,
+  tostring(UI:SheetMacroAt(1) and UI:SheetMacroAt(1).index) .. " / "
+    .. tostring(UI:SheetMacroAt(2) and UI:SheetMacroAt(2).index))
+
+-- The client renumbers macros when one is deleted; the slot has to follow the
+-- name, not the number it was placed at.
+sheetMacros[1].index = 21
+UI.sheetMacroMap = nil
+check("a renumbered macro stays in its slot",
+  UI:SheetMacroAt(1) ~= nil and UI:SheetMacroAt(1).index == 21,
+  tostring(UI:SheetMacroAt(1) and UI:SheetMacroAt(1).index))
+
+-- A macro that is gone leaves the slot visible and marks it with the red border.
+table.remove(sheetMacros, 3)
+UI.sheetMacroMap = nil
+check("a slot whose macro has gone keeps its entry",
+  UI:GetSheet()[3] ~= nil and UI:SheetMacroAt(3) == nil,
+  tostring(UI:GetSheet()[3] and UI:GetSheet()[3].name))
+
+local goneBorder = {}
+UI:UpdateSlotBorder({
+  sheetSlot = 3,
+  borderEdges = { { SetColorTexture = function(_, r, g, b, a) goneBorder = { r, g, b, a } end } },
+})
+check("that slot wears the red border",
+  goneBorder[1] == 0.72 and goneBorder[2] == 0.30 and goneBorder[3] == 0.30,
+  tostring(goneBorder[1]) .. "," .. tostring(goneBorder[2]) .. "," .. tostring(goneBorder[3]))
+
+local liveBorder = {}
+UI:UpdateSlotBorder({
+  sheetSlot = 1,
+  borderEdges = { { SetColorTexture = function(_, r, g, b) liveBorder = { r, g, b } end } },
+})
+check("a slot with a live macro keeps the normal border",
+  liveBorder[1] == 0.26 and liveBorder[2] == 0.23,
+  tostring(liveBorder[1]) .. "," .. tostring(liveBorder[2]))
+
+local function sheetSnapshot()
+  local copy = {}
+  for position, entry in pairs(UI:GetSheet()) do
+    copy[position] = entry.name .. "|" .. entry.scope
+  end
+  return copy
+end
+local function sameSheet(a, b)
+  for position, value in pairs(a) do
+    if b[position] ~= value then return false end
+  end
+  for position in pairs(b) do
+    if a[position] == nil then return false end
+  end
+  return true
+end
+local function describeSheet()
+  local parts = {}
+  for position, value in pairs(sheetSnapshot()) do parts[#parts + 1] = position .. "=" .. value end
+  table.sort(parts)
+  return table.concat(parts, ", ")
+end
+
+-- Undo after a clear puts back exactly the layout that was there before it.
+local beforeClear = sheetSnapshot()
+UI:ClearSheetSlot(1)
+check("clearing a slot takes it out of the sheet and the saved layout",
+  UI:GetSheet()[1] == nil and (MacroVaultProDB.sheet or {})[1] == nil,
+  describeSheet())
+check("undo is offered after a clear", UI.sheetUndo ~= nil)
+check("undo puts the cleared slot back",
+  UI:UndoSheet() == true and sameSheet(sheetSnapshot(), beforeClear), describeSheet())
+check("the restored layout is saved, not only shown",
+  type(MacroVaultProDB.sheet) == "table" and MacroVaultProDB.sheet[1] ~= nil
+    and MacroVaultProDB.sheet[1].name == "Heal"
+    and MacroVaultProDB.sheet[1].scope == "account",
+  tostring(MacroVaultProDB.sheet and MacroVaultProDB.sheet[1] and MacroVaultProDB.sheet[1].name))
+
+-- A swap is the tab's other destructive move, and undo covers it the same way.
+local beforeSwap = sheetSnapshot()
+UI:DropOnSlot(2, { slot = 1 })
+check("dragging one slot onto another swaps them",
+  UI:GetSheet()[1] ~= nil and UI:GetSheet()[2] ~= nil
+    and UI:GetSheet()[1].scope == "char" and UI:GetSheet()[2].scope == "account",
+  describeSheet())
+check("undo puts the swapped slots back",
+  UI:UndoSheet() == true and sameSheet(sheetSnapshot(), beforeSwap), describeSheet())
+check("undo is one step only", UI:UndoSheet() == false)
+
 return table.concat(log, NL) .. NL .. (FAILED and "RESULT FAIL" or "RESULT PASS")
 `;
 
