@@ -12,7 +12,7 @@ path, settled decisions, machine limits — stay in `AGENTS.md` and are not repe
 | Workstream | State | Blocked by |
 |---|---|---|
 | Maker | **Verified in game by the owner**; ships as 1.0.3 | — |
-| 1.0.3.25 local build | Built and installed — the window's status bar is measured against the panes and every maker status message is checked word for word; **waiting on the owner's in-game check** | the owner's reload |
+| 1.0.3.25 local build | Built and installed — the window's status bar is measured against the panes and every maker status message is checked word for word; `dist/MacroVaultPro-1.0.3.25.zip` is committed and its six files are byte-identical to the installed copy; **waiting on the owner's in-game check** | the owner's reload |
 | 1.0.3 release build | Done — 1.0.3, build stamp `[2026-11-27ab]`, 6 files hash-verified, preflight passed, installed locally, **live as file 9861169** | — |
 | One Button Pad 0.1.1 | Separate Forever One Button-only addon, Console Port stripped, harness green — **verified in game**, installed locally | — |
 | 1.0.3 listing copy | Done — `media-kit/curseforge-*` read 1.0.3 with the Maker, the checklist reads 1.0.3, and the `## 1.0.3` notes cover everything since 1.0.2 | — |
