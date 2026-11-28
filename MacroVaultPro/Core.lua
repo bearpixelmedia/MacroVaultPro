@@ -697,6 +697,13 @@ end
 -- parser is the path a typed command takes, so anything that works when typed
 -- works from here too.
 local function runThroughChat(line)
+	-- The chat frame belongs to the client, not to this addon, so this is the one
+	-- place that writes to a frame it does not own. Doing that inside combat
+	-- lockdown is how an addon ends up blamed for the client's own secure
+	-- handlers, and none of these tools needs to run in combat: they are UI and
+	-- debug switches. So the write is refused there and the caller says why.
+	if InCombatLockdown and InCombatLockdown() then return false, "combat" end
+
 	local editBox = _G.ChatFrame1EditBox or (_G.ChatFrame1 and _G.ChatFrame1.editBox)
 	if not editBox or type(_G.ChatEdit_SendText) ~= "function" then return false end
 	if type(editBox.SetText) ~= "function" then return false end
@@ -742,7 +749,11 @@ function MV:RunSlash(command)
 		-- Client-native and lazily loaded commands end up here. Hand the exact
 		-- line to the chat parser before calling the command missing.
 		local line = rest ~= "" and (slash .. " " .. rest) or slash
-		if runThroughChat(line) then return true end
+		local sent, why = runThroughChat(line)
+		if sent then return true end
+		if why == "combat" then
+			return false, ("%s reaches the client through the chat frame, which this addon only writes to out of combat - try again after combat."):format(slash)
+		end
 		return false, ("%s is not available on this client."):format(slash)
 	end
 

@@ -687,6 +687,22 @@ check("a command with no handler is handed to the chat parser",
 check("a half-typed chat line is put back",
   ChatFrame1EditBox.text == "half typed", tostring(ChatFrame1EditBox.text))
 
+-- That chat write is the addon's only hand into a frame it does not own, so it is
+-- refused during combat lockdown: an insecure write there is what gets an addon
+-- blamed for the client's own secure handlers.
+InCombatLockdown = function() return true end
+ChatFrame1EditBox.text = "half typed"
+sent = nil
+local combatChatOk, combatChatErr = MV:RunSlash("/api")
+InCombatLockdown = nil
+check("a command with no handler is not written into the chat frame in combat",
+  combatChatOk == false and sent == nil and ChatFrame1EditBox.text == "half typed",
+  tostring(combatChatOk) .. " / " .. tostring(sent) .. " / " .. tostring(ChatFrame1EditBox.text))
+check("the combat refusal says why, instead of calling the command missing",
+  tostring(combatChatErr):find("out of combat") ~= nil
+    and tostring(combatChatErr):find("not available") == nil,
+  tostring(combatChatErr))
+
 ChatFrame1EditBox = nil
 local missingOk, missingErr = MV:RunSlash("/notacommand")
 check("a command that is really missing is reported",
